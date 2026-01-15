@@ -24,6 +24,7 @@ import top.ellan.ecobridge.util.LogUtil;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * EcoBridge v0.8.8 - 工业级经济桥接内核 (Java 25 加固版)
@@ -40,7 +41,7 @@ public final class EcoBridge extends JavaPlugin {
     private static final MiniMessage MM = MiniMessage.miniMessage();
 
     private ExecutorService virtualExecutor;
-    private boolean fullyInitialized = false;
+    private final AtomicBoolean fullyInitialized = new AtomicBoolean(false);
 
     @Override
     public void onEnable() {
@@ -79,7 +80,7 @@ public final class EcoBridge extends JavaPlugin {
             registerCommands();
             registerListeners();
 
-            this.fullyInitialized = true;
+            this.fullyInitialized.set(true);
             sendConsole("<blue>┃ <green>系统状态: <white>物理演算核心已进入实时同步状态 (v0.8.8) <blue>┃");
             sendConsole("<gradient:aqua:blue>┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛</gradient>");
 
@@ -94,7 +95,7 @@ public final class EcoBridge extends JavaPlugin {
         sendConsole("<yellow>[EcoBridge] 正在启动安全关机序列 (Panic-Safe Shutdown)...");
 
         // 1. 拦截新请求：停止业务流入口
-        this.fullyInitialized = false;
+        this.fullyInitialized.set(false);
 
         // 2. 环境解绑 & 网络断开
         if (RedisManager.getInstance() != null) {
@@ -214,7 +215,7 @@ public final class EcoBridge extends JavaPlugin {
 
     public static MiniMessage getMiniMessage() { return MM; }
 
-    public boolean isFullyInitialized() { return fullyInitialized; }
+    public boolean isFullyInitialized() { return fullyInitialized.get(); }
 
     private void printBanner() {
         String version = getPluginMeta().getVersion();

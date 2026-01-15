@@ -139,8 +139,8 @@ typedef struct ecobridge_RegulatorConfig {
 } ecobridge_RegulatorConfig;
 
 /*
- 返回 ABI 版本号 (Hex: 0x00080500 -> v0.8.5)
- v0.8.5 更新：支持人性化非对称定价逻辑 (trade_amount-aware)
+ 返回 ABI 版本号 (Hex: 0x00080700 -> v0.8.7)
+ v0.8.7 更新：支持人性化非对称定价逻辑 (trade_amount-aware)
  */
 uint32_t ecobridge_abi_version(void);
 
@@ -224,6 +224,8 @@ void ecobridge_reset_pid_state(struct ecobridge_PidState *pid_ptr);
 struct ecobridge_TransferResult ecobridge_compute_transfer_check(const struct ecobridge_TransferContext *ctx_ptr,
                                                                  const struct ecobridge_RegulatorConfig *cfg_ptr);
 
+int ecobridge_shutdown_db(void);
+
 /*
  具备人性化调节的 FFI 入口
  */
@@ -232,5 +234,10 @@ double ecobridge_compute_price_humane(double base_price,
                                       double trade_amount,
                                       double base_lambda,
                                       double epsilon);
+
+/*
+ [FFI] 触发 Native 层安全关机序列
+ */
+int ecobridge_shutdown_db(void);
 
 #endif /* ECOBRIDGE_RUST_H */

@@ -43,11 +43,11 @@ macro_rules! ffi_guard {
 // 1. 系统基础与 ABI 版本握手
 // -----------------------------------------------------------------------------
 
-/// 返回 ABI 版本号 (Hex: 0x00080500 -> v0.8.5)
-/// v0.8.5 更新：支持人性化非对称定价逻辑 (trade_amount-aware)
+/// 返回 ABI 版本号 (Hex: 0x00080700 -> v0.8.7)
+/// v0.8.7 更新：支持人性化非对称定价逻辑 (trade_amount-aware)
 #[no_mangle]
 pub extern "C" fn ecobridge_abi_version() -> u32 {
-    0x0008_0500
+    0x0008_0700
 }
 
 /// 返回人类可读的版本字符串
@@ -238,4 +238,9 @@ pub unsafe extern "C" fn ecobridge_compute_transfer_check(
             (_, None) => TransferResult::error(672), // Error: Config Null
         }
     })
+}
+
+#[no_mangle]
+pub extern "C" fn ecobridge_shutdown_db() -> c_int {
+    storage::ecobridge_shutdown_db()
 }
