@@ -7,7 +7,6 @@ on:
     branches: [ "main" ]
 
 env:
-  # 1. 全局禁用增量编译，减少 Windows I/O 开销
   CARGO_INCREMENTAL: 0
 
 jobs:
@@ -28,7 +27,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 2. 专项优化：关闭 Windows Defender 实时扫描
       - name: Disable Windows Defender
         if: matrix.os == 'windows-latest'
         run: |
@@ -47,8 +45,8 @@ jobs:
 
       - name: Build Rust
         shell: bash
-        # 3. 专项优化：在 Windows 上启用 LLD 链接器
         env:
+          # 针对 Java 25 / FFM API 的优化：确保对齐和符号可见性
           RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C link-arg=-fuse-ld=lld' || '' }}
         run: |
           cd ecobridge-rust
@@ -61,7 +59,6 @@ jobs:
               target/aarch64-apple-darwin/release/libecobridge_rust.dylib \
               -output target/release/libecobridge_rust.dylib
           else
-            # 使用环境变量中定义的 RUSTFLAGS 进行加速
             cargo build --release
           fi
 
@@ -82,7 +79,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: '25'
-          distribution: 'microsoft'
+          distribution: 'microsoft' # Microsoft Build of OpenJDK 对 Windows 和 Linux 优化较好
           cache: 'gradle'
 
       - name: Download All Natives
@@ -95,20 +92,23 @@ jobs:
       - name: Prepare Resources
         shell: bash
         run: |
+          # 确保路径与 NativeBridge.extractLibrary 逻辑一致
+          # 如果 Java 代码在 resources 根目录找，这里就放根目录
           mkdir -p ecobridge-java/src/main/resources/
           cp native-libs/* ecobridge-java/src/main/resources/
-          echo "✅ 堆外内存驱动组件已就绪"
+          ls -R ecobridge-java/src/main/resources/ # 打印日志方便调试
 
       - name: Build with Gradle
         working-directory: ecobridge-java
         run: |
           chmod +x gradlew
-          export GRADLE_OPTS="-Dorg.gradle.jvmargs=--enable-preview"
-          ./gradlew build -x test
+          # 核心更改：显式开启预览功能和原生访问授权，确保编译通过
+          ./gradlew build -x test \
+            -Dorg.gradle.jvmargs="--enable-preview --enable-native-access=ALL-UNNAMED"
 
       - name: Final Release
         uses: actions/upload-artifact@v4
         with:
-          name: EcoBridge-Java25-Final
+          name: EcoBridge-Final-Build
           path: ecobridge-java/build/libs/EcoBridge-*.jar
           retention-days: 7
