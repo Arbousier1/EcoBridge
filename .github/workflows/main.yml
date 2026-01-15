@@ -7,6 +7,7 @@ on:
     branches: [ "main" ]
 
 env:
+  # 全局禁用增量编译，减少 Windows I/O 开销
   CARGO_INCREMENTAL: 0
 
 jobs:
@@ -27,6 +28,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # 专项优化：关闭 Windows Defender 实时扫描 (提升 Windows 编译速度)
       - name: Disable Windows Defender
         if: matrix.os == 'windows-latest'
         run: |
@@ -46,8 +48,13 @@ jobs:
       - name: Build Rust
         shell: bash
         env:
-          # 针对 Java 25 / FFM API 的优化：确保对齐和符号可见性
-          RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C link-arg=-fuse-ld=lld' || '' }}
+          # 修复核心：
+          # 1. 显式链接 Rstrtmgr.lib 以解决 RmStartSession 等符号缺失问题
+          # 2. Windows 下若要用 LLD，需使用 -C linker=lld-link 而非 -fuse-ld
+          RUSTFLAGS: >-
+            ${{ matrix.os == 'windows-latest' 
+              && '-C link-arg=Rstrtmgr.lib -C linker=lld-link' 
+              || '' }}
         run: |
           cd ecobridge-rust
           if [ "${{ matrix.os }}" = "macos-latest" ]; then
@@ -79,7 +86,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: '25'
-          distribution: 'microsoft' # Microsoft Build of OpenJDK 对 Windows 和 Linux 优化较好
+          distribution: 'microsoft'
           cache: 'gradle'
 
       - name: Download All Natives
@@ -92,23 +99,23 @@ jobs:
       - name: Prepare Resources
         shell: bash
         run: |
-          # 确保路径与 NativeBridge.extractLibrary 逻辑一致
-          # 如果 Java 代码在 resources 根目录找，这里就放根目录
+          # 确保 Native 库放入资源文件夹，NativeBridge.java 才能在运行时解压它们
           mkdir -p ecobridge-java/src/main/resources/
           cp native-libs/* ecobridge-java/src/main/resources/
-          ls -R ecobridge-java/src/main/resources/ # 打印日志方便调试
+          echo "✅ 堆外内存驱动组件已就绪"
+          ls -R ecobridge-java/src/main/resources/
 
       - name: Build with Gradle
         working-directory: ecobridge-java
         run: |
           chmod +x gradlew
-          # 核心更改：显式开启预览功能和原生访问授权，确保编译通过
-          ./gradlew build -x test \
-            -Dorg.gradle.jvmargs="--enable-preview --enable-native-access=ALL-UNNAMED"
+          # 启用预览功能并允许原生内存访问
+          export GRADLE_OPTS="-Dorg.gradle.jvmargs='--enable-preview --enable-native-access=ALL-UNNAMED'"
+          ./gradlew build -x test
 
       - name: Final Release
         uses: actions/upload-artifact@v4
         with:
-          name: EcoBridge-Final-Build
+          name: EcoBridge-Java25-Final
           path: ecobridge-java/build/libs/EcoBridge-*.jar
           retention-days: 7
