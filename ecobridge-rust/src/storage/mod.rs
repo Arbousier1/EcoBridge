@@ -60,8 +60,7 @@ impl Drop for DbConnectionGuard {
 // -----------------------------------------------------------------------------
 
 /// [FFI] 触发 Native 层安全关机序列
-#[no_mangle]
-pub extern "C" fn ecobridge_shutdown_db() -> c_int {
+pub fn shutdown_db_internal() -> c_int {
     if let Some(sender) = LOG_SENDER.get() {
         // 发送“毒丸”信号：ts = -1 表示停止信号
         // 这将打破 writer_loop 的无限循环

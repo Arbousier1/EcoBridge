@@ -226,18 +226,4 @@ struct ecobridge_TransferResult ecobridge_compute_transfer_check(const struct ec
 
 int ecobridge_shutdown_db(void);
 
-/*
- 具备人性化调节的 FFI 入口
- */
-double ecobridge_compute_price_humane(double base_price,
-                                      double n_eff,
-                                      double trade_amount,
-                                      double base_lambda,
-                                      double epsilon);
-
-/*
- [FFI] 触发 Native 层安全关机序列
- */
-int ecobridge_shutdown_db(void);
-
 #endif /* ECOBRIDGE_RUST_H */

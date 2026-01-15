@@ -68,7 +68,7 @@ pub fn predict_price_advanced(
 
 /// 具备人性化调节的 FFI 入口
 #[no_mangle]
-pub extern "C" fn ecobridge_compute_price_humane(
+pub fn compute_price_humane_internal(
     base_price: f64,
     n_eff: f64,
     trade_amount: f64,

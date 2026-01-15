@@ -166,7 +166,7 @@ pub extern "C" fn ecobridge_compute_price_humane(
     epsilon: c_double,
 ) -> c_double {
     ffi_guard!(base, {
-        economy::pricing::ecobridge_compute_price_humane(base, n_eff, trade_amount, lambda, epsilon)
+        economy::pricing::compute_price_humane_internal(base, n_eff, trade_amount, lambda, epsilon)
     })
 }
 
@@ -242,5 +242,5 @@ pub unsafe extern "C" fn ecobridge_compute_transfer_check(
 
 #[no_mangle]
 pub extern "C" fn ecobridge_shutdown_db() -> c_int {
-    storage::ecobridge_shutdown_db()
+    storage::shutdown_db_internal()
 }
