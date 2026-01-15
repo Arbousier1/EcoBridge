@@ -2,12 +2,12 @@ name: EcoBridge High-Performance Build (Java 25)
 
 on:
   push:
-    branches: [ "main-java25" ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ "main-java25" ]
+    branches: [ "main" ]
 
 env:
-  # 1. 全局禁用增量编译，减少 Windows I/O 开销
+  # 全局禁用增量编译，减少 Windows I/O 开销
   CARGO_INCREMENTAL: 0
 
 jobs:
@@ -28,7 +28,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 2. 专项优化：关闭 Windows Defender 实时扫描
+      # 专项优化：关闭 Windows Defender 实时扫描 (提升 Windows 编译速度)
       - name: Disable Windows Defender
         if: matrix.os == 'windows-latest'
         run: |
@@ -47,9 +47,14 @@ jobs:
 
       - name: Build Rust
         shell: bash
-        # 3. 专项优化：在 Windows 上启用 LLD 链接器
         env:
-          RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C link-arg=-fuse-ld=lld' || '' }}
+          # 修复核心：
+          # 1. 显式链接 Rstrtmgr.lib 以解决 RmStartSession 等符号缺失问题
+          # 2. Windows 下若要用 LLD，需使用 -C linker=lld-link 而非 -fuse-ld
+          RUSTFLAGS: >-
+            ${{ matrix.os == 'windows-latest' 
+              && '-C link-arg=Rstrtmgr.lib -C linker=lld-link' 
+              || '' }}
         run: |
           cd ecobridge-rust
           if [ "${{ matrix.os }}" = "macos-latest" ]; then
@@ -61,7 +66,6 @@ jobs:
               target/aarch64-apple-darwin/release/libecobridge_rust.dylib \
               -output target/release/libecobridge_rust.dylib
           else
-            # 使用环境变量中定义的 RUSTFLAGS 进行加速
             cargo build --release
           fi
 
@@ -95,15 +99,18 @@ jobs:
       - name: Prepare Resources
         shell: bash
         run: |
+          # 确保 Native 库放入资源文件夹，NativeBridge.java 才能在运行时解压它们
           mkdir -p ecobridge-java/src/main/resources/
           cp native-libs/* ecobridge-java/src/main/resources/
           echo "✅ 堆外内存驱动组件已就绪"
+          ls -R ecobridge-java/src/main/resources/
 
       - name: Build with Gradle
         working-directory: ecobridge-java
         run: |
           chmod +x gradlew
-          export GRADLE_OPTS="-Dorg.gradle.jvmargs=--enable-preview"
+          # 启用预览功能并允许原生内存访问
+          export GRADLE_OPTS="-Dorg.gradle.jvmargs='--enable-preview --enable-native-access=ALL-UNNAMED'"
           ./gradlew build -x test
 
       - name: Final Release

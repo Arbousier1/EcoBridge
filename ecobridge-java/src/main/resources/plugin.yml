@@ -1,48 +1,40 @@
-# 插件名称
 name: EcoBridge
-
-# 插件版本号 (建议与 pom.xml 保持一致)
 version: 2.0.0
-
-# 插件主类
 main: top.ellan.ecobridge.EcoBridge
-
-# 适配 Minecraft 版本 (1.21.x 系列只需写 1.21)
 api-version: 1.21
-
-# 作者
 authors: [Ellan]
+description: "基于 Java 25 FFM + Rust 核心的离散历史求和动态经济系统"
 
-# 描述 (已修正技术栈描述)
-description: 基于 Java 25 FFM + Rust 核心的离散历史求和动态经济系统。
-
-# 依赖关系
-# CoinsEngine: 硬依赖 (代码中 TransferManager 强依赖)
-# UltimateShop: 硬依赖 (代码中 UShopProvider 强依赖)
+# 强制依赖：缺少任何一个插件，EcoBridge 都不会启动
 depend: [CoinsEngine, UltimateShop]
 
-# 命令注册
+# 加载时机：建议在世界加载后启动，确保 FFI 环境稳定
+load: POSTWORLD
+
 commands:
-  # 管理员命令
   ecobridge:
-    description: EcoBridge 管理命令
-    usage: /<command> reload
+    description: "EcoBridge 管理命令"
+    usage: "/<command> reload"
     permission: ecobridge.admin
     aliases: [eb, eco]
   
-  # 转账命令 (必须注册，否则启动报错！)
   ecopay:
-    description: 发起受监管的转账交易
-    usage: /ecopay <玩家> <金额>
+    description: "发起受监管的 Rust 内核审计转账"
+    usage: "/ecopay <player> <amount>"
     permission: ecobridge.pay
-    aliases: [pay, epay]  # 允许玩家直接用 /pay (如果 CommandInterceptor 没拦截住的话)
+    # 注意：如果服务器有 EssentialsX，pay 别名可能会触发冲突
+    aliases: [epay, auditpay]
 
-# 权限注册
 permissions:
   ecobridge.admin:
-    description: 允许重载配置和管理数据库
+    description: "允许管理 EcoBridge 原生引擎和重载配置"
     default: op
   
   ecobridge.pay:
-    description: 允许使用转账功能
+    description: "允许玩家使用受监管的转账系统"
     default: true
+
+  # 建议新增：查看经济健康状态的权限
+  ecobridge.status:
+    description: "允许查看 Rust 引擎的计算状态 (FPS/内存占用)"
+    default: op
