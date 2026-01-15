@@ -15,7 +15,8 @@ import top.ellan.ecobridge.listener.TradeListener;
 import top.ellan.ecobridge.manager.EconomyManager;
 import top.ellan.ecobridge.manager.PricingManager;
 import top.ellan.ecobridge.manager.TransferManager;
-import top.ellan.ecobridge.network.RedisManager; // [v0.8 新增]
+import top.ellan.ecobridge.manager.EconomicStateManager;
+import top.ellan.ecobridge.network.RedisManager;
 import top.ellan.ecobridge.storage.AsyncLogger;
 import top.ellan.ecobridge.util.HolidayManager;
 import top.ellan.ecobridge.util.LogUtil;
@@ -70,6 +71,7 @@ public final class EcoBridge extends JavaPlugin {
 
             // B. 逻辑管理层启动 (含 CAS 原子缓存)
             EconomyManager.init(this);
+            EconomicStateManager.init(this);
             PricingManager.init(this);
             TransferManager.init(this);
 

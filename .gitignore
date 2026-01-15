@@ -11,3 +11,7 @@ out/
 .vscode/
 .idea/
 *.iml
+
+# 忽略沒必要的文件
+.txt
+.py

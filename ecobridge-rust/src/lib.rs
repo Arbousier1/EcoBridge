@@ -43,11 +43,11 @@ macro_rules! ffi_guard {
 // 1. 系统基础与 ABI 版本握手
 // -----------------------------------------------------------------------------
 
-/// 返回 ABI 版本号 (Hex: 0x00080300 -> v0.8.3)
-/// Java 侧需校验此值，防止 DLL/SO 版本与 Java 代码不匹配
+/// 返回 ABI 版本号 (Hex: 0x00080500 -> v0.8.5)
+/// v0.8.5 更新：支持人性化非对称定价逻辑 (trade_amount-aware)
 #[no_mangle]
 pub extern "C" fn ecobridge_abi_version() -> u32 {
-    0x0008_0300
+    0x0008_0500
 }
 
 /// 返回人类可读的版本字符串
@@ -55,7 +55,7 @@ pub extern "C" fn ecobridge_abi_version() -> u32 {
 #[no_mangle]
 pub extern "C" fn ecobridge_version() -> *const c_char {
     ffi_guard!(std::ptr::null(), {
-        static VERSION: &[u8] = b"EcoBridge Native Core v0.8.3-Production\0";
+        static VERSION: &[u8] = b"EcoBridge Native Core v0.8.5-Production (Behavioral Enhanced)\0";
         VERSION.as_ptr() as *const c_char
     })
 }
@@ -88,7 +88,7 @@ pub extern "C" fn ecobridge_init_db(path_ptr: *const c_char) -> c_int {
 pub unsafe extern "C" fn ecobridge_log_to_duckdb(
     ts: c_longlong,
     uuid_ptr: *const c_char,
-    delta: c_double,
+    trade_amount: c_double,
     balance: c_double,
     meta_ptr: *const c_char,
 ) {
@@ -100,7 +100,7 @@ pub unsafe extern "C" fn ecobridge_log_to_duckdb(
             let meta = CStr::from_ptr(meta_ptr).to_string_lossy().into_owned();
             
             // 投递到 storage 模块的 MPSC 队列
-            storage::log_economy_event(ts, uuid, delta, balance, meta);
+            storage::log_economy_event(ts, uuid, trade_amount, balance, meta);
         }
         // 如果指针为空，直接隐式返回 ()，替代 explicit return
     })
@@ -142,8 +142,7 @@ pub unsafe extern "C" fn ecobridge_query_neff_vectorized(
     })
 }
 
-/// 最终价格公式计算 (纯数学)
-/// P = P0 * exp(-lambda * Neff) * epsilon
+/// 兼容性导出：旧版价格计算入口 (trade_amount 默认为 0)
 #[no_mangle]
 pub extern "C" fn ecobridge_compute_price_final(
     base: c_double,
@@ -151,8 +150,23 @@ pub extern "C" fn ecobridge_compute_price_final(
     lambda: c_double,
     epsilon: c_double,
 ) -> c_double {
-    ffi_guard!(base, { // Fallback to base price
+    ffi_guard!(base, { 
         economy::pricing::compute_price_final_internal(base, n_eff, lambda, epsilon)
+    })
+}
+
+/// [v0.8.5 新增] 人性化定价入口
+/// 支持 trade_amount 参数以区分买入/卖出，从而触发“下行粘性”机制
+#[no_mangle]
+pub extern "C" fn ecobridge_compute_price_humane(
+    base: c_double,
+    n_eff: c_double,
+    trade_amount: c_double,
+    lambda: c_double,
+    epsilon: c_double,
+) -> c_double {
+    ffi_guard!(base, {
+        economy::pricing::ecobridge_compute_price_humane(base, n_eff, trade_amount, lambda, epsilon)
     })
 }
 
@@ -174,6 +188,7 @@ pub unsafe extern "C" fn ecobridge_calculate_epsilon(
 }
 
 /// PID 控制器步进计算 (状态机更新)
+/// 已在 internal 实现中增强 D 项阻尼，用于预判恐慌抛售
 #[no_mangle]
 pub unsafe extern "C" fn ecobridge_compute_pid_adjustment(
     pid_ptr: *mut PidState,

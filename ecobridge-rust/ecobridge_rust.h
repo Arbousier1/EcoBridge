@@ -32,6 +32,10 @@
 
 #define ecobridge_DERIVATIVE_FILTER_ALPHA 0.3
 
+#define ecobridge_PANIC_THRESHOLD 50.0
+
+#define ecobridge_PANIC_DAMPING 1.8
+
 #define ecobridge_CODE_NORMAL 0
 
 #define ecobridge_CODE_WARNING_HIGH_RISK 1
@@ -135,8 +139,8 @@ typedef struct ecobridge_RegulatorConfig {
 } ecobridge_RegulatorConfig;
 
 /*
- 返回 ABI 版本号 (Hex: 0x00080300 -> v0.8.3)
- Java 侧需校验此值，防止 DLL/SO 版本与 Java 代码不匹配
+ 返回 ABI 版本号 (Hex: 0x00080500 -> v0.8.5)
+ v0.8.5 更新：支持人性化非对称定价逻辑 (trade_amount-aware)
  */
 uint32_t ecobridge_abi_version(void);
 
@@ -159,7 +163,7 @@ int ecobridge_init_db(const char *path_ptr);
  */
 void ecobridge_log_to_duckdb(long long ts,
                              const char *uuid_ptr,
-                             double delta,
+                             double trade_amount,
                              double balance,
                              const char *meta_ptr);
 
@@ -177,10 +181,19 @@ void ecobridge_get_health_stats(unsigned long long *out_total, unsigned long lon
 double ecobridge_query_neff_vectorized(long long current_ts, double tau);
 
 /*
- 最终价格公式计算 (纯数学)
- P = P0 * exp(-lambda * Neff) * epsilon
+ 兼容性导出：旧版价格计算入口 (trade_amount 默认为 0)
  */
 double ecobridge_compute_price_final(double base, double n_eff, double lambda, double epsilon);
+
+/*
+ [v0.8.5 新增] 人性化定价入口
+ 支持 trade_amount 参数以区分买入/卖出，从而触发“下行粘性”机制
+ */
+double ecobridge_compute_price_humane(double base,
+                                      double n_eff,
+                                      double trade_amount,
+                                      double lambda,
+                                      double epsilon);
 
 /*
  市场环境因子 (Epsilon) 计算 (纯数学)
@@ -191,6 +204,7 @@ double ecobridge_calculate_epsilon(const struct ecobridge_TradeContext *ctx_ptr,
 
 /*
  PID 控制器步进计算 (状态机更新)
+ 已在 internal 实现中增强 D 项阻尼，用于预判恐慌抛售
  */
 double ecobridge_compute_pid_adjustment(struct ecobridge_PidState *pid_ptr,
                                         double target,
@@ -209,5 +223,14 @@ void ecobridge_reset_pid_state(struct ecobridge_PidState *pid_ptr);
  */
 struct ecobridge_TransferResult ecobridge_compute_transfer_check(const struct ecobridge_TransferContext *ctx_ptr,
                                                                  const struct ecobridge_RegulatorConfig *cfg_ptr);
+
+/*
+ 具备人性化调节的 FFI 入口
+ */
+double ecobridge_compute_price_humane(double base_price,
+                                      double n_eff,
+                                      double trade_amount,
+                                      double base_lambda,
+                                      double epsilon);
 
 #endif /* ECOBRIDGE_RUST_H */
