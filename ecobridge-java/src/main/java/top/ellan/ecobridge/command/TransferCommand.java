@@ -25,7 +25,7 @@ public class TransferCommand implements TabExecutor {
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        
+
         // 1. 权限与发送者类型校验
         if (!(sender instanceof Player player)) {
             sender.sendMessage(Component.text("该指令仅限玩家在游戏内执行。"));
@@ -71,8 +71,8 @@ public class TransferCommand implements TabExecutor {
 
         // 6. 视觉反馈：立即告知玩家进入审计阶段
         player.sendMessage(EcoBridge.getMiniMessage().deserialize(
-            "<gray>[<blue>EcoBridge</blue>] <italic>正在启动智能审计，请稍候...</italic>"
-        ));
+        "<gray>[<blue>EcoBridge</blue>] <italic>正在启动智能审计，请稍候...</italic>"
+    ));
 
         // 7. 委托逻辑层处理 (Rust 审计 + 异步落盘)
         // 注意：TransferManager 内部应使用虚拟线程处理，不阻塞主线程
@@ -89,9 +89,9 @@ public class TransferCommand implements TabExecutor {
         if (args.length == 1) {
             String input = args[0].toLowerCase();
             return Bukkit.getOnlinePlayers().stream()
-                    .map(Player::getName)
-                    .filter(name -> name.toLowerCase().startsWith(input))
-                    .collect(Collectors.toList());
+            .map(Player::getName)
+            .filter(name -> name.toLowerCase().startsWith(input))
+            .collect(Collectors.toList());
         }
         if (args.length == 2) {
             return List.of("10", "100", "1000"); // 提供金额建议
@@ -101,8 +101,8 @@ public class TransferCommand implements TabExecutor {
 
     private void sendUsage(Player player, String label) {
         player.sendMessage(EcoBridge.getMiniMessage().deserialize(
-            "<gradient:aqua:blue><b>EcoBridge 智能结算系统</b></gradient>\n" +
-            "<gray>用法: <yellow>/" + label + " <玩家> <金额>"
-        ));
+        "<gradient:aqua:blue><b>EcoBridge 智能结算系统</b></gradient>\n" +
+        "<gray>用法: <yellow>/" + label + " <玩家> <金额>"
+    ));
     }
 }

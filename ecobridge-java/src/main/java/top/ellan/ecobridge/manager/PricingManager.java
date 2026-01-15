@@ -20,15 +20,15 @@ import top.ellan.ecobridge.util.PriceOracle;
 
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
-import java.lang.foreign.ValueLayout;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 
 import static top.ellan.ecobridge.bridge.NativeBridge.*;
 
 /**
- * 核心定价管理器 (PricingManager v0.8.5 - Behavioral Edition)
+ * 核心定价管理器 (PricingManager v0.8.9 - Hardened Behavioral Edition)
  * 职责：驱动物理演算链，集成行为经济学干预（滑动地板、阶梯计价）。
  */
 public class PricingManager {
@@ -38,6 +38,12 @@ public class PricingManager {
 
     private final Cache<String, List<SaleRecord>> historyCache;
 
+    // [v0.8.9 Fix] 帧级 Neff 缓存，防止 FFI 穿透导致的 CPU 瓶颈
+    private final Cache<String, Double> neffCache = Caffeine.newBuilder()
+    .expireAfterWrite(500, TimeUnit.MILLISECONDS)
+    .maximumSize(1000)
+    .build();
+
     private double defaultLambda;
     private double configTau;
     private int historyDaysLimit;
@@ -46,9 +52,9 @@ public class PricingManager {
     private PricingManager(EcoBridge plugin) {
         this.plugin = plugin;
         this.historyCache = Caffeine.newBuilder()
-                .maximumSize(2000)
-                .expireAfterAccess(Duration.ofMinutes(30))
-                .build();
+        .maximumSize(2000)
+        .expireAfterAccess(Duration.ofMinutes(30))
+        .build();
         loadConfig();
     }
 
@@ -89,8 +95,10 @@ public class PricingManager {
             var activity = ActivityCollector.capture(player, 48.0);
             double lambda = plugin.getConfig().getDouble("item-settings." + shopId + "." + productId + ".lambda", defaultLambda);
 
-            // 3. 向 Native 请求物理状态
-            double nEff = NativeBridge.queryNeffVectorized(System.currentTimeMillis(), configTau);
+            // 3. 向 Native 请求物理状态 [v0.8.9 Fix] 引入 500ms 帧级缓存
+            double nEff = neffCache.get(productId, k ->
+            NativeBridge.queryNeffVectorized(System.currentTimeMillis(), configTau)
+        );
 
             // 4. 映射上下文与配置
             MemorySegment ctx = arena.allocate(Layouts.TRADE_CONTEXT);
@@ -99,8 +107,7 @@ public class PricingManager {
             VH_CTX_INF_RATE.set(ctx, 0L, inflation);
             VH_CTX_TIMESTAMP.set(ctx, 0L, System.currentTimeMillis());
             VH_CTX_PLAY_TIME.set(ctx, 0L, (long) activity.seconds());
-            
-            // [v0.8.5 Fix] 必须注入时区偏移，修复 FFI 内存错位问题
+
             int zoneOffset = java.time.OffsetDateTime.now().getOffset().getTotalSeconds();
             NativeBridge.VH_CTX_TIMEZONE_OFFSET.set(ctx, 0L, zoneOffset);
 
@@ -128,7 +135,7 @@ public class PricingManager {
             // 8. [行为微调层] 阶梯计价与边际效用 (Marginal Utility)
             double finalPrice = applyTierPricing(calculatedPrice, Math.abs(amount), !isBuy);
 
-            // 9. 事件分发 [v0.8.5 Fix] 强制主线程回调，防止跨线程调用 Bukkit 事件监听器
+            // 9. 事件分发 [v0.8.5 Fix] 强制主线程回调
             PriceCalculatedEvent event = new PriceCalculatedEvent(player, shopId, productId, finalPrice);
             if (!Bukkit.isPrimaryThread()) {
                 Bukkit.getScheduler().runTask(plugin, () -> Bukkit.getPluginManager().callEvent(event));
@@ -149,6 +156,7 @@ public class PricingManager {
      */
     private double applyTierPricing(double basePrice, double quantity, boolean isSell) {
         if (!isSell || quantity <= 500) return basePrice;
+        if (quantity <= 0) return basePrice;
 
         double totalValue = 0;
         double remaining = quantity;
@@ -196,17 +204,12 @@ public class PricingManager {
             if (history.size() > maxHistorySize) history.remove(history.size() - 1);
         }
 
-        // [v0.8.5 Fix] 核心重构点：在虚拟线程中只能执行 DB/计算
-        // Bukkit.getOfflinePlayer 是非线程安全的，必须调度回主线程或在进入异步前完成解析
+        java.util.UUID productLoggerUuid = java.util.UUID.nameUUIDFromBytes(("PRODUCT_" + productId).getBytes());
+
         if (writeToSql) {
-            Bukkit.getScheduler().runTask(plugin, () -> {
-                java.util.UUID loggerUuid = Bukkit.getOfflinePlayer(productId).getUniqueId();
-                
-                // 获取到 UUID 后再异步记录日志
-                plugin.getVirtualExecutor().execute(() -> {
-                    AsyncLogger.log(loggerUuid, amount, 0.0, timestamp, "LOCAL_TRADE");
-                    TransactionDao.saveSaleAsync(null, productId, amount);
-                });
+            plugin.getVirtualExecutor().execute(() -> {
+                AsyncLogger.log(productLoggerUuid, amount, 0.0, timestamp, "LOCAL_TRADE");
+                TransactionDao.saveSaleAsync(null, productId, amount);
             });
         } else {
             java.util.UUID remoteUuid = java.util.UUID.nameUUIDFromBytes(("REMOTE_" + productId).getBytes());
@@ -218,26 +221,29 @@ public class PricingManager {
         MemorySegment cfg = arena.allocate(Layouts.MARKET_CONFIG);
         var config = plugin.getConfig();
 
-        cfg.set(ValueLayout.JAVA_DOUBLE, 0, defaultLambda);
-        cfg.set(ValueLayout.JAVA_DOUBLE, 8, 1.0);
-        cfg.set(ValueLayout.JAVA_DOUBLE, 16, config.getDouble("economy.seasonal-amplitude", 0.15));
-        cfg.set(ValueLayout.JAVA_DOUBLE, 24, config.getDouble("economy.weekend-multiplier", 1.2));
-        cfg.set(ValueLayout.JAVA_DOUBLE, 32, config.getDouble("economy.newbie-protection-rate", 0.2));
-        cfg.set(ValueLayout.JAVA_DOUBLE, 40, config.getDouble("economy.weights.seasonal", 0.25));
-        cfg.set(ValueLayout.JAVA_DOUBLE, 48, config.getDouble("economy.weights.weekend", 0.25));
-        cfg.set(ValueLayout.JAVA_DOUBLE, 56, config.getDouble("economy.weights.newbie", 0.25));
-        cfg.set(ValueLayout.JAVA_DOUBLE, 64, config.getDouble("economy.weights.inflation", 0.25));
+        // [v0.8.9 Fix] 确保在 NativeBridge 中定义了对应的 VarHandle 句柄
+        NativeBridge.VH_CFG_LAMBDA.set(cfg, 0L, defaultLambda);
+        NativeBridge.VH_CFG_VOLATILITY.set(cfg, 0L, 1.0);
+        NativeBridge.VH_CFG_S_AMP.set(cfg, 0L, config.getDouble("economy.seasonal-amplitude", 0.15));
+        NativeBridge.VH_CFG_W_MULT.set(cfg, 0L, config.getDouble("economy.weekend-multiplier", 1.2));
+        NativeBridge.VH_CFG_N_PROT.set(cfg, 0L, config.getDouble("economy.newbie-protection-rate", 0.2));
+
+        NativeBridge.VH_CFG_W_SEASONAL.set(cfg, 0L, config.getDouble("economy.weights.seasonal", 0.25));
+        NativeBridge.VH_CFG_W_WEEKEND.set(cfg, 0L, config.getDouble("economy.weights.weekend", 0.25));
+        NativeBridge.VH_CFG_W_NEWBIE.set(cfg, 0L, config.getDouble("economy.weights.newbie", 0.25));
+        NativeBridge.VH_CFG_W_INFLATION.set(cfg, 0L, config.getDouble("economy.weights.inflation", 0.25));
 
         return cfg;
     }
 
     public List<SaleRecord> getGlobalHistory(String productId) {
         return historyCache.get(productId, k ->
-            new CopyOnWriteArrayList<>(TransactionDao.getProductHistory(k, historyDaysLimit))
-        );
+        new CopyOnWriteArrayList<>(TransactionDao.getProductHistory(k, historyDaysLimit))
+    );
     }
 
     public void clearCache() {
         historyCache.invalidateAll();
+        neffCache.invalidateAll();
     }
 }

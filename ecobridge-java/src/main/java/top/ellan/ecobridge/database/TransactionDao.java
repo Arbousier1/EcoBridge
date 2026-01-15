@@ -16,7 +16,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 交易数据访问对象 (TransactionDao v0.7.5)
+ * 交易数据访问对象 (TransactionDao v0.8.8)
  * 职责：SQL 连接池维护、高精度交易历史存取、玩家资产持久化。
  * 修复：
  * 1. [Critical] 修复 JDBC URL 被截断导致的数据库初始化失败。
@@ -33,7 +33,7 @@ public class TransactionDao {
      */
     public static synchronized void init() {
         if (dataSource != null || dbExecutor != null) {
-            close(); 
+            close();
         }
 
         var plugin = EcoBridge.getInstance();
@@ -44,7 +44,7 @@ public class TransactionDao {
 
         // 2. 配置 HikariCP
         HikariConfig hikari = new HikariConfig();
-        
+
         String host = config.getString("database.host", "localhost");
         int port = config.getInt("database.port", 3306);
         String dbName = config.getString("database.database", "ecobridge");
@@ -53,14 +53,14 @@ public class TransactionDao {
 
         // [致命修复]: 使用 String.format 完整拼接 JDBC URL，注入地址、端口及数据库名
         String jdbcUrl = String.format(
-            "jdbc:mysql://%s:%d/%s?useSSL=false&serverTimezone=UTC&rewriteBatchedStatements=true&allowPublicKeyRetrieval=true",
-            host, port, dbName
-        );
-        
+        "jdbc:mysql://%s:%d/%s?useSSL=false&serverTimezone=UTC&rewriteBatchedStatements=true&allowPublicKeyRetrieval=true",
+        host, port, dbName
+    );
+
         hikari.setJdbcUrl(jdbcUrl);
         hikari.setUsername(user);
         hikari.setPassword(pass);
-        
+
         hikari.setMaximumPoolSize(config.getInt("database.pool-size", 15));
         hikari.setConnectionTimeout(5000);
         hikari.setIdleTimeout(600000);
@@ -78,23 +78,23 @@ public class TransactionDao {
     private static void createTables() {
         if (dataSource == null) return;
         String sqlSales = """
-            CREATE TABLE IF NOT EXISTS ecobridge_sales (
-                id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                player_uuid CHAR(36) NOT NULL,
-                product_id VARCHAR(64) NOT NULL,
-                amount DOUBLE NOT NULL,
-                timestamp BIGINT NOT NULL,
-                INDEX idx_history (product_id, timestamp)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-            """;
+        CREATE TABLE IF NOT EXISTS ecobridge_sales (
+        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+        player_uuid CHAR(36) NOT NULL,
+        product_id VARCHAR(64) NOT NULL,
+        amount DOUBLE NOT NULL,
+        timestamp BIGINT NOT NULL,
+        INDEX idx_history (product_id, timestamp)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        """;
 
         String sqlPlayers = """
-            CREATE TABLE IF NOT EXISTS ecobridge_players (
-                uuid CHAR(36) PRIMARY KEY,
-                balance DOUBLE NOT NULL DEFAULT 0.0,
-                last_updated BIGINT NOT NULL
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-            """;
+        CREATE TABLE IF NOT EXISTS ecobridge_players (
+        uuid CHAR(36) PRIMARY KEY,
+        balance DOUBLE NOT NULL DEFAULT 0.0,
+        last_updated BIGINT NOT NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        """;
 
         try (Connection conn = dataSource.getConnection(); Statement stmt = conn.createStatement()) {
             stmt.execute(sqlSales);
@@ -110,9 +110,9 @@ public class TransactionDao {
         if (dataSource == null) return new PlayerData(uuid, 0.0);
 
         String sql = "SELECT balance FROM ecobridge_players WHERE uuid = ?";
-        try (Connection conn = dataSource.getConnection(); 
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            
+        try (Connection conn = dataSource.getConnection();
+        PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
             pstmt.setString(1, uuid.toString());
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {
@@ -137,32 +137,32 @@ public class TransactionDao {
      */
     public static void updateBalanceSync(UUID uuid, double balance) {
         if (dataSource == null) return;
-        
+
         // 移除已弃用的 VALUES() 语法，使用 UPSERT 标准写法
         String sql = """
-            INSERT INTO ecobridge_players (uuid, balance, last_updated) 
-            VALUES (?, ?, ?) 
-            ON DUPLICATE KEY UPDATE 
-                balance = ?, 
-                last_updated = ?
-            """;
+        INSERT INTO ecobridge_players (uuid, balance, last_updated)
+        VALUES (?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+        balance = ?,
+        last_updated = ?
+        """;
 
         long now = System.currentTimeMillis();
-        int maxRetries = 3; 
+        int maxRetries = 3;
         SQLException lastEx = null;
 
         for (int attempt = 1; attempt <= maxRetries; attempt++) {
-            try (Connection conn = dataSource.getConnection(); 
-                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
-                
+            try (Connection conn = dataSource.getConnection();
+            PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
                 pstmt.setString(1, uuid.toString());
                 pstmt.setDouble(2, balance);
                 pstmt.setLong(3, now);
                 pstmt.setDouble(4, balance);
                 pstmt.setLong(5, now);
-                
+
                 pstmt.executeUpdate();
-                return; 
+                return;
 
             } catch (SQLException e) {
                 lastEx = e;
@@ -171,7 +171,7 @@ public class TransactionDao {
                 if (attempt < maxRetries) {
                     try {
                         // 线性回退策略，减轻数据库瞬时压力
-                        Thread.sleep(100L * attempt); 
+                        Thread.sleep(100L * attempt);
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
                         break;
@@ -189,15 +189,15 @@ public class TransactionDao {
         if (dbExecutor == null) return;
         dbExecutor.execute(() -> {
             String sql = "INSERT INTO ecobridge_sales(player_uuid, product_id, amount, timestamp) VALUES(?,?,?,?)";
-            try (Connection conn = dataSource.getConnection(); 
-                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
-                
+            try (Connection conn = dataSource.getConnection();
+            PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
                 pstmt.setString(1, uuid != null ? uuid.toString() : "SYSTEM");
                 pstmt.setString(2, productId);
                 pstmt.setDouble(3, amount);
                 pstmt.setLong(4, System.currentTimeMillis());
                 pstmt.executeUpdate();
-                
+
             } catch (SQLException e) {
                 LogUtil.error("写入 SQL 交易历史失败: " + productId, e);
             }
@@ -217,7 +217,7 @@ public class TransactionDao {
         long cutoff = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(7);
 
         try (Connection conn = dataSource.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+        PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, productId);
             pstmt.setLong(2, cutoff);
@@ -238,12 +238,12 @@ public class TransactionDao {
 
         List<SaleRecord> history = new ArrayList<>();
         long cutoff = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(daysLimit);
-        
+
         String sql = "SELECT timestamp, amount FROM ecobridge_sales WHERE product_id = ? AND timestamp > ? " +
-                     "ORDER BY timestamp DESC LIMIT 5000";
+        "ORDER BY timestamp DESC LIMIT 5000";
 
         try (Connection conn = dataSource.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+        PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, productId);
             pstmt.setLong(2, cutoff);

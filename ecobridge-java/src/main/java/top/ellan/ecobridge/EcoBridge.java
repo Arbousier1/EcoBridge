@@ -26,12 +26,13 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /**
- * EcoBridge v0.8.2 - 工业级经济桥接内核 (Java 25 加固版)
+ * EcoBridge v0.8.8 - 工业级经济桥接内核 (Java 25 加固版)
  * 职责：管控系统拓扑，维护跨语言内存屏障，编排高性能异步 IO 链路。
  * <p>
- * v0.8 更新：
- * 1. 集成 Redis 分布式同步层。
- * 2. 增强关闭序列的安全性 (Network -> Persistence -> Native)。
+ * v0.8.8 更新：
+ * 1. 强化关机序列稳定性，引入 LATE_LOAD_PROTECT 逻辑闭环。
+ * 2. 切换至 NativeBridge 严格 ABI 全字匹配模式。
+ * 3. 优化虚拟线程池回收策略。
  */
 public final class EcoBridge extends JavaPlugin {
 
@@ -65,8 +66,7 @@ public final class EcoBridge extends JavaPlugin {
 
         // 4. 组件加载拓扑
         try {
-            // A. Native 物理核心加载 (ABI v0.8.0 Check)
-            // 此时会自动建立 DuckDB 连接并初始化路径屏障
+            // A. Native 物理核心加载 (ABI v0.8.7 Strict Check)
             NativeBridge.init(this);
 
             // B. 逻辑管理层启动 (含 CAS 原子缓存)
@@ -80,7 +80,7 @@ public final class EcoBridge extends JavaPlugin {
             registerListeners();
 
             this.fullyInitialized = true;
-            sendConsole("<blue>┃ <green>系统状态: <white>物理演算核心已进入实时同步状态 (v0.8.2) <blue>┃");
+            sendConsole("<blue>┃ <green>系统状态: <white>物理演算核心已进入实时同步状态 (v0.8.8) <blue>┃");
             sendConsole("<gradient:aqua:blue>┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛</gradient>");
 
         } catch (Throwable e) {
@@ -97,7 +97,6 @@ public final class EcoBridge extends JavaPlugin {
         this.fullyInitialized = false;
 
         // 2. 环境解绑 & 网络断开
-        // [关键] 先断开 Redis，防止新消息进入导致 DuckDB/SQL 写入报错
         if (RedisManager.getInstance() != null) {
             RedisManager.getInstance().shutdown();
         }
@@ -106,14 +105,14 @@ public final class EcoBridge extends JavaPlugin {
         // 3. 执行核心数据落盘 (关键顺序：驱逐缓存 -> 刷入 SQL -> 关闭 DuckDB)
         shutdownPersistenceLayer();
 
-        // 4. 物理隔离：释放 FFM 堆外 Arena 内存
+        // 4. 物理隔离：切断 FFI 入口，库生命周期移交 JVM 管理 (ofAuto)
         NativeBridge.shutdown();
 
         // 5. 资源清理：关闭虚拟线程池
         terminateVirtualPool();
-        
+
         getServer().getScheduler().cancelTasks(this);
-        
+
         instance = null;
         sendConsole("<red>[EcoBridge] 插件已安全卸载。内存屏障已关闭，物理资源已安全释放。");
     }
@@ -124,24 +123,23 @@ public final class EcoBridge extends JavaPlugin {
     private void bootstrapInfrastructure() {
         saveDefaultConfig();
         LogUtil.init();
-        
+
         // 初始化 SQL 连接池
         TransactionDao.init();
-        
+
         // 初始化 DuckDB 异步日志
         AsyncLogger.init(this);
-        
+
         // 辅助服务初始化
         HolidayManager.init();
-        
-        // [v0.8] 初始化 Redis 分布式同步层
-        // 即使配置未启用，这里调用也是安全的 (内部会检查配置)
+
+        // 初始化 Redis 分布式同步层
         RedisManager.init(this);
     }
 
     /**
      * 持久化层安全下线逻辑
-     * 确保热路径中的 PlayerData (CAS 位) 完整写回 MySQL
+     * 确保热路径中的 PlayerData 完整写回 MySQL
      */
     private void shutdownPersistenceLayer() {
         // 先停止 DuckDB 写入管线
@@ -201,12 +199,10 @@ public final class EcoBridge extends JavaPlugin {
     public void reload() {
         reloadConfig();
         LogUtil.init();
-        
+
         if (EconomyManager.getInstance() != null) EconomyManager.getInstance().loadState();
         if (PricingManager.getInstance() != null) PricingManager.getInstance().loadConfig();
-        
-        // Redis 不支持热重载连接池，建议重启服务器以应用 Redis 配置变更
-        
+
         sendConsole("<green>[EcoBridge] 逻辑参数重载成功。Native 内存布局保持锁定。");
     }
 
@@ -215,7 +211,7 @@ public final class EcoBridge extends JavaPlugin {
     public static EcoBridge getInstance() { return instance; }
 
     public ExecutorService getVirtualExecutor() { return virtualExecutor; }
-    
+
     public static MiniMessage getMiniMessage() { return MM; }
 
     public boolean isFullyInitialized() { return fullyInitialized; }

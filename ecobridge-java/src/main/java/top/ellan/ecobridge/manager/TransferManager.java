@@ -32,9 +32,9 @@ public class TransferManager {
 
     private static TransferManager instance;
     private final EcoBridge plugin;
-    private final ExecutorService vExecutor; 
+    private final ExecutorService vExecutor;
     private final String mainCurrencyId;
-    
+
     // 权限定义
     private static final String BYPASS_TAX_PERMISSION = "ecobridge.bypass.tax";
     private static final String BYPASS_BLOCK_PERMISSION = "ecobridge.bypass.block";
@@ -111,13 +111,13 @@ public class TransferManager {
 
                 TransferResult result = NativeBridge.checkTransfer(ctx, cfg);
 
-                Bukkit.getScheduler().runTask(plugin, () -> 
-                    executeSettlement(sender, receiver, currency, amount, result));
+                Bukkit.getScheduler().runTask(plugin, () ->
+                executeSettlement(sender, receiver, currency, amount, result));
 
             } catch (Throwable e) {
                 LogUtil.error("审计内核崩溃 (Memory Access Violation)", e);
-                Bukkit.getScheduler().runTask(plugin, () -> 
-                    sender.sendMessage(Component.text("内核异常，转账已拦截。")));
+                Bukkit.getScheduler().runTask(plugin, () ->
+                sender.sendMessage(Component.text("内核异常，转账已拦截。")));
             }
         });
     }
@@ -160,7 +160,7 @@ public class TransferManager {
 
         } catch (Exception e) {
             LogUtil.severe("结算链路致命异常！触发紧急回滚: " + sender.getName());
-            CoinsEngineAPI.addBalance(sender, currency, amount); 
+            CoinsEngineAPI.addBalance(sender, currency, amount);
             sender.sendMessage(Component.text("系统结算超时，资金已安全回滚。"));
         }
     }
@@ -184,26 +184,26 @@ public class TransferManager {
 
     private void handleBlocked(Player sender, int code) {
         String reason = switch (code) {
-            case 1 -> "涉嫌非正常资金归集 (洗币防御)";
+        case 1 -> "涉嫌非正常资金归集 (洗币防御)";
             case 2 -> "大额流动性异常 (RMT 拦截)";
-            default -> "违反服务器金融合规协议 (Code: " + code + ")";
-        };
-        sender.sendMessage(EcoBridge.getMiniMessage().deserialize("<red>⚠ 审计拒绝: <yellow>" + reason));
-    }
+                    default -> "违反服务器金融合规协议 (Code: " + code + ")";
+                };
+                sender.sendMessage(EcoBridge.getMiniMessage().deserialize("<red>⚠ 审计拒绝: <yellow>" + reason));
+            }
 
-    private void notifySuccess(Player s, Player r, Currency cur, double total, double net, double tax, boolean isTaxFree) {
-        String suffix = isTaxFree ? " <dark_gray>[免税特权]</dark_gray>" : "";
-        s.sendMessage(EcoBridge.getMiniMessage().deserialize("<green>✔ 成功转出 <gold><amt><gray> (税费: <tax>)" + suffix, 
-            Placeholder.unparsed("amt", cur.format(total)), 
-            Placeholder.unparsed("tax", cur.format(tax))));
-        r.sendMessage(EcoBridge.getMiniMessage().deserialize("<green>➕ 收到 <gold><amt><gray> 来自 <p>", 
-            Placeholder.unparsed("amt", cur.format(net)), 
-            Placeholder.unparsed("p", s.getName())));
-    }
+            private void notifySuccess(Player s, Player r, Currency cur, double total, double net, double tax, boolean isTaxFree) {
+                String suffix = isTaxFree ? " <dark_gray>[免税特权]</dark_gray>" : "";
+                s.sendMessage(EcoBridge.getMiniMessage().deserialize("<green>✔ 成功转出 <gold><amt><gray> (税费: <tax>)" + suffix,
+                Placeholder.unparsed("amt", cur.format(total)),
+                Placeholder.unparsed("tax", cur.format(tax))));
+                r.sendMessage(EcoBridge.getMiniMessage().deserialize("<green>➕ 收到 <gold><amt><gray> 来自 <p>",
+                Placeholder.unparsed("amt", cur.format(net)),
+                Placeholder.unparsed("p", s.getName())));
+            }
 
-    public void shutdown() {
-        vExecutor.shutdown();
-        try { if (!vExecutor.awaitTermination(5, TimeUnit.SECONDS)) vExecutor.shutdownNow(); } 
-        catch (InterruptedException e) { vExecutor.shutdownNow(); }
-    }
-}
+            public void shutdown() {
+                vExecutor.shutdown();
+                try { if (!vExecutor.awaitTermination(5, TimeUnit.SECONDS)) vExecutor.shutdownNow(); }
+                catch (InterruptedException e) { vExecutor.shutdownNow(); }
+            }
+        }

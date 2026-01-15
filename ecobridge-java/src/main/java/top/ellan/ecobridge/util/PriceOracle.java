@@ -68,77 +68,77 @@ public final class PriceOracle {
     private static Optional<Double> deepSearchAmount(Object obj) {
         return switch (obj) {
             // 模式 A: 匹配包含显式 amount 键的配置段
-            case ConfigurationSection sec when sec.contains("amount") -> 
-                 Optional.of(sec.getDouble("amount"));
+        case ConfigurationSection sec when sec.contains("amount") ->
+                Optional.of(sec.getDouble("amount"));
 
-            // 模式 B: 匹配通用配置段，继续向下递归搜索
+                // 模式 B: 匹配通用配置段，继续向下递归搜索
             case ConfigurationSection sec -> sec.getKeys(false).stream()
-                 .map(sec::get)
-                 .map(PriceOracle::deepSearchAmount)
-                 .flatMap(Optional::stream)
-                 .findFirst();
+                    .map(sec::get)
+                    .map(PriceOracle::deepSearchAmount)
+                    .flatMap(Optional::stream)
+                    .findFirst();
 
-            // 模式 C: 匹配 Map 结构中直接包含 amount 的情况
-            case Map<?, ?> map when map.get("amount") instanceof Number n -> 
-                 Optional.of(n.doubleValue());
-            
-            // 模式 D: 遍历 Map 的值继续递归搜索
-            case Map<?, ?> map -> map.values().stream()
-                 .map(PriceOracle::deepSearchAmount)
-                 .flatMap(Optional::stream)
-                 .findFirst();
+                    // 模式 C: 匹配 Map 结构中直接包含 amount 的情况
+                case Map<?, ?> map when map.get("amount") instanceof Number n ->
+                        Optional.of(n.doubleValue());
 
-            // 模式 E: 匹配最终数值终端
-            case Number n -> Optional.of(n.doubleValue());
+                        // 模式 D: 遍历 Map 的值继续递归搜索
+                    case Map<?, ?> map -> map.values().stream()
+                            .map(PriceOracle::deepSearchAmount)
+                            .flatMap(Optional::stream)
+                            .findFirst();
 
-            case null, default -> Optional.empty();
-        };
-    }
+                            // 模式 E: 匹配最终数值终端
+                        case Number n -> Optional.of(n.doubleValue());
 
-    /**
-     * [关键修复]: API 降级提取逻辑 (BigDecimal 高精度版)
-     * 解决了 Issue #6 中 double 直接相加导致的精度漂移问题
-     */
-    private static double fetchStaticPriceFromApi(ObjectItem item, boolean isBuy) {
-        try {
-            ObjectPrices prices = isBuy ? item.getBuyPrice() : item.getSellPrice();
-            if (prices == null || prices.empty) return MIN_SAFE_P0;
+                            case null, default -> Optional.empty();
+                                };
+                            }
 
-            // 调用驱动获取不带加成的裸价 (Player=null, amount=1)
-            // 返回值 Map<?, BigDecimal> 中的 Value 已经是 BigDecimal，直接利用
-            Map<?, BigDecimal> resultMap = prices.getAmount(null, 0, 1);
-            if (resultMap == null || resultMap.isEmpty()) return MIN_SAFE_P0;
+                            /**
+                             * [关键修复]: API 降级提取逻辑 (BigDecimal 高精度版)
+                             * 解决了 Issue #6 中 double 直接相加导致的精度漂移问题
+                             */
+                            private static double fetchStaticPriceFromApi(ObjectItem item, boolean isBuy) {
+                                try {
+                                    ObjectPrices prices = isBuy ? item.getBuyPrice() : item.getSellPrice();
+                                    if (prices == null || prices.empty) return MIN_SAFE_P0;
 
-            boolean isAnyMode = prices.getMode().name().contains("ANY");
+                                    // 调用驱动获取不带加成的裸价 (Player=null, amount=1)
+                                    // 返回值 Map<?, BigDecimal> 中的 Value 已经是 BigDecimal，直接利用
+                                    Map<?, BigDecimal> resultMap = prices.getAmount(null, 0, 1);
+                                    if (resultMap == null || resultMap.isEmpty()) return MIN_SAFE_P0;
 
-            // 使用 BigDecimal 进行流式计算
-            BigDecimal calculatedPrice = isAnyMode ? 
-                // 1. 如果是 ANY 模式（任选一种货币），取第一个正值
-                resultMap.values().stream()
-                    .filter(val -> val.compareTo(BigDecimal.ZERO) > 0)
-                    .findFirst()
-                    .orElse(BigDecimal.ZERO)
-                : 
-                // 2. 如果是 ALL 模式（组合支付），执行高精度累加
-                resultMap.values().stream()
-                    .filter(val -> val.compareTo(BigDecimal.ZERO) > 0)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+                                    boolean isAnyMode = prices.getMode().name().contains("ANY");
 
-            // 最后安全转换为 double 并兜底
-            return Math.max(MIN_SAFE_P0, calculatedPrice.doubleValue());
+                                    // 使用 BigDecimal 进行流式计算
+                                    BigDecimal calculatedPrice = isAnyMode ?
+                                    // 1. 如果是 ANY 模式（任选一种货币），取第一个正值
+                                    resultMap.values().stream()
+                                    .filter(val -> val.compareTo(BigDecimal.ZERO) > 0)
+                                    .findFirst()
+                                    .orElse(BigDecimal.ZERO)
+                                    :
+                                    // 2. 如果是 ALL 模式（组合支付），执行高精度累加
+                                    resultMap.values().stream()
+                                    .filter(val -> val.compareTo(BigDecimal.ZERO) > 0)
+                                    .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        } catch (Exception e) {
-            logOracleWarning(item, "API 提取异常 (可能存在变量依赖): " + e.getMessage());
-            return MIN_SAFE_P0;
-        }
-    }
+                                    // 最后安全转换为 double 并兜底
+                                    return Math.max(MIN_SAFE_P0, calculatedPrice.doubleValue());
 
-    private static void logOracleWarning(ObjectItem item, String reason) {
-        // 使用采样日志，防止在高频交易时刷屏
-        LogUtil.logTransactionSampled(
-            "<yellow>[预言机]</yellow> <gray>物品 <white><id></white> 基准价提取降级。原因: <white><reason></white>",
-            Placeholder.unparsed("id", item.getProduct()),
-            Placeholder.unparsed("reason", reason)
-        );
-    }
-}
+                                } catch (Exception e) {
+                                    logOracleWarning(item, "API 提取异常 (可能存在变量依赖): " + e.getMessage());
+                                    return MIN_SAFE_P0;
+                                }
+                            }
+
+                            private static void logOracleWarning(ObjectItem item, String reason) {
+                                // 使用采样日志，防止在高频交易时刷屏
+                                LogUtil.logTransactionSampled(
+                                "<yellow>[预言机]</yellow> <gray>物品 <white><id></white> 基准价提取降级。原因: <white><reason></white>",
+                                Placeholder.unparsed("id", item.getProduct()),
+                                Placeholder.unparsed("reason", reason)
+                            );
+                            }
+                        }

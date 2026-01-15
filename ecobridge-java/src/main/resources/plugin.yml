@@ -1,40 +1,49 @@
 name: EcoBridge
-version: 2.0.0
+version: 0.8.8
 main: top.ellan.ecobridge.EcoBridge
 api-version: 1.21
 authors: [Ellan]
 description: "基于 Java 25 FFM + Rust 核心的离散历史求和动态经济系统"
 
-# 强制依赖：缺少任何一个插件，EcoBridge 都不会启动
+# 强制依赖：确保在 EcoBridge 启动前，依赖插件已完全加载
 depend: [CoinsEngine, UltimateShop]
 
-# 加载时机：建议在世界加载后启动，确保 FFI 环境稳定
+# 加载时机：建议在世界加载后启动，确保 FFI 环境和本地库路径稳定
 load: POSTWORLD
 
 commands:
   ecobridge:
-    description: "EcoBridge 管理命令"
+    description: "EcoBridge 核心管理指令"
     usage: "/<command> reload"
     permission: ecobridge.admin
     aliases: [eb, eco]
   
   ecopay:
-    description: "发起受监管的 Rust 内核审计转账"
+    description: "通过 Rust 物理内核审计发起受监管的转账"
     usage: "/ecopay <player> <amount>"
     permission: ecobridge.pay
-    # 注意：如果服务器有 EssentialsX，pay 别名可能会触发冲突
+    # 别名建议避开 essentials 的 pay，防止指令劫持失效
     aliases: [epay, auditpay]
 
 permissions:
   ecobridge.admin:
-    description: "允许管理 EcoBridge 原生引擎和重载配置"
+    description: "允许管理 EcoBridge 原生引擎、重载配置及执行调试操作"
     default: op
   
   ecobridge.pay:
-    description: "允许玩家使用受监管的转账系统"
+    description: "允许玩家使用受 Rust 内核监管的金融转账系统"
     default: true
 
-  # 建议新增：查看经济健康状态的权限
   ecobridge.status:
-    description: "允许查看 Rust 引擎的计算状态 (FPS/内存占用)"
+    description: "允许查看 Rust 物理引擎的即时演算状态 (FPS/ABI/内存对齐)"
+    default: op
+
+  # --- [新增] 转账流控制权限 (对应 TransferManager v0.8.5 逻辑) ---
+  
+  ecobridge.bypass.tax:
+    description: "金融特权：转账时豁免由 Rust 内核计算生成的动态交易税"
+    default: op
+
+  ecobridge.bypass.block:
+    description: "金融特权：豁免 Rust 内核的安全审计拦截 (如 RMT/洗币检测)"
     default: op

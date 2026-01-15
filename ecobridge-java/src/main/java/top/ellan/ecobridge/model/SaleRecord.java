@@ -21,22 +21,22 @@ import static java.lang.foreign.ValueLayout.JAVA_LONG;
  * 修复：显式补全了 getTimestamp() 和 getAmount() 以兼容 PricingManager 的调用
  */
 public record SaleRecord(
-    long timestamp, // Offset 0 (i64)
-    double amount   // Offset 8 (f64)
+long timestamp, // Offset 0 (i64)
+double amount   // Offset 8 (f64)
 ) {
 
     // =================================================================================
     // 1. FFM 内存布局与性能句柄 (SSoT)
     // =================================================================================
-    
+
     /** * 内存布局:
      * [0-7]   long   timestamp (对应 Rust i64)
      * [8-15]  double amount    (对应 Rust f64)
      */
     public static final GroupLayout LAYOUT = MemoryLayout.structLayout(
-        JAVA_LONG.withName("timestamp"),
-        JAVA_DOUBLE.withName("amount")
-    ).withByteAlignment(8);
+    JAVA_LONG.withName("timestamp"),
+    JAVA_DOUBLE.withName("amount")
+).withByteAlignment(8);
 
     /** 结构体总长度：16 字节 */
     public static final long LAYOUT_SIZE = LAYOUT.byteSize();
@@ -77,9 +77,9 @@ public record SaleRecord(
      */
     public static SaleRecord fromMemory(MemorySegment segment, long baseOffset) {
         return new SaleRecord(
-            (long) VH_TIMESTAMP.get(segment, baseOffset),
-            (double) VH_AMOUNT.get(segment, baseOffset)
-        );
+        (long) VH_TIMESTAMP.get(segment, baseOffset),
+        (double) VH_AMOUNT.get(segment, baseOffset)
+    );
     }
 
     // =================================================================================
@@ -87,7 +87,7 @@ public record SaleRecord(
     // =================================================================================
 
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("MM-dd HH:mm")
-            .withZone(ZoneId.systemDefault());
+    .withZone(ZoneId.systemDefault());
 
     /** 紧凑型构造函数：执行数据质量检查 */
     public SaleRecord {
@@ -103,10 +103,10 @@ public record SaleRecord(
         String amtStr = String.format("%.1f", amount);
 
         return MiniMessage.miniMessage().deserialize(
-            "<gray>[<time>] " + color + "<prefix><amt>",
-            Placeholder.unparsed("time", timeStr),
-            Placeholder.unparsed("prefix", prefix),
-            Placeholder.unparsed("amt", amtStr)
-        );
+        "<gray>[<time>] " + color + "<prefix><amt>",
+        Placeholder.unparsed("time", timeStr),
+        Placeholder.unparsed("prefix", prefix),
+        Placeholder.unparsed("amt", amtStr)
+    );
     }
 }

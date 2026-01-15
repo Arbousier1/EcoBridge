@@ -5,12 +5,12 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import su.nightexpress.coinsengine.api.currency.Currency;
 import su.nightexpress.coinsengine.api.event.ChangeBalanceEvent;
-import su.nightexpress.coinsengine.data.impl.CoinsUser; 
+import su.nightexpress.coinsengine.data.impl.CoinsUser;
 import top.ellan.ecobridge.EcoBridge;
-import top.ellan.ecobridge.cache.HotDataCache; 
-import top.ellan.ecobridge.database.TransactionDao; 
-import top.ellan.ecobridge.manager.EconomyManager; 
-import top.ellan.ecobridge.storage.AsyncLogger; 
+import top.ellan.ecobridge.cache.HotDataCache;
+import top.ellan.ecobridge.database.TransactionDao;
+import top.ellan.ecobridge.manager.EconomyManager;
+import top.ellan.ecobridge.storage.AsyncLogger;
 
 import java.util.UUID;
 
@@ -18,14 +18,14 @@ import java.util.UUID;
  * 经济传感器 (CoinsEngineListener v0.8.5 - SSoT Edition)
  * 职责：作为底层传感器，实时捕获 CoinsEngine 余额变动信号并同步至全服经济系统。
  * 修正：
- * 1. 强制同步镜像到 HotDataCache，确保物理引擎视野对齐。 
- * 2. 修复 EconomyManager.onTransaction 参数调用。 
+ * 1. 强制同步镜像到 HotDataCache，确保物理引擎视野对齐。
+ * 2. 修复 EconomyManager.onTransaction 参数调用。
  */
 public class CoinsEngineListener implements Listener {
 
     private final String targetCurrencyId;
     private static final double EPSILON = 1e-6; // 过滤计算舍入产生的噪声 [cite: 161]
-    
+
     public CoinsEngineListener(EcoBridge plugin) {
         // 从配置中锁定主监控货币 ID (如 "coins") [cite: 162]
         this.targetCurrencyId = plugin.getConfig().getString("economy.currency-id", "coins");
@@ -53,22 +53,22 @@ public class CoinsEngineListener implements Listener {
             return;
         }
 
-        // 4. 宏观层：同步更新全服经济热度指标 
-        // 传入 true 标识此为市场活动，触发价格波动演算 
+        // 4. 宏观层：同步更新全服经济热度指标
+        // 传入 true 标识此为市场活动，触发价格波动演算
         EconomyManager.getInstance().onTransaction(delta, true);
 
         // 5. [SSoT 修复]: 镜像同步逻辑
         // 强制将真相源的最新余额同步到只读缓存镜像 [cite: 104, 164]
         CoinsUser user = event.getUser();
-        UUID userUuid = user.getId(); 
-        
+        UUID userUuid = user.getId();
+
         var cachedData = HotDataCache.get(userUuid);
         if (cachedData != null) {
-            cachedData.updateFromTruth(newAmount); // 
+            cachedData.updateFromTruth(newAmount); //
         }
 
         // 6. [SSoT 修复]: 异步持久化快照
-        // 在数据库中更新该玩家的最终余额快照 
+        // 在数据库中更新该玩家的最终余额快照
         TransactionDao.updateBalance(userUuid, newAmount);
 
         // 7. 审计层：触发异步持久化日志 (AsyncLogger) [cite: 164, 316]
@@ -76,10 +76,10 @@ public class CoinsEngineListener implements Listener {
 
         // 委托给虚拟线程执行器异步处理，将流水推向 Rust/DuckDB 管线 [cite: 164, 314, 319]
         AsyncLogger.log(
-            userUuid,
-            delta,      // 交易变动净值
-            newAmount,  // 交易后余额快照
-            timestamp   // 物理时间戳
-        );
+        userUuid,
+        delta,      // 交易变动净值
+        newAmount,  // 交易后余额快照
+        timestamp   // 物理时间戳
+    );
     }
 }

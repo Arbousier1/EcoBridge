@@ -9,7 +9,7 @@ import top.ellan.ecobridge.EcoBridge;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * 工业级日志工具类 (LogUtil v0.6.1)
+ * 工业级日志工具类 (LogUtil v0.8.8)
  * 职责：
  * 1. 集中式控制台视觉规范管理。
  * 2. 异步 MiniMessage 渲染管线，利用 Java 25 虚拟线程分流 CPU 压力。
@@ -36,7 +36,7 @@ public final class LogUtil {
 
         if (debugEnabled) {
             info("<gradient:aqua:blue>系统调试模式已激活</gradient> <dark_gray>| <gray>采样率: <white>1/<rate>",
-                    Placeholder.unparsed("rate", String.valueOf(sampleRate)));
+            Placeholder.unparsed("rate", String.valueOf(sampleRate)));
         }
     }
 
@@ -89,9 +89,9 @@ public final class LogUtil {
             // 将渲染任务外包给 Loom 虚拟线程池
             EcoBridge.getInstance().getVirtualExecutor().execute(() -> {
                 TagResolver combined = TagResolver.resolver(
-                        TagResolver.resolver(resolvers),
-                        Placeholder.unparsed("count", String.valueOf(count))
-                );
+                TagResolver.resolver(resolvers),
+                Placeholder.unparsed("count", String.valueOf(count))
+            );
 
                 sendConsole("<blue>⚖</blue> <gray>" + message + " <dark_gray>(#<count>)", combined);
             });
@@ -106,12 +106,12 @@ public final class LogUtil {
         EcoBridge.getInstance().getVirtualExecutor().execute(() -> {
             sendConsole("<red>╔══════════════ EcoBridge 异常报告 ══════════════");
             sendConsole("<red>║ <white>描述: <msg>", Placeholder.unparsed("msg", message));
-            
+
             if (e != null) {
                 sendConsole("<red>║ <white>类型: <yellow><type>", Placeholder.unparsed("type", e.getClass().getSimpleName()));
                 sendConsole("<red>║ <white>原因: <gray><reason>", Placeholder.unparsed("reason", String.valueOf(e.getMessage())));
                 sendConsole("<red>╚════════════════════════════════════════════════");
-                
+
                 // 控制台堆栈使用标准日志接口以确保格式正确
                 EcoBridge.getInstance().getLogger().severe("--- 详细堆栈追踪 ---");
                 e.printStackTrace();
