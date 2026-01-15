@@ -1,0 +1,48 @@
+# 插件名称
+name: EcoBridge
+
+# 插件版本号 (建议与 pom.xml 保持一致)
+version: 2.0.0
+
+# 插件主类
+main: top.ellan.ecobridge.EcoBridge
+
+# 适配 Minecraft 版本 (1.21.x 系列只需写 1.21)
+api-version: 1.21
+
+# 作者
+authors: [Ellan]
+
+# 描述 (已修正技术栈描述)
+description: 基于 Java 25 FFM + Rust 核心的离散历史求和动态经济系统。
+
+# 依赖关系
+# CoinsEngine: 硬依赖 (代码中 TransferManager 强依赖)
+# UltimateShop: 硬依赖 (代码中 UShopProvider 强依赖)
+depend: [CoinsEngine, UltimateShop]
+
+# 命令注册
+commands:
+  # 管理员命令
+  ecobridge:
+    description: EcoBridge 管理命令
+    usage: /<command> reload
+    permission: ecobridge.admin
+    aliases: [eb, eco]
+  
+  # 转账命令 (必须注册，否则启动报错！)
+  ecopay:
+    description: 发起受监管的转账交易
+    usage: /ecopay <玩家> <金额>
+    permission: ecobridge.pay
+    aliases: [pay, epay]  # 允许玩家直接用 /pay (如果 CommandInterceptor 没拦截住的话)
+
+# 权限注册
+permissions:
+  ecobridge.admin:
+    description: 允许重载配置和管理数据库
+    default: op
+  
+  ecobridge.pay:
+    description: 允许使用转账功能
+    default: true

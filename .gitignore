@@ -1,0 +1,13 @@
+# 忽略所有文件夹下的 Rust 编译产物
+target/
+
+# 忽略所有文件夹下的 Java/Gradle 编译产物和缓存
+.gradle/
+build/
+bin/
+out/
+
+# 忽略 IDE 配置文件
+.vscode/
+.idea/
+*.iml

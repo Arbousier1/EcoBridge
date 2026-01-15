@@ -1,0 +1,133 @@
+# ============================================================
+# EcoBridge Configuration v2.1 (Architecture v0.8)
+# Kernel: Java 25 (FFM) + Rust (SIMD) + Redis (Pub/Sub)
+# ============================================================
+
+# [系统内核设置]
+system:
+  # 调试模式: 开启后输出详细的 Native 交互日志
+  debug: false
+
+  # 日志采样率: 1/N，防止高频交易刷屏
+  log-sample-rate: 100
+
+  # 交易防抖阈值 (ms): 防止连点器
+  trade-throttle-ms: 150
+
+  # [安全] 指令拦截名单 (流量导入 Rust 风控引擎)
+  intercept-commands:
+    - "pay"
+    - "transfer"
+    - "epay"
+    - "cpay"
+
+# [分布式同步 (Redis)] - v0.8 新增
+# 用于跨服同步物理演算状态。
+redis:
+  enabled: true
+  host: "127.0.0.1"
+  port: 6379
+  password: ""
+  # 服务器唯一标识 (防止消息回环)
+  server-id: "survival-01"
+  # 订阅频道
+  channels:
+    trade: "ecobridge:global_trade"
+
+# [数据库 (HikariCP + Virtual Threads)]
+database:
+  host: "localhost"
+  port: 3306
+  database: "ecobridge"
+  username: "root"
+  password: "your_strong_password"
+  # 建议: CPU核心数 * 2 + 1
+  pool-size: 10
+
+# [经济核心模型]
+economy:
+  # 主货币 ID (对应 CoinsEngine)
+  main-currency: "coins"
+
+  # [宏观] M1 货币供应目标 (影响通胀率计算)
+  m1-supply: 10000000.0
+
+  # [宏观] 波动性阈值 (触发 PID 介入)
+  volatility-threshold: 50000.0
+
+  # [微观] 动态定价参数 (P = P0 * exp(-λ*N) * ε)
+  # ----------------------------------------------------
+  # λ (Lambda): 价格敏感度 (越大越敏感)
+  default-lambda: 0.002
+  
+  # τ (Tau): 价格记忆半衰期 (天)
+  tau: 7.0
+
+  # [环境因子] Rust 核心权重参数 (MarketConfig SSoT)
+  # ----------------------------------------------------
+  # 季节性波动幅度 (0.15 = ±15%)
+  seasonal-amplitude: 0.15
+  # 周末价格倍率 (1.2 = 周末涨价20%)
+  weekend-multiplier: 1.2
+  # 新手保护折扣 (0.2 = 新手打8折)
+  newbie-protection-rate: 0.2
+  # 强制节日模式 (仅供管理员手动开启活动)
+  force-festival-mode: false
+
+  # [权重矩阵] Log-Linear 合成权重 (总和建议为 1.0)
+  weights:
+    seasonal: 0.25
+    weekend: 0.25
+    newbie: 0.25
+    inflation: 0.25
+
+  # [数据回溯]
+  history-days-limit: 30
+  max-history-records: 3000
+
+  # [金融风控审计] (RegulatorConfig SSoT)
+  # ----------------------------------------------------
+  audit-settings:
+    # 基础交易税率 (5%)
+    base-tax-rate: 0.05
+    # 奢侈税起征点
+    luxury-threshold: 100000.0
+    # 奢侈税率 (10%)
+    luxury-tax-rate: 0.10
+    # 贫富调节税率 (20%，穷人转富人时触发)
+    wealth-gap-tax-rate: 0.20
+    # 贫困线 (用于判定穷人)
+    poor-threshold: 10000.0
+    # 富裕线 (用于判定富人)
+    rich-threshold: 1000000.0
+    # 新手接收资金上限 (防止 RMT 注入)
+    newbie-receive-limit: 50000.0
+    # 报警阈值 (转账额/余额 > 0.9 且金额 > 5w)
+    warning-ratio: 0.9
+    warning-min-amount: 50000.0
+    # 判定新手的游戏时长 (小时)
+    newbie-hours: 10.0
+    # 判定老手的游戏时长 (小时)
+    veteran-hours: 100.0
+
+# [节假日 API]
+holiday-api:
+  url-template: "https://holiday.ailcc.com/api/holiday/year/{year}"
+  fallback-is-holiday: false
+
+# [物品特定覆盖配置]
+item-settings:
+  # 示例：覆盖特定商店物品的参数
+  miner_shop:
+    diamond:
+      lambda: 0.0001
+      # 支持覆盖权重，例如钻石不受季节影响
+      weights:
+        seasonal: 0.0
+        inflation: 0.5
+    iron_ingot:
+      lambda: 0.001
+
+  blocks_shop:
+    cobblestone:
+      lambda: 0.008
