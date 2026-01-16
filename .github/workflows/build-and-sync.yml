@@ -1,0 +1,102 @@
+name: EcoBridge Core Sync & Build
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  # 第一阶段：在三个平台上并行编译 Rust 动态库
+  build-rust:
+    name: Build Rust Core on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact_name: libecobridge_rust.so
+            asset_name: libecobridge_rust.so
+          - os: windows-latest
+            artifact_name: ecobridge_rust.dll
+            asset_name: ecobridge_rust.dll
+          - os: macos-latest
+            artifact_name: libecobridge_rust.dylib
+            asset_name: libecobridge_rust.dylib
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "ecobridge-rust -> target"
+
+      - name: Build Rust Library (Release)
+        run: |
+          cd ecobridge-rust
+          cargo build --release
+        # 使用 Cargo 配置文件中的 release 优化选项 [cite: 394]
+
+      - name: Prepare Artifact
+        shell: bash
+        run: |
+          # 统一将编译出的二进制文件移动到暂存目录 
+          mkdir -p dist
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            cp ecobridge-rust/target/release/ecobridge_rust.dll dist/
+          else
+            cp ecobridge-rust/target/release/${{ matrix.artifact_name }} dist/
+          fi
+
+      - name: Upload Native Binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os }}-binary
+          path: dist/
+
+  # 第二阶段：汇总二进制文件并构建 Java 插件
+  build-java:
+    name: Build Java Plugin (Java 25)
+    needs: build-rust
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          [cite_start]distribution: 'oracle' # FFM API 在 Java 25 中需要特定的发行版支持 [cite: 19]
+
+      - name: Download All Native Binaries
+        uses: actions/download-artifact@v4
+        with:
+          path: native-libs
+          merge-multiple: true
+
+      - name: Sync Binaries to Java Resources
+        run: |
+          # 确保 Java 源码集的 resources 目录存在 
+          mkdir -p ecobridge-java/src/main/resources/
+          cp native-libs/ecobridge_rust.dll ecobridge-java/src/main/resources/
+          cp native-libs/libecobridge_rust.so ecobridge-java/src/main/resources/
+          cp native-libs/libecobridge_rust.dylib ecobridge-java/src/main/resources/
+          ls -R ecobridge-java/src/main/resources/
+
+      - name: Build with Gradle
+        run: |
+          cd ecobridge-java
+          chmod +x gradlew
+          # 禁用 jextract 自动化，因为我们是在 CI 环境构建成品，且 native 库已手动置入 
+          ./gradlew shadowJar -x generateBindings 
+        env:
+          ORG_GRADLE_PROJECT_version: ${{ github.ref_name }}
+
+      - name: Upload Plugin JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: EcoBridge-Plugin
+          path: ecobridge-java/build/libs/*.jar
