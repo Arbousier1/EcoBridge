@@ -5,11 +5,15 @@
 
 # [系统内核设置]
 system:
+  # 是否开启调试模式，输出更多详细日志
   debug: false
+  # 经济日志的采样率，100 表示记录所有交易，较低的值表示按百分比采样
   log-sample-rate: 100
+  # 交易操作的冷却时间（毫秒），防止过于频繁的交易请求冲击内核
   trade-throttle-ms: 150
-  # [校准] 增加日志开关，对应 TradeListener 逻辑
+  # [校准] 是否记录交易日志到数据库 (对应 TradeListener.java 逻辑)
   log-transactions: true
+  # 需要被插件拦截并进行审计的转账命令列表
   intercept-commands:
     - "pay"
     - "transfer"
@@ -18,84 +22,122 @@ system:
 
 # [分布式同步 (Redis)]
 redis:
+  # 是否启用 Redis 进行分布式数据同步
   enabled: true
+  # Redis 服务器地址
   host: "127.0.0.1"
+  # Redis 服务器端口
   port: 6379
+  # Redis 用户名 (留空表示不使用 ACL)
   user: ""
+  # Redis 密码 (留空表示无密码)
   password: ""
+  # 是否使用 SSL/TLS 加密连接
   ssl: false
+  # 当前服务器实例的唯一标识符，用于区分不同服务器的数据流
   server-id: "survival-01"
+  # 用于不同服务器间同步经济事件的 Redis 通道
   channels:
     trade: "ecobridge:global_trade"
 
 # [数据库 (HikariCP + Virtual Threads)]
 database:
+  # MariaDB/MySQL 服务器地址
   host: "localhost"
+  # MariaDB/MySQL 服务器端口
   port: 3306
+  # 数据库名称
   database: "ecobridge"
+  # 数据库用户名
   username: "root"
+  # 数据库密码 - **强烈建议修改为强密码**
   password: "your_strong_password"
+  # 数据库连接池大小
   pool-size: 10
 
 # [经济核心模型]
 economy:
-  # [校准] 路径对齐 TransferManager.java 中的 economy.currency-id
+  # [校准] 主要使用的货币ID，必须与 CoinsEngine 等经济插件中的货币ID一致 (对应 TransferManager.java 逻辑)
   currency-id: "coins"
 
-  # [宏观] M1 货币供应目标
+  # [宏观] 设定的长期目标货币供应量 M1 (流通中的现金 + 活期存款)
   m1-supply: 10000000.0
 
-  # [宏观] 波动性阈值 (触发 PID 介入)
+  # [宏观] 价格波动幅度超过此阈值时，会触发 PID 控制器进行宏观调控
   volatility-threshold: 50000.0
 
-  # [校准] 增加热度自然衰减率，对应 EconomyManager 逻辑 (0.05 = 每天衰减5%)
-  daily-decay-rate: 0.05
+  # [校准] 经济热度的每日自然衰减率 (对应 EconomyManager.java 逻辑, 原 'daily-decay-rate' 已修改为 'decay-rate')
+  decay-rate: 0.05 # 0.05 意味着每天衰减 5%
 
-  # [微观] 动态定价参数
-  # [校准] 键名对齐 UShopProvider 逻辑
+  # [微观] 动态定价模型的核心参数，影响价格随供需变化的陡峭程度
+  # [校准] 键名对齐 UShopProvider.java 逻辑
   lambda: 0.002
+  # [微观] 动态定价模型的时间衰减常数，影响历史交易数据的权重随时间下降的速度
   tau: 7.0
 
   # [环境因子] Rust 核心权重参数 (MarketConfig SSoT)
+  # 季节性活动对价格影响的幅度
   seasonal-amplitude: 0.15
+  # 周末时段的价格乘数
   weekend-multiplier: 1.2
-  # [校准] 键名对齐 UShopProvider.java (去掉了 -rate)
+  # [校准] 新手保护对价格影响的力度 (对应 UShopProvider.java, 去掉了 -rate)
   newbie-protection: 0.2
+  # 强制开启节日模式，忽略外部API结果
   force-festival-mode: false
 
   # [数据回溯]
+  # 保留历史交易记录的天数上限
   history-days-limit: 30
+  # 保留的历史交易记录总条数上限
   max-history-records: 3000
 
   # [金融风控审计] (RegulatorConfig SSoT)
   audit-settings:
+    # 所有转账的基础税率
     base-tax-rate: 0.05
+    # 单笔转账金额超过此阈值时，开始征收豪华税
     luxury-threshold: 100000.0
+    # 豪华税的税率
     luxury-tax-rate: 0.10
+    # 财富差距税的税率，对从富人流向穷人的资金征税
     wealth-gap-tax-rate: 0.20
+    # 被认定为“穷人”的资产阈值
     poor-threshold: 10000.0
+    # 被认定为“富人”的资产阈值
     rich-threshold: 1000000.0
-    # [校准] 键名对齐 TransferManager 逻辑 (去掉了 -receive)
+    # [校准] 新手玩家单次接收转账的最大限额 (对应 TransferManager.java, 去掉了 -receive)
     newbie-limit: 50000.0
-    warning-ratio: 0.9
+    # [校准] 警告比率在当前 Rust 代码中是硬编码的 (0.9)，此配置项不会生效
+    # 如果未来 Rust 代码修改为从配置读取，则可以启用
+    # warning-ratio: 0.9 # 发送者余额与此比率的乘积，作为判断高风险的金额阈值之一
+    # 触发高风险警告的最低金额
     warning-min-amount: 50000.0
+    # 被认定为“新手”的游玩小时数上限
     newbie-hours: 10.0
+    # 被认定为“老手”的游玩小时数下限
     veteran-hours: 100.0
 
 # [节假日 API]
 holiday-api:
+  # 查询节假日信息的 API 地址模板，{year} 会被替换为年份
   url-template: "https://holiday.ailcc.com/api/holiday/year/{year}"
+  # 当 API 请求失败时，默认是否视为节假日
   fallback-is-holiday: false
 
 # [物品特定覆盖配置]
+# 为特定商店或物品组设置独立的定价参数
 item-settings:
-  miner_shop:
-    diamond:
+  miner_shop: # 商店组名称
+    diamond: # 物品名称
+      # 该物品的专属 lambda 参数
       lambda: 0.0001
+      # 该物品在计算价格时，各环境因子的权重
       weights:
-        seasonal: 0.0
-        inflation: 0.5
+        seasonal: 0.0 # 季节性权重
+        inflation: 0.5 # 通胀权重
 
 # [内部状态 - 请勿手动修改]
+# 由插件运行时维护的状态数据
 internal:
+  # 当前全局经济热度值
   economy-heat: 0.0
