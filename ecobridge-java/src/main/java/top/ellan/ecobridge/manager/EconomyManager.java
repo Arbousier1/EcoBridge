@@ -1,18 +1,27 @@
+// ==================================================
+// FILE: ecobridge-java/src/main/java/top/ellan/ecobridge/manager/EconomyManager.java
+// ==================================================
+
 package top.ellan.ecobridge.manager;
 
-import org.bukkit.Bukkit;
 import top.ellan.ecobridge.EcoBridge;
+import top.ellan.ecobridge.bridge.NativeBridge; // [核心依赖]
 import top.ellan.ecobridge.util.LogUtil;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.DoubleAdder;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.DoubleAdder;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * 宏观经济管理器 (EconomyManager v0.8.5 - Stability Enhanced)
- * 职责：计算全服通胀率 (ε) 与 市场稳定性指数 (Stability).
+ * 宏观经济管理器 (EconomyManager v1.2.0 - Native Math & Async I/O)
+ * <p>
+ * 职责：
+ * 1. 维护宏观经济状态 (流通热度, 波动时间戳).
+ * 2. [Native] 调用 Rust 计算通胀率、稳定性和衰减.
+ * 3. [Async] 线程安全地持久化状态.
  */
 public class EconomyManager {
 
@@ -29,12 +38,15 @@ public class EconomyManager {
     private double decayRate;      // 每日热度自然衰减率
 
     private final ScheduledExecutorService economicScheduler;
+    
+    // I/O 锁：防止多线程并发写入 Config 导致文件损坏
+    private final ReentrantLock configLock = new ReentrantLock();
 
     private EconomyManager(EcoBridge plugin) {
         this.plugin = plugin;
         this.economicScheduler = Executors.newSingleThreadScheduledExecutor(
-        Thread.ofVirtual().name("EcoBridge-Economy-Worker").factory()
-    );
+            Thread.ofVirtual().name("EcoBridge-Economy-Worker").factory()
+        );
         loadState();
         startEconomicTasks();
     }
@@ -53,7 +65,7 @@ public class EconomyManager {
         this.volatilityThreshold = config.getDouble("economy.volatility-threshold", 50_000.0);
         this.decayRate = config.getDouble("economy.daily-decay-rate", 0.05);
 
-        // 从 internal 配置加载，但注意下面 saveState 的修改
+        // 从 internal 配置加载
         double savedHeat = config.getDouble("internal.economy-heat", 0.0);
         circulationHeat.reset();
         circulationHeat.add(savedHeat);
@@ -62,27 +74,31 @@ public class EconomyManager {
     }
 
     /**
-     * [v0.8.5 Fix] 线程安全持久化
-     * 职责：强制切回主线程保存配置文件，防止多个虚拟线程并发写入引发 FileConfiguration 损坏。
-     * @NotThreadSafe - 内部使用 Bukkit Scheduler 进行同步化处理
+     * 线程安全的异步持久化
      */
     public void saveState() {
         double currentHeat = circulationHeat.sum();
-        // 调度回主线程执行 Bukkit 配置保存，确保内存快照到磁盘的原子性
-        Bukkit.getScheduler().runTask(plugin, () -> {
-            plugin.getConfig().set("internal.economy-heat", currentHeat);
-            plugin.saveConfig();
+        
+        // 投递到虚拟线程池执行 I/O，避免阻塞主线程
+        plugin.getVirtualExecutor().execute(() -> {
+            configLock.lock();
+            try {
+                plugin.getConfig().set("internal.economy-heat", currentHeat);
+                plugin.saveConfig(); // 磁盘 I/O
+            } catch (Exception e) {
+                LogUtil.error("保存经济状态失败", e);
+            } finally {
+                configLock.unlock();
+            }
         });
     }
 
     /**
-     * [v0.8.5 Logic] 处理交易变动
-     * @param delta 资金变动量
-     * @param isMarketActivity 是否为真实市场活动（过滤掉管理员干预）
+     * 处理交易变动
      */
     public void onTransaction(double delta, boolean isMarketActivity) {
         if (!isMarketActivity) {
-            // 管理员增币只增加 M1 基准，不产生“流通热度”，防止物价瞬间虚假暴涨
+            // 管理员增币只增加 M1 基准
             this.m1MoneySupply += delta;
             return;
         }
@@ -98,45 +114,49 @@ public class EconomyManager {
         lastVolatileTimestamp.set(System.currentTimeMillis());
     }
 
-    public double getInflationRate() {
-        double currentHeat = circulationHeat.sum();
-        // 核心公式：通胀率 = 额外流通速度 / 货币总量
-        double rawRate = currentHeat / Math.max(m1MoneySupply, 1.0);
+    // =================================================================================
+    //  SECTION: Native Math Calls (Rust 接管核心算法)
+    // =================================================================================
 
-        // 钳位保护：确保物价波动在可控范围内
-        return Math.clamp(rawRate, -0.15, 0.45);
+    public double getInflationRate() {
+        // [Call Native] 计算通胀率
+        if (!NativeBridge.isLoaded()) return 0.0;
+        
+        double currentHeat = circulationHeat.sum();
+        return NativeBridge.calcInflation(currentHeat, m1MoneySupply);
     }
 
     public double getStabilityFactor() {
+        // [Call Native] 计算稳定性因子
+        if (!NativeBridge.isLoaded()) return 1.0;
+        
         long lastVolatile = lastVolatileTimestamp.get();
-        if (lastVolatile == 0) return 1.0;
-
-        long diff = System.currentTimeMillis() - lastVolatile;
-        double recoveryWindow = 15.0 * 60 * 1000; // 15分钟冷静期
-
-        return Math.clamp((double) diff / recoveryWindow, 0.0, 1.0);
+        long now = System.currentTimeMillis();
+        return NativeBridge.calcStability(lastVolatile, now);
     }
 
     private void startEconomicTasks() {
-        // 每 30 分钟执行一次热度衰减 (48次/天)
+        // 每 30 分钟执行一次热度衰减
         economicScheduler.scheduleAtFixedRate(
-        this::runEconomicDecay,
-        30, 30, TimeUnit.MINUTES
-    );
+            this::runEconomicDecay,
+            30, 30, TimeUnit.MINUTES
+        );
     }
 
     private void runEconomicDecay() {
+        if (!NativeBridge.isLoaded()) return;
+
         double current = circulationHeat.sum();
-        if (Math.abs(current) < 1.0) {
-            circulationHeat.reset(); // 彻底归零，防止残留死数据
-            return;
+        
+        // [Call Native] 计算本周期应衰减的量
+        // Rust 侧已包含了 abs < 1.0 归零的逻辑判断
+        double reduction = NativeBridge.calcDecay(current, decayRate);
+
+        // 如果 reduction > 0，说明需要衰减
+        // 注意：reduction 是正数，我们 add 负数
+        if (Math.abs(reduction) > 0.0) {
+            circulationHeat.add(-reduction);
         }
-
-        // 每日 decayRate，分摊到每次循环
-        double perCycleDecay = decayRate / 48.0;
-        double reduction = current * perCycleDecay;
-
-        circulationHeat.add(-reduction);
 
         // 仅在热度显著变化时执行 IO，保护磁盘
         if (Math.abs(reduction) > 100.0) {
@@ -146,8 +166,14 @@ public class EconomyManager {
 
     public void shutdown() {
         economicScheduler.shutdown();
-        // 关机前同步一次 (由于 onDisable 本身在主线程，可直接同步保存)
-        plugin.getConfig().set("internal.economy-heat", circulationHeat.sum());
-        plugin.saveConfig();
+        
+        // 关机时在当前线程同步保存，确保数据不丢失
+        configLock.lock();
+        try {
+            plugin.getConfig().set("internal.economy-heat", circulationHeat.sum());
+            plugin.saveConfig();
+        } finally {
+            configLock.unlock();
+        }
     }
 }

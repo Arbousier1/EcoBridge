@@ -1,25 +1,31 @@
-/*
- * Copyright (c) 1994, 2026, Oracle and/or its affiliates. All rights reserved.
- * ORACLE PROPRIETARY/CONFIDENTIAL. Use is subject to license terms.
- */
+// ==================================================
+// FILE: ecobridge-java/src/main/java/top/ellan/ecobridge/util/PriceOracle.java
+// ==================================================
 
 package top.ellan.ecobridge.util;
 
 import cn.superiormc.ultimateshop.objects.buttons.ObjectItem;
+import cn.superiormc.ultimateshop.objects.items.ThingType;
 import cn.superiormc.ultimateshop.objects.items.prices.ObjectPrices;
+import cn.superiormc.ultimateshop.objects.items.prices.ObjectSinglePrice;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
+import top.ellan.ecobridge.bridge.NativeBridge;
+
 import org.bukkit.configuration.ConfigurationSection;
 import org.jetbrains.annotations.NotNull;
 
 import java.math.BigDecimal;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 
 /**
- * 价格预言机 (PriceOracle v0.7.5)
- * 职责：为 Rust 物理内核提取静态锚点价格 p0。
+ * 价格预言机 (PriceOracle v0.9.0 - Tier Pricing Support)
+ * 职责：
+ * 1. 为 Rust 物理内核提取静态锚点价格 p0。
+ * 2. 统一识别 UShop 物品是否受控 (Valid Economy Item)。
+ * 3. [New] 处理阶梯定价 (Tier Pricing) 数学计算。
  * 技术栈：Java 25 Pattern Matching + BigDecimal High-Precision Arithmetic.
- * 修复：解决多货币累加时的浮点数精度丢失问题。
  */
 public final class PriceOracle {
 
@@ -27,6 +33,29 @@ public final class PriceOracle {
     private static final double MIN_SAFE_P0 = 0.01;
 
     private PriceOracle() {}
+
+    /**
+     * [提取的公共方法] 校验该物品是否受 EcoBridge 管辖
+     * (即：是否使用 Vault 经济系统的物品)
+     */
+    public static boolean isValidEconomyItem(ObjectItem item) {
+        if (item == null || item.empty) return false;
+
+        ObjectPrices buyPrice = item.getBuyPrice();
+        if (buyPrice == null || buyPrice.empty) return false;
+
+        Collection<ObjectSinglePrice> prices = buyPrice.singlePrices;
+        return prices != null && prices.stream()
+                .anyMatch(sp -> sp.type == ThingType.HOOK_ECONOMY && isVaultHook(sp));
+    }
+
+    private static boolean isVaultHook(ObjectSinglePrice sp) {
+        ConfigurationSection section = sp.singleSection;
+        if (section == null) return false;
+        // 兼容大小写配置
+        String economyPlugin = section.getString("economy-plugin");
+        return "Vault".equalsIgnoreCase(economyPlugin);
+    }
 
     /**
      * 获取物品的原始物理基准价 (p0)
@@ -49,6 +78,23 @@ public final class PriceOracle {
         // 2. 降级方案：从 API 运行时对象提取 (已升级为高精度累加)
         return fetchStaticPriceFromApi(item, isBuy);
     }
+    
+    /**
+     * [v0.9.0 新增] 计算阶梯定价 (Tier Pricing)
+     * 逻辑：数量越多，单价越低（批发优惠）
+     * * @param basePrice 基础单价
+     * @param quantity  交易数量
+     * @param isSell    是否为卖出操作 (目前仅卖出可能有特殊处理，或预留扩展)
+     * @return 考虑阶梯后的平均单价
+     */
+    public static double calculateTierPrice(double basePrice, double quantity, boolean isSell) {
+        if (!NativeBridge.isLoaded()) {
+             // Fallback: 如果 Native 没加载，才跑 Java 逻辑 (或者直接返回原价)
+            return basePrice; 
+        }
+        // [Call Native] 移交 Rust 计算
+        return NativeBridge.computeTierPrice(basePrice, quantity, isSell);
+    }
 
     private static Optional<Double> tryExtractFromPaths(ConfigurationSection root, String... paths) {
         for (String path : paths) {
@@ -68,77 +114,77 @@ public final class PriceOracle {
     private static Optional<Double> deepSearchAmount(Object obj) {
         return switch (obj) {
             // 模式 A: 匹配包含显式 amount 键的配置段
-        case ConfigurationSection sec when sec.contains("amount") ->
+            case ConfigurationSection sec when sec.contains("amount") ->
                 Optional.of(sec.getDouble("amount"));
 
-                // 模式 B: 匹配通用配置段，继续向下递归搜索
+            // 模式 B: 匹配通用配置段，继续向下递归搜索
             case ConfigurationSection sec -> sec.getKeys(false).stream()
                     .map(sec::get)
                     .map(PriceOracle::deepSearchAmount)
                     .flatMap(Optional::stream)
                     .findFirst();
 
-                    // 模式 C: 匹配 Map 结构中直接包含 amount 的情况
-                case Map<?, ?> map when map.get("amount") instanceof Number n ->
-                        Optional.of(n.doubleValue());
+            // 模式 C: 匹配 Map 结构中直接包含 amount 的情况
+            case Map<?, ?> map when map.get("amount") instanceof Number n ->
+                Optional.of(n.doubleValue());
 
-                        // 模式 D: 遍历 Map 的值继续递归搜索
-                    case Map<?, ?> map -> map.values().stream()
-                            .map(PriceOracle::deepSearchAmount)
-                            .flatMap(Optional::stream)
-                            .findFirst();
+            // 模式 D: 遍历 Map 的值继续递归搜索
+            case Map<?, ?> map -> map.values().stream()
+                    .map(PriceOracle::deepSearchAmount)
+                    .flatMap(Optional::stream)
+                    .findFirst();
 
-                            // 模式 E: 匹配最终数值终端
-                        case Number n -> Optional.of(n.doubleValue());
+            // 模式 E: 匹配最终数值终端
+            case Number n -> Optional.of(n.doubleValue());
 
-                            case null, default -> Optional.empty();
-                                };
-                            }
+            case null, default -> Optional.empty();
+        };
+    }
 
-                            /**
-                             * [关键修复]: API 降级提取逻辑 (BigDecimal 高精度版)
-                             * 解决了 Issue #6 中 double 直接相加导致的精度漂移问题
-                             */
-                            private static double fetchStaticPriceFromApi(ObjectItem item, boolean isBuy) {
-                                try {
-                                    ObjectPrices prices = isBuy ? item.getBuyPrice() : item.getSellPrice();
-                                    if (prices == null || prices.empty) return MIN_SAFE_P0;
+    /**
+     * [关键修复]: API 降级提取逻辑 (BigDecimal 高精度版)
+     * 解决了 Issue #6 中 double 直接相加导致的精度漂移问题
+     */
+    private static double fetchStaticPriceFromApi(ObjectItem item, boolean isBuy) {
+        try {
+            ObjectPrices prices = isBuy ? item.getBuyPrice() : item.getSellPrice();
+            if (prices == null || prices.empty) return MIN_SAFE_P0;
 
-                                    // 调用驱动获取不带加成的裸价 (Player=null, amount=1)
-                                    // 返回值 Map<?, BigDecimal> 中的 Value 已经是 BigDecimal，直接利用
-                                    Map<?, BigDecimal> resultMap = prices.getAmount(null, 0, 1);
-                                    if (resultMap == null || resultMap.isEmpty()) return MIN_SAFE_P0;
+            // 调用驱动获取不带加成的裸价 (Player=null, amount=1)
+            // 返回值 Map<?, BigDecimal> 中的 Value 已经是 BigDecimal，直接利用
+            Map<?, BigDecimal> resultMap = prices.getAmount(null, 0, 1);
+            if (resultMap == null || resultMap.isEmpty()) return MIN_SAFE_P0;
 
-                                    boolean isAnyMode = prices.getMode().name().contains("ANY");
+            boolean isAnyMode = prices.getMode().name().contains("ANY");
 
-                                    // 使用 BigDecimal 进行流式计算
-                                    BigDecimal calculatedPrice = isAnyMode ?
-                                    // 1. 如果是 ANY 模式（任选一种货币），取第一个正值
-                                    resultMap.values().stream()
-                                    .filter(val -> val.compareTo(BigDecimal.ZERO) > 0)
-                                    .findFirst()
-                                    .orElse(BigDecimal.ZERO)
-                                    :
-                                    // 2. 如果是 ALL 模式（组合支付），执行高精度累加
-                                    resultMap.values().stream()
-                                    .filter(val -> val.compareTo(BigDecimal.ZERO) > 0)
-                                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            // 使用 BigDecimal 进行流式计算
+            BigDecimal calculatedPrice = isAnyMode ?
+                // 1. 如果是 ANY 模式（任选一种货币），取第一个正值
+                resultMap.values().stream()
+                    .filter(val -> val.compareTo(BigDecimal.ZERO) > 0)
+                    .findFirst()
+                    .orElse(BigDecimal.ZERO)
+                :
+                // 2. 如果是 ALL 模式（组合支付），执行高精度累加
+                resultMap.values().stream()
+                    .filter(val -> val.compareTo(BigDecimal.ZERO) > 0)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-                                    // 最后安全转换为 double 并兜底
-                                    return Math.max(MIN_SAFE_P0, calculatedPrice.doubleValue());
+            // 最后安全转换为 double 并兜底
+            return Math.max(MIN_SAFE_P0, calculatedPrice.doubleValue());
 
-                                } catch (Exception e) {
-                                    logOracleWarning(item, "API 提取异常 (可能存在变量依赖): " + e.getMessage());
-                                    return MIN_SAFE_P0;
-                                }
-                            }
+        } catch (Exception e) {
+            logOracleWarning(item, "API 提取异常 (可能存在变量依赖): " + e.getMessage());
+            return MIN_SAFE_P0;
+        }
+    }
 
-                            private static void logOracleWarning(ObjectItem item, String reason) {
-                                // 使用采样日志，防止在高频交易时刷屏
-                                LogUtil.logTransactionSampled(
-                                "<yellow>[预言机]</yellow> <gray>物品 <white><id></white> 基准价提取降级。原因: <white><reason></white>",
-                                Placeholder.unparsed("id", item.getProduct()),
-                                Placeholder.unparsed("reason", reason)
-                            );
-                            }
-                        }
+    private static void logOracleWarning(ObjectItem item, String reason) {
+        // 使用采样日志，防止在高频交易时刷屏
+        LogUtil.logTransactionSampled(
+            "<yellow>[预言机]</yellow> <gray>物品 <white><id></white> 基准价提取降级。原因: <white><reason></white>",
+            Placeholder.unparsed("id", item.getProduct()),
+            Placeholder.unparsed("reason", reason)
+        );
+    }
+}

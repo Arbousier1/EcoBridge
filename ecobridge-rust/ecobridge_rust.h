@@ -8,12 +8,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define DEFAULT_LAMBDA 0.01
-
-#define DEFAULT_TAU 7.0
-
-#define MIN_PHYSICAL_PRICE 0.01
-
 #define DEFAULT_INTEGRATION_LIMIT 30.0
 
 #define MAX_SAFE_DT 1.0
@@ -138,57 +132,24 @@ typedef struct {
   double veteran_hours;
 } RegulatorConfig;
 
-/*
- 返回 ABI 版本号 (Hex: 0x00080700 -> v0.8.7)
- v0.8.7 更新：支持人性化非对称定价逻辑 (trade_amount-aware)
- */
 uint32_t ecobridge_abi_version(void);
 
-/*
- 返回人类可读的版本字符串
- 注意：返回的是静态生命周期的字符串指针，Java 侧不应释放它
- */
 const char *ecobridge_version(void);
 
-/*
- 初始化 DuckDB 连接与异步写入线程
- path_ptr: 数据库文件夹路径 (UTF-8)
- return: 0 成功, 非0 失败
- */
 int ecobridge_init_db(const char *path_ptr);
 
-/*
- 异步日志写入 (极高频调用)
- 该函数设计为 Non-blocking，仅将数据 push 到内存队列
- */
 void ecobridge_log_to_duckdb(long long ts,
                              const char *uuid_ptr,
                              double trade_amount,
                              double balance,
                              const char *meta_ptr);
 
-/*
- 获取健康状态统计
- out_total: 总接收日志数
- out_dropped: 因队列满而丢弃的日志数 (背压指标)
- */
 void ecobridge_get_health_stats(unsigned long long *out_total, unsigned long long *out_dropped);
 
-/*
- 向量化有效交易量计算 (Neff)
- 从 Read-Only DB 连接中查询
- */
 double ecobridge_query_neff_vectorized(long long current_ts, double tau);
 
-/*
- 兼容性导出：旧版价格计算入口 (trade_amount 默认为 0)
- */
 double ecobridge_compute_price_final(double base, double n_eff, double lambda, double epsilon);
 
-/*
- [v0.8.5 新增] 人性化定价入口
- 支持 trade_amount 参数以区分买入/卖出，从而触发“下行粘性”机制
- */
 double ecobridge_compute_price_humane(double base,
                                       double n_eff,
                                       double trade_amount,
@@ -196,30 +157,36 @@ double ecobridge_compute_price_humane(double base,
                                       double epsilon);
 
 /*
- 市场环境因子 (Epsilon) 计算 (纯数学)
- [修复] 使用 match 替代 explict return，防止绕过闭包逻辑
+ [New] 带地板价保护的定价入口
  */
-double ecobridge_calculate_epsilon(const TradeContext *ctx_ptr, const MarketConfig *cfg_ptr);
+double ecobridge_compute_price_bounded(double base,
+                                       double n_eff,
+                                       double amt,
+                                       double lambda,
+                                       double eps,
+                                       double hist_avg);
 
 /*
- PID 控制器步进计算 (状态机更新)
- 已在 internal 实现中增强 D 项阻尼，用于预判恐慌抛售
+ [New] 阶梯定价入口
  */
+double ecobridge_compute_tier_price(double base, double qty, bool is_sell);
+
+double ecobridge_calculate_epsilon(const TradeContext *ctx_ptr, const MarketConfig *cfg_ptr);
+
 double ecobridge_compute_pid_adjustment(PidState *pid_ptr,
                                         double target,
                                         double current,
                                         double dt,
                                         double inflation);
 
-/*
- 重置 PID 状态
- */
 void ecobridge_reset_pid_state(PidState *pid_ptr);
 
-/*
- 转账合规性检查
- 返回 TransferResult 结构体 (值传递，避免内存分配)
- */
+double ecobridge_calc_inflation(double current_heat, double m1);
+
+double ecobridge_calc_stability(long long last_ts, long long curr_ts);
+
+double ecobridge_calc_decay(double heat, double rate);
+
 TransferResult ecobridge_compute_transfer_check(const TransferContext *ctx_ptr,
                                                 const RegulatorConfig *cfg_ptr);
 

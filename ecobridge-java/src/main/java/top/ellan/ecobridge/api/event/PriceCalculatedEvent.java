@@ -47,8 +47,7 @@ public class PriceCalculatedEvent extends Event {
      * @param calculated Rust 内核算出的平滑价格
      */
     public PriceCalculatedEvent(@Nullable Player player, @NotNull String shopId, @NotNull String productId, double calculated) {
-        // 由于定价演算可能在虚拟线程或异步 Task 中完成，此处动态判定异步状态
-        super(!org.bukkit.Bukkit.isPrimaryThread());
+        super(false); 
         this.player = player;
         this.shopId = shopId;
         this.productId = productId;

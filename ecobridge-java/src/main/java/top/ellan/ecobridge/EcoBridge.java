@@ -7,7 +7,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import top.ellan.ecobridge.bridge.NativeBridge;
 import top.ellan.ecobridge.cache.HotDataCache;
 import top.ellan.ecobridge.command.TransferCommand;
-import top.ellan.ecobridge.database.TransactionDao;
+import top.ellan.ecobridge.database.DatabaseManager; // [新增] 引入数据库管理器
 import top.ellan.ecobridge.listener.CacheListener;
 import top.ellan.ecobridge.listener.CoinsEngineListener;
 import top.ellan.ecobridge.listener.CommandInterceptor;
@@ -27,13 +27,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * EcoBridge v0.8.8 - 工业级经济桥接内核 (Java 25 加固版)
- * 职责：管控系统拓扑，维护跨语言内存屏障，编排高性能异步 IO 链路。
+ * EcoBridge v0.8.9 - 工业级经济桥接内核
  * <p>
- * v0.8.8 更新：
- * 1. 强化关机序列稳定性，引入 LATE_LOAD_PROTECT 逻辑闭环。
- * 2. 切换至 NativeBridge 严格 ABI 全字匹配模式。
- * 3. 优化虚拟线程池回收策略。
+ * 更新日志:
+ * 1. 数据库层重构：基础设施(DatabaseManager)与业务逻辑(TransactionDao)分离。
+ * 2. Native层重构：引入 NativeLoader 解决生命周期管理与热重载资源释放问题。
  */
 public final class EcoBridge extends JavaPlugin {
 
@@ -48,10 +46,9 @@ public final class EcoBridge extends JavaPlugin {
         instance = this;
 
         // 1. 初始化并发心脏：Java 25 虚拟线程执行器
-        // 确保所有阻塞式 I/O (SQL, DuckDB, Redis) 不会造成物理线程饥饿
         this.virtualExecutor = Executors.newVirtualThreadPerTaskExecutor();
 
-        // 2. 引导基础架构 (引导顺序：日志 -> 数据库 -> 节假日/Redis -> 物理引擎)
+        // 2. 引导基础架构
         try {
             bootstrapInfrastructure();
         } catch (Exception e) {
@@ -67,21 +64,21 @@ public final class EcoBridge extends JavaPlugin {
 
         // 4. 组件加载拓扑
         try {
-            // A. Native 物理核心加载 (ABI v0.8.7 Strict Check)
+            // A. Native 物理核心加载 (自动处理 Loader 与 ABI 校验)
             NativeBridge.init(this);
 
-            // B. 逻辑管理层启动 (含 CAS 原子缓存)
+            // B. 逻辑管理层启动
             EconomyManager.init(this);
             EconomicStateManager.init(this);
             PricingManager.init(this);
             TransferManager.init(this);
 
-            // C. 驱动层注册 (指令与事件监听器)
+            // C. 驱动层注册
             registerCommands();
             registerListeners();
 
             this.fullyInitialized.set(true);
-            sendConsole("<blue>┃ <green>系统状态: <white>物理演算核心已进入实时同步状态 (v0.8.8) <blue>┃");
+            sendConsole("<blue>┃ <green>系统状态: <white>物理演算核心已进入实时同步状态 (v0.8.9) <blue>┃");
             sendConsole("<gradient:aqua:blue>┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛</gradient>");
 
         } catch (Throwable e) {
@@ -94,7 +91,7 @@ public final class EcoBridge extends JavaPlugin {
     public void onDisable() {
         sendConsole("<yellow>[EcoBridge] 正在启动安全关机序列 (Panic-Safe Shutdown)...");
 
-        // 1. 拦截新请求：停止业务流入口
+        // 1. 拦截新请求
         this.fullyInitialized.set(false);
 
         // 2. 环境解绑 & 网络断开
@@ -103,10 +100,10 @@ public final class EcoBridge extends JavaPlugin {
         }
         HolidayManager.shutdown();
 
-        // 3. 执行核心数据落盘 (关键顺序：驱逐缓存 -> 刷入 SQL -> 关闭 DuckDB)
+        // 3. 执行核心数据落盘 (关键顺序：驱逐缓存 -> 刷入 SQL -> 关闭持久化连接)
         shutdownPersistenceLayer();
 
-        // 4. 物理隔离：切断 FFI 入口，库生命周期移交 JVM 管理 (ofAuto)
+        // 4. 物理隔离：切断 FFI 入口，释放 Native 资源 (必须在持久化之后)
         NativeBridge.shutdown();
 
         // 5. 资源清理：关闭虚拟线程池
@@ -118,52 +115,35 @@ public final class EcoBridge extends JavaPlugin {
         sendConsole("<red>[EcoBridge] 插件已安全卸载。内存屏障已关闭，物理资源已安全释放。");
     }
 
-    /**
-     * 基础架构引导：核心组件初始化
-     */
     private void bootstrapInfrastructure() {
         saveDefaultConfig();
         LogUtil.init();
 
-        // 初始化 SQL 连接池
-        TransactionDao.init();
+        // [修复] 使用 DatabaseManager 初始化连接池与表结构
+        DatabaseManager.init();
 
-        // 初始化 DuckDB 异步日志
         AsyncLogger.init(this);
-
-        // 辅助服务初始化
         HolidayManager.init();
-
-        // 初始化 Redis 分布式同步层
         RedisManager.init(this);
     }
 
-    /**
-     * 持久化层安全下线逻辑
-     * 确保热路径中的 PlayerData 完整写回 MySQL
-     */
     private void shutdownPersistenceLayer() {
-        // 先停止 DuckDB 写入管线
         if (AsyncLogger.getInstance() != null) {
             AsyncLogger.getInstance().shutdown();
         }
 
-        // 强制同步刷盘：将内存中基于 AtomicLong 的余额写回 SQL
         LogUtil.info("正在执行热数据终点刷盘...");
+        // 这里的 HotDataCache.saveAllSync 内部会调用 TransactionDao，只要 DatabaseManager 没关就没问题
         HotDataCache.saveAllSync();
 
-        // 最后关闭 SQL 连接池
-        TransactionDao.close();
+        // [修复] 关闭数据库连接池与基础设施
+        DatabaseManager.close();
     }
 
-    /**
-     * 优雅关闭虚拟线程池，防止任务中途夭折
-     */
     private void terminateVirtualPool() {
         if (virtualExecutor != null && !virtualExecutor.isShutdown()) {
             virtualExecutor.shutdown();
             try {
-                // 给虚拟线程 5 秒处理残余任务 (如未完成的 SQL 写入)
                 if (!virtualExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
                     virtualExecutor.shutdownNow();
                 }
@@ -207,14 +187,9 @@ public final class EcoBridge extends JavaPlugin {
         sendConsole("<green>[EcoBridge] 逻辑参数重载成功。Native 内存布局保持锁定。");
     }
 
-    // --- 全局单例与 API ---
-
     public static EcoBridge getInstance() { return instance; }
-
     public ExecutorService getVirtualExecutor() { return virtualExecutor; }
-
     public static MiniMessage getMiniMessage() { return MM; }
-
     public boolean isFullyInitialized() { return fullyInitialized.get(); }
 
     private void printBanner() {

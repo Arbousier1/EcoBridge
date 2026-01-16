@@ -1,17 +1,23 @@
-// =============== ecobridge-rust/src/storage/mod.rs ===============
-
 use crossbeam_channel::{bounded, Receiver, Sender};
 use duckdb::{params, Connection};
 use std::ops::Deref;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::OnceLock;
+use std::sync::{OnceLock, RwLock};
 use std::thread;
 use libc::c_int;
+use lazy_static::lazy_static; // 确保 Cargo.toml 添加了 lazy_static = "1.4"
+use crate::models::HistoryRecord;
 
 // -----------------------------------------------------------------------------
 // 静态状态管理
 // -----------------------------------------------------------------------------
+
+lazy_static! {
+    // [核心架构] 全局内存历史 - 单一事实来源 (Single Source of Truth)
+    // 供 summation.rs 的 SIMD 模块读取，完全绕过 DuckDB I/O
+    static ref GLOBAL_HISTORY: RwLock<Vec<HistoryRecord>> = RwLock::new(Vec::with_capacity(200_000));
+}
 
 static LOG_SENDER: OnceLock<Sender<LogEvent>> = OnceLock::new();
 static READ_POOL: OnceLock<ConnectionPool> = OnceLock::new();
@@ -59,11 +65,8 @@ impl Drop for DbConnectionGuard {
 // FFI 关机指令实现
 // -----------------------------------------------------------------------------
 
-/// [FFI] 触发 Native 层安全关机序列
 pub fn shutdown_db_internal() -> c_int {
     if let Some(sender) = LOG_SENDER.get() {
-        // 发送“毒丸”信号：ts = -1 表示停止信号
-        // 这将打破 writer_loop 的无限循环
         let res = sender.send(LogEvent {
             ts: -1, 
             uuid: String::new(),
@@ -99,16 +102,17 @@ pub fn init_economy_db(path_str: &str) -> c_int {
         }
     };
 
+    // DDL
     let ddl_res = write_conn.execute_batch(
         "PRAGMA journal_mode=WAL;
          PRAGMA synchronous=NORMAL;
          PRAGMA busy_timeout=5000; 
          CREATE TABLE IF NOT EXISTS economy_log (
-            ts BIGINT,
-            player_uuid VARCHAR,
-            delta DOUBLE,
-            balance DOUBLE,
-            metadata VARCHAR
+             ts BIGINT,
+             player_uuid VARCHAR,
+             delta DOUBLE,
+             balance DOUBLE,
+             metadata VARCHAR
          );
          CREATE INDEX IF NOT EXISTS idx_ts ON economy_log (ts);"
     );
@@ -118,17 +122,16 @@ pub fn init_economy_db(path_str: &str) -> c_int {
         return -5;
     }
 
-    let pool_size = 8;
+    // [集成点 A] 启动预热：将最近 90 天的数据加载到 GLOBAL_HISTORY
+    // 这是 SIMD 计算能工作的关键
+    load_recent_history_to_memory(&write_conn);
+
+    // 初始化连接池
+    let pool_size = 4; // NEff 走内存了，连接池可以小一点
     let (pool_tx, pool_rx) = bounded(pool_size);
     for _i in 0..pool_size {
-        match write_conn.try_clone() {
-            Ok(c) => {
-                let _ = pool_tx.send(c);
-            }
-            Err(e) => {
-                eprintln!("[EcoBridge-Storage] 连接池初始化失败: {}", e);
-                return -6;
-            }
+        if let Ok(c) = write_conn.try_clone() {
+            let _ = pool_tx.send(c);
         }
     }
 
@@ -150,18 +153,91 @@ pub fn init_economy_db(path_str: &str) -> c_int {
     }
 }
 
-/// 改进的后台写入循环：支持优雅关机
+/// [新增] 从 DuckDB 加载历史数据到内存
+fn load_recent_history_to_memory(conn: &Connection) {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as i64;
+    
+    // 90天回溯，覆盖 tau=7 的有效计算范围
+    let cutoff = now - (90i64 * 86_400_000);
+    println!("[EcoBridge-Storage] 正在预热内存数据 (Cutoff: {})...", cutoff);
+
+    let mut stmt = match conn.prepare("SELECT ts, delta FROM economy_log WHERE ts > ? ORDER BY ts ASC") {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("[EcoBridge-Storage] Preload Prepare Error: {}", e);
+            return;
+        }
+    };
+
+    let records_iter = stmt.query_map(params![cutoff], |row| {
+        Ok(HistoryRecord {
+            timestamp: row.get(0)?,
+            amount: row.get(1)?,
+        })
+    });
+
+    match records_iter {
+        Ok(iter) => {
+            let mut hist = GLOBAL_HISTORY.write().unwrap();
+            let start_len = hist.len();
+            for rec in iter {
+                if let Ok(r) = rec {
+                    hist.push(r);
+                }
+            }
+            println!("[EcoBridge-Storage] 预热完成。加载了 {} 条记录到内存。", hist.len() - start_len);
+        }
+        Err(e) => eprintln!("[EcoBridge-Storage] Preload Query Error: {}", e),
+    }
+}
+
+/// [对外接口] 获取内存历史的读锁引用
+/// 供 summation.rs 模块计算 NEff 使用
+pub fn get_history_read() -> std::sync::RwLockReadGuard<'static, Vec<HistoryRecord>> {
+    GLOBAL_HISTORY.read().unwrap()
+}
+
+/// [集成点 B] 核心双写：同时写内存(主)和 DB队列(副)
+pub fn log_economy_event(ts: i64, uuid: String, delta: f64, balance: f64, meta: String) {
+    TOTAL_LOGS.fetch_add(1, Ordering::Relaxed);
+    
+    // 1. 同步写内存 (确保计算即时性)
+    {
+        if let Ok(mut hist) = GLOBAL_HISTORY.write() {
+             hist.push(HistoryRecord { timestamp: ts, amount: delta });
+             
+             // 简单修剪防止 OOM (长度保护)
+             // 生产环境可优化为基于时间的修剪
+             if hist.len() > 500_000 {
+                 let keep = 400_000;
+                 let remove_count = hist.len() - keep;
+                 hist.drain(0..remove_count);
+             }
+        }
+    }
+
+    // 2. 异步写 DB (持久化)
+    if let Some(sender) = LOG_SENDER.get() {
+        if let Err(_) = sender.try_send(LogEvent { ts, uuid, delta, balance, meta }) {
+            DROPPED_LOGS.fetch_add(1, Ordering::Relaxed);
+        }
+    } else {
+        DROPPED_LOGS.fetch_add(1, Ordering::Relaxed);
+    }
+}
+
 fn writer_loop(conn: Connection, rx: Receiver<LogEvent>) {
     let mut buffer = Vec::with_capacity(1024);
     
-    // 主事件循环
     loop {
         let first = match rx.recv() {
             Ok(msg) => msg,
-            Err(_) => break, // 通道关闭
+            Err(_) => break, 
         };
 
-        // 核心变更：检测到关机信号则跳出循环
         if first.ts == -1 { 
             eprintln!("[EcoBridge-Storage] 接收到关机信号，正在冲刷缓存并退出...");
             break; 
@@ -169,35 +245,27 @@ fn writer_loop(conn: Connection, rx: Receiver<LogEvent>) {
 
         buffer.push(first);
 
-        // 批量拉取后续数据 (Backpressure Aware) [cite: 500]
         while buffer.len() < 1024 {
             match rx.try_recv() {
                 Ok(msg) => {
-                    if msg.ts == -1 {
-                        // 如果在批量获取中也拉到了关机信号，立即终止
-                        break;
-                    }
+                    if msg.ts == -1 { break; }
                     buffer.push(msg);
                 },
                 Err(_) => break,
             }
         }
 
-        // 写入当前批次
         flush_buffer_to_db(&conn, &mut buffer);
     }
 
-    // 关机前的最终清理：冲刷 buffer 内剩余的所有数据
     if !buffer.is_empty() {
         flush_buffer_to_db(&conn, &mut buffer);
     }
     eprintln!("[EcoBridge-Storage] 后台写入线程已安全终止。");
 }
 
-/// 辅助函数：执行 DuckDB Appender 写入 
 fn flush_buffer_to_db(conn: &Connection, buffer: &mut Vec<LogEvent>) {
     if buffer.is_empty() { return; }
-    
     match conn.appender("economy_log") {
         Ok(mut appender) => {
             for ev in buffer.drain(..) {
@@ -214,55 +282,70 @@ fn flush_buffer_to_db(conn: &Connection, buffer: &mut Vec<LogEvent>) {
     }
 }
 
-pub fn log_economy_event(ts: i64, uuid: String, delta: f64, balance: f64, meta: String) {
-    TOTAL_LOGS.fetch_add(1, Ordering::Relaxed);
-    if let Some(sender) = LOG_SENDER.get() {
-        if let Err(_) = sender.try_send(LogEvent { ts, uuid, delta, balance, meta }) {
-            DROPPED_LOGS.fetch_add(1, Ordering::Relaxed);
-        }
-    } else {
-        DROPPED_LOGS.fetch_add(1, Ordering::Relaxed);
-    }
-}
-
+// 传统的 SQL 查询 (保留作为备份或审计用途)
 pub fn query_neff_from_db(current_ts: i64, tau: f64) -> f64 {
     let pool = match READ_POOL.get() {
         Some(p) => p,
         None => return 0.0,
     };
-    
     let raw_conn = match pool.available.recv() {
         Ok(c) => c,
         Err(_) => return 0.0,
     };
-
     let conn_guard = DbConnectionGuard {
         conn: Some(raw_conn),
         pool_sender: pool.recycle.clone(),
     };
-
-    let query = "
-        SELECT SUM(ABS(delta) * EXP( -1.0 * (?1 - ts) / (?2 * 86400000.0) ))
-        FROM economy_log
-        WHERE ts > ?3
-    ";
-
+    // ... 原有 SQL 查询逻辑 ...
+    let query = "SELECT SUM(ABS(delta) * EXP( -1.0 * (?1 - ts) / (?2 * 86400000.0) )) FROM economy_log WHERE ts > ?3";
     let ms_per_day = 86_400_000.0;
     let safe_lookback_ms = (tau * ms_per_day * 3.0) as i64;
     let min_ts = current_ts - safe_lookback_ms;
 
-    conn_guard.query_row(
-        query,
-        params![current_ts, tau, min_ts],
-        |row| row.get(0)
-    ).unwrap_or(0.0)
+    conn_guard.query_row(query, params![current_ts, tau, min_ts], |row| row.get(0)).unwrap_or(0.0)
 }
 
-pub fn get_total_logs() -> u64 { 
-    TOTAL_LOGS.load(Ordering::Relaxed) 
-}
+pub fn get_total_logs() -> u64 { TOTAL_LOGS.load(Ordering::Relaxed) }
+pub fn get_dropped_logs() -> u64 { DROPPED_LOGS.load(Ordering::Relaxed) }
+pub fn load_recent_history(days: i64) -> Vec<crate::models::HistoryRecord> {
+    let pool = match READ_POOL.get() {
+        Some(p) => p,
+        None => return Vec::new(),
+    };
+    let raw_conn = match pool.available.recv() {
+        Ok(c) => c,
+        Err(_) => return Vec::new(),
+    };
+    
+    // 我们只需要 timestamp 和 delta (即 amount)
+    // 注意：这里我们取 delta 的绝对值，因为 nEff 关注的是流动性规模
+    let ms_lookback = days * 86_400_000;
+    let cutoff = chrono::Utc::now().timestamp_millis() - ms_lookback;
 
-/// 获取因背压（内存队列满）而丢弃的日志数 [cite: 504]
-pub fn get_dropped_logs() -> u64 { 
-    DROPPED_LOGS.load(Ordering::Relaxed) 
+    let query = "
+        SELECT ts, delta 
+        FROM economy_log 
+        WHERE ts > ? 
+        ORDER BY ts ASC
+    ";
+
+    let mut stmt = raw_conn.prepare(query).unwrap();
+    let record_iter = stmt.query_map(params![cutoff], |row| {
+        Ok(crate::models::HistoryRecord {
+            timestamp: row.get(0)?,
+            amount: row.get::<_, f64>(1)?.abs(), // 取绝对值，对应流动性
+        })
+    }).unwrap();
+
+    let mut history = Vec::new();
+    for record in record_iter {
+        if let Ok(r) = record {
+            history.push(r);
+        }
+    }
+    
+    // 归还连接
+    let _ = pool.recycle.send(raw_conn);
+    
+    history
 }

@@ -84,7 +84,7 @@ public class RedisManager {
 
         clientConfigBuilder.ssl(config.getBoolean("redis.ssl", false));
         clientConfigBuilder.timeoutMillis(5000); 
-        clientConfigBuilder.socketTimeoutMillis(0); 
+        clientConfigBuilder.socketTimeoutMillis(5000); 
 
         ConnectionPoolConfig poolConfig = new ConnectionPoolConfig();
         poolConfig.setMaxTotal(32);
@@ -156,33 +156,53 @@ public class RedisManager {
     }
 
     private void flushLoop() {
-        try {
-            try (Connection connection = provider.getConnection();
-                 Jedis jedis = new Jedis(connection)) {
+    // [Resource Guard] 批处理与时间片限制
+    final int BATCH_SIZE = 100;
+    final long MAX_FLUSH_TIME_MS = 5000;
 
-                while (!offlineQueue.isEmpty() && active.get()) {
-                    TradePacket packet = offlineQueue.peek();
-                    if (packet == null) break;
+    try {
+        long startTime = System.currentTimeMillis();
+        
+        try (redis.clients.jedis.Connection connection = provider.getConnection();
+             redis.clients.jedis.Jedis jedis = new redis.clients.jedis.Jedis(connection)) {
+            
+            int processed = 0;
+            
+            while (!offlineQueue.isEmpty() && active.get()) {
+                TradePacket packet = offlineQueue.peek();
+                if (packet == null) break;
 
-                    try {
-                        // [Jackson] 序列化
-                        String json = mapper.writeValueAsString(packet);
-                        jedis.publish(tradeChannel, json);
-                        offlineQueue.poll(); // 发送成功才移除
-                    } catch (JsonProcessingException e) {
-                        LogUtil.error("Redis 序列化严重错误，丢弃坏包", e);
-                        offlineQueue.poll(); // 遇到坏包直接丢弃，防止阻塞队列
-                    }
+                try {
+                    // ✅ [Jackson] 序列化适配
+                    // 假设类中已定义: private final ObjectMapper mapper = new ObjectMapper();
+                    String json = mapper.writeValueAsString(packet);
+                    jedis.publish(tradeChannel, json);
+                    
+                    // 发送成功才移除
+                    offlineQueue.poll(); 
+                } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+                    // [Fault Tolerance] 遇到序列化坏包，必须丢弃，否则会卡死队列头部
+                    LogUtil.error("Redis 序列化严重错误，丢弃坏包: " + e.getMessage(), e);
+                    offlineQueue.poll(); 
+                }
+                
+                // [Resource Guard] 检查配额
+                processed++;
+                if (processed >= BATCH_SIZE || 
+                   (System.currentTimeMillis() - startTime) > MAX_FLUSH_TIME_MS) {
+                    break; // 主动释放连接
                 }
             }
-        } catch (Exception e) {
-            LogUtil.warn("Redis 批量冲刷中止: " + e.getMessage());
-        } finally {
-            isFlushing.set(false);
-            if (!offlineQueue.isEmpty() && active.get()) {
-                flushOfflineQueueAsync();
-            }
         }
+    } catch (Exception e) {
+        LogUtil.warn("Redis 批量冲刷中止: " + e.getMessage());
+    } finally {
+        isFlushing.set(false);
+        // [Safety Fix] CAS 安全调度
+        if (!offlineQueue.isEmpty() && active.get()) {
+            flushOfflineQueueAsync();
+        }
+    }
     }
 
     private void handleTradePacket(String json) {

@@ -35,11 +35,70 @@ fn compute_price_behavioral_core(
     
     let final_price = base_price * epsilon * clamped_exponent.exp();
     
-    // 5. 价格地板保护
+    // 5. 绝对硬底线 (0.01)
     final_price.max(0.01)
 }
 
-// ==================== 修复 unresolved imports 的兼容性接口 ====================
+// ==================== [新增] 阶梯定价与底价保护 ====================
+
+/// [新增] 计算阶梯定价 (Tier Pricing)
+/// 逻辑完全复刻 Java 版本，但由编译器优化分支预测
+pub fn compute_tier_price_internal(
+    base_price: f64, 
+    quantity: f64, 
+    is_sell: bool
+) -> f64 {
+    // 只有卖出 (is_sell=true) 且数量 > 500 才触发阶梯
+    // 或者根据你的业务逻辑调整
+    if !is_sell || quantity <= 500.0 || quantity <= 0.0 {
+        return base_price;
+    }
+
+    let mut total_value = 0.0;
+    let mut remaining = quantity;
+
+    // Tier 1: 0 - 500 (100%)
+    let t1 = remaining.min(500.0);
+    total_value += t1 * base_price;
+    remaining -= t1;
+
+    // Tier 2: 501 - 2000 (85%)
+    if remaining > 0.0 {
+        let t2 = remaining.min(1500.0);
+        total_value += t2 * (base_price * 0.85);
+        remaining -= t2;
+    }
+
+    // Tier 3: 2000+ (60%)
+    if remaining > 0.0 {
+        total_value += remaining * (base_price * 0.60);
+    }
+
+    total_value / quantity
+}
+
+/// [增强] 包含动态底价保护的最终价格计算
+/// 
+/// 这个函数整合了核心定价逻辑 + 动态地板价检查。
+/// hist_avg: 7日历史均价 (从 Java 传入)
+pub fn compute_price_with_floor(
+    base: f64, n_eff: f64, trade_amt: f64, lambda: f64, epsilon: f64, 
+    hist_avg: f64
+) -> f64 {
+    // 调用核心行为定价逻辑
+    let raw_price = compute_price_humane_internal(base, n_eff, trade_amt, lambda, epsilon);
+    
+    // 动态地板价逻辑: Max(历史均价 * 20%, 0.01)
+    let floor = (hist_avg * 0.2).max(0.01);
+    
+    if raw_price < floor {
+        floor
+    } else {
+        raw_price
+    }
+}
+
+// ==================== 兼容性接口 ====================
 
 /// 兼容旧代码：计算当前静态物理价格 (trade_amount 默认为 0)
 #[no_mangle]
@@ -95,5 +154,37 @@ mod tests {
         let rise = p_buy - base;
         
         assert!(drop < rise, "下跌应比上涨更平缓 (损失厌恶保护)");
+    }
+
+    #[test]
+    fn test_tier_pricing() {
+        let base = 10.0;
+        
+        // Case 1: <= 500 (No tier)
+        assert_eq!(compute_tier_price_internal(base, 100.0, true), 10.0);
+        
+        // Case 2: 1000 (500@10.0 + 500@8.5) / 1000 = (5000 + 4250) / 1000 = 9.25
+        let p2 = compute_tier_price_internal(base, 1000.0, true);
+        assert!((p2 - 9.25).abs() < 1e-6);
+        
+        // Case 3: Buy (No tier)
+        assert_eq!(compute_tier_price_internal(base, 1000.0, false), 10.0);
+    }
+
+    #[test]
+    fn test_floor_protection() {
+        // [Fix] 删除未使用的 base 变量
+        // let base = 10.0; <--- 原代码此处报警
+        
+        let hist_avg = 50.0; // Floor = 50.0 * 0.2 = 10.0
+        
+        // Case 1: Normal price (e.g. 12.0) > Floor (10.0) -> Return 12.0
+        // Simulate by setting lambda=0 so calculation returns base input
+        let p1 = compute_price_with_floor(12.0, 0.0, 0.0, 0.0, 1.0, hist_avg);
+        assert_eq!(p1, 12.0);
+        
+        // Case 2: Crash price (e.g. 5.0) < Floor (10.0) -> Return 10.0
+        let p2 = compute_price_with_floor(5.0, 0.0, 0.0, 0.0, 1.0, hist_avg);
+        assert_eq!(p2, 10.0);
     }
 }

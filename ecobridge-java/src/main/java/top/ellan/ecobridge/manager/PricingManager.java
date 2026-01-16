@@ -1,3 +1,7 @@
+// ==================================================
+// FILE: ecobridge-java/src/main/java/top/ellan/ecobridge/manager/PricingManager.java
+// ==================================================
+
 package top.ellan.ecobridge.manager;
 
 import cn.superiormc.ultimateshop.objects.buttons.ObjectItem;
@@ -7,43 +11,49 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import top.ellan.ecobridge.EcoBridge;
 import top.ellan.ecobridge.api.event.PriceCalculatedEvent;
-import top.ellan.ecobridge.bridge.NativeBridge;
-import top.ellan.ecobridge.bridge.NativeBridge.Layouts;
-import top.ellan.ecobridge.collector.ActivityCollector;
 import top.ellan.ecobridge.database.TransactionDao;
+import top.ellan.ecobridge.engine.PriceComputeEngine; // [核心依赖] 计算引擎
 import top.ellan.ecobridge.model.SaleRecord;
 import top.ellan.ecobridge.network.RedisManager;
 import top.ellan.ecobridge.storage.AsyncLogger;
-import top.ellan.ecobridge.util.HolidayManager;
 import top.ellan.ecobridge.util.LogUtil;
-import top.ellan.ecobridge.util.PriceOracle;
+import top.ellan.ecobridge.util.PriceOracle; // [核心依赖] 数学与校验预言机
 
-import java.lang.foreign.Arena;
-import java.lang.foreign.MemorySegment;
 import java.time.Duration;
-import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.TimeUnit;
-
-import static top.ellan.ecobridge.bridge.NativeBridge.*;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
- * 核心定价管理器 (PricingManager v0.8.9 - Hardened Behavioral Edition)
- * 职责：驱动物理演算链，集成行为经济学干预（滑动地板、阶梯计价）。
+ * 核心定价管理器 (PricingManager v1.2.0 - Coordinator Pattern)
+ * <p>
+ * 职责边界:
+ * 1. [State] 持有价格快照 (Snapshot) 和交易历史 (History)。
+ * 2. [Scheduler] 调度后台计算任务，但本身不执行计算。
+ * 3. [API] 提供对外查询接口，并处理事件分发。
+ * <p>
+ * 已剥离逻辑:
+ * - Native 计算 -> {@link top.ellan.ecobridge.engine.PriceComputeEngine}
+ * - 阶梯定价/物品校验 -> {@link top.ellan.ecobridge.util.PriceOracle}
  */
 public class PricingManager {
 
     private static PricingManager instance;
     private final EcoBridge plugin;
 
-    private final Cache<String, List<SaleRecord>> historyCache;
+    // [状态 1] 价格快照 (Key: "shopId:productId", Value: UnitPrice)
+    // 使用 AtomicReference 实现无锁读写替换
+    private final AtomicReference<Map<String, Double>> priceSnapshot =
+            new AtomicReference<>(Collections.emptyMap());
 
-    // [v0.8.9 Fix] 帧级 Neff 缓存，防止 FFI 穿透导致的 CPU 瓶颈
-    private final Cache<String, Double> neffCache = Caffeine.newBuilder()
-    .expireAfterWrite(500, TimeUnit.MILLISECONDS)
-    .maximumSize(1000)
-    .build();
+    // [状态 2] 交易历史缓存 (Caffeine 管理生命周期)
+    private final Cache<String, ThreadSafeHistory> historyCache;
 
+    // 运行控制标志
+    private volatile boolean isRunning = true;
+
+    // 缓存的配置参数 (从 Config 读取)
     private double defaultLambda;
     private double configTau;
     private int historyDaysLimit;
@@ -51,11 +61,15 @@ public class PricingManager {
 
     private PricingManager(EcoBridge plugin) {
         this.plugin = plugin;
+        
+        // 初始化缓存：30分钟无访问自动过期，防止内存泄漏
         this.historyCache = Caffeine.newBuilder()
-        .maximumSize(2000)
-        .expireAfterAccess(Duration.ofMinutes(30))
-        .build();
+                .maximumSize(2000)
+                .expireAfterAccess(Duration.ofMinutes(30))
+                .build();
+
         loadConfig();
+        startSnapshotEngine();
     }
 
     public static void init(EcoBridge plugin) {
@@ -74,136 +88,138 @@ public class PricingManager {
         this.maxHistorySize = config.getInt("economy.max-history-records", 3000);
     }
 
+    public void shutdown() {
+        this.isRunning = false;
+        this.historyCache.invalidateAll();
+    }
+
+    // =================================================================================
+    //  SECTION 1: Snapshot Scheduling (协调层)
+    // =================================================================================
+
     /**
-     * 【行为演进定价核心】
-     * 整合：物理演算 + 7d 均价锚定 + 阶梯式边际效用
+     * [API] O(1) 读取当前快照价格
+     */
+    public double getSnapshotPrice(String shopId, String productId) {
+        return priceSnapshot.get().getOrDefault(shopId + ":" + productId, -1.0);
+    }
+
+    /**
+     * 启动后台定价引擎调度器
+     * 注意：这里只负责调度，具体的计算逻辑已委托给 PriceComputeEngine
+     */
+    private void startSnapshotEngine() {
+        Thread.ofVirtual().name("EcoBridge-Price-Engine").start(() -> {
+            LogUtil.info("定价调度器已启动 (Mode: Delegated Compute)");
+
+            while (isRunning && plugin.isEnabled()) {
+                try {
+                    // [Delegation] 调用纯计算引擎获取新价格表
+                    // 这是一个耗时操作 (包含 Native 调用)，但在虚拟线程中运行不会阻塞主线程
+                    Map<String, Double> nextPrices = PriceComputeEngine.computeSnapshot(
+                        plugin, configTau, defaultLambda
+                    );
+
+                    // [State Update] 原子替换快照
+                    if (!nextPrices.isEmpty()) {
+                        priceSnapshot.set(Map.copyOf(nextPrices));
+                    }
+
+                    // 计算间隔 (2秒)
+                    Thread.sleep(2000);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                } catch (Throwable e) {
+                    LogUtil.warn("定价调度循环异常: " + e.getMessage());
+                }
+            }
+        });
+    }
+
+    // =================================================================================
+    //  SECTION 2: Dynamic API & Event Bridge (业务层)
+    // =================================================================================
+    
+    /**
+     * 计算最终动态价格 (含阶梯定价 + 事件触发)
      */
     public double calculateDynamicPrice(Player player, ObjectItem item, double amount) {
-        String productId = item.getProduct();
         String shopId = item.getShop();
+        String productId = item.getProduct();
+        
+        // 1. 获取基准单价 (Snapshot -> Fallback)
+        double basePrice = getSnapshotPrice(shopId, productId);
+        if (basePrice <= 0) {
+            basePrice = PriceOracle.getOriginalBasePrice(item, amount < 0);
+        }
 
-        boolean isBuy = amount < 0;
-        double basePrice = PriceOracle.getOriginalBasePrice(item, isBuy);
-        if (basePrice <= 0) return 0.0;
+        // 2. [Delegation] 应用阶梯定价 (Tier Pricing)
+        // 逻辑已移至 PriceOracle，此处仅调用
+        double calculatedPrice = PriceOracle.calculateTierPrice(basePrice, Math.abs(amount), amount > 0);
 
-        try (Arena arena = Arena.ofConfined()) {
-            // 1. 获取行为锚定数据 (7天历史均价)
-            double histAvg = TransactionDao.get7DayAverage(productId);
-
-            // 2. 环境因子与物理参数采集
-            double inflation = EconomyManager.getInstance().getInflationRate();
-            var activity = ActivityCollector.capture(player, 48.0);
-            double lambda = plugin.getConfig().getDouble("item-settings." + shopId + "." + productId + ".lambda", defaultLambda);
-
-            // 3. 向 Native 请求物理状态 [v0.8.9 Fix] 引入 500ms 帧级缓存
-            double nEff = neffCache.get(productId, k ->
-            NativeBridge.queryNeffVectorized(System.currentTimeMillis(), configTau)
-        );
-
-            // 4. 映射上下文与配置
-            MemorySegment ctx = arena.allocate(Layouts.TRADE_CONTEXT);
-            VH_CTX_BASE_PRICE.set(ctx, 0L, basePrice);
-            VH_CTX_CURR_AMT.set(ctx, 0L, amount);
-            VH_CTX_INF_RATE.set(ctx, 0L, inflation);
-            VH_CTX_TIMESTAMP.set(ctx, 0L, System.currentTimeMillis());
-            VH_CTX_PLAY_TIME.set(ctx, 0L, (long) activity.seconds());
-
-            int zoneOffset = java.time.OffsetDateTime.now().getOffset().getTotalSeconds();
-            NativeBridge.VH_CTX_TIMEZONE_OFFSET.set(ctx, 0L, zoneOffset);
-
-            int mask = ((HolidayManager.isTodayHoliday() ? 1 : 0) << 1) | (activity.isNewbie() == 1 ? 1 : 0);
-            VH_CTX_NEWBIE_MASK.set(ctx, 0L, mask);
-
-            MemorySegment cfg = prepareMarketConfig(arena);
-
-            // 5. 感知市场相位并获取行为修正系数
-            var stateManager = EconomicStateManager.getInstance();
-            var phase = stateManager.analyzeMarketAndNotify(productId, nEff);
-            double behavioralModifier = stateManager.getBehavioralLambdaModifier(phase);
-
-            // 6. 执行跨语言物理演算
-            double epsilon = NativeBridge.calculateEpsilon(ctx, cfg);
-            double finalLambda = lambda * behavioralModifier;
-            double calculatedPrice = NativeBridge.computePrice(basePrice, nEff, amount, finalLambda, epsilon);
-
-            // 7. [行为微调层] 滑动地板保护 (Sliding Floor)
-            double dynamicFloor = histAvg * 0.2;
-            if (calculatedPrice < dynamicFloor) {
-                calculatedPrice = Math.max(dynamicFloor, 0.01);
-            }
-
-            // 8. [行为微调层] 阶梯计价与边际效用 (Marginal Utility)
-            double finalPrice = applyTierPricing(calculatedPrice, Math.abs(amount), !isBuy);
-
-            // 9. 事件分发 [v0.8.5 Fix] 强制主线程回调
-            PriceCalculatedEvent event = new PriceCalculatedEvent(player, shopId, productId, finalPrice);
-            if (!Bukkit.isPrimaryThread()) {
-                Bukkit.getScheduler().runTask(plugin, () -> Bukkit.getPluginManager().callEvent(event));
-            } else {
-                Bukkit.getPluginManager().callEvent(event);
-            }
-
+        // 3. 事件分发 (线程安全桥接)
+        if (Bukkit.isPrimaryThread()) {
+            // 场景 A: 主线程直接调用 (高效)
+            PriceCalculatedEvent event = new PriceCalculatedEvent(player, shopId, productId, calculatedPrice);
+            Bukkit.getPluginManager().callEvent(event);
             return event.getFinalPrice();
+        } else {
+            // 场景 B: 异步线程调用 (安全等待)
+            // 使用 CompletableFuture 桥接到主线程触发事件，并等待结果返回
+            CompletableFuture<Double> future = new CompletableFuture<>();
+            
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                try {
+                    PriceCalculatedEvent event = new PriceCalculatedEvent(player, shopId, productId, calculatedPrice);
+                    Bukkit.getPluginManager().callEvent(event);
+                    future.complete(event.getFinalPrice());
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            });
 
-        } catch (Throwable e) {
-            LogUtil.error("物理定价内核演算链路故障 [" + productId + "]", e);
-            return basePrice;
+            try {
+                // 在虚拟线程中 join() 是低开销的挂起
+                return future.join();
+            } catch (Exception e) {
+                // 异常兜底：返回计算价，不打断交易
+                LogUtil.error("事件同步等待失败，使用计算原价", e);
+                return calculatedPrice;
+            }
         }
     }
 
-    /**
-     * 应用阶梯式计价 (边际收益递减)
-     */
-    private double applyTierPricing(double basePrice, double quantity, boolean isSell) {
-        if (!isSell || quantity <= 500) return basePrice;
-        if (quantity <= 0) return basePrice;
-
-        double totalValue = 0;
-        double remaining = quantity;
-
-        double t1 = Math.min(remaining, 500);
-        totalValue += t1 * basePrice;
-        remaining -= t1;
-
-        if (remaining > 0) {
-            double t2 = Math.min(remaining, 1500);
-            totalValue += t2 * (basePrice * 0.85);
-            remaining -= t2;
-        }
-
-        if (remaining > 0) {
-            totalValue += remaining * (basePrice * 0.6);
-        }
-
-        return totalValue / quantity;
-    }
+    // =================================================================================
+    //  SECTION 3: History Management (历史记录容器)
+    // =================================================================================
 
     public void onTradeComplete(ObjectItem item, double effectiveAmount) {
         String productId = item.getProduct();
         long now = System.currentTimeMillis();
 
+        // 写入本地历史
         processTradeInternal(productId, effectiveAmount, now, true);
 
+        // 推送 Redis (用于跨服同步)
         if (RedisManager.getInstance() != null) {
             RedisManager.getInstance().publishTrade(productId, effectiveAmount);
         }
     }
 
     public void onRemoteTradeReceived(String productId, double amount, long timestamp) {
+        // 远程交易只更新本地历史，不写库 (假设源头服已写库)
         processTradeInternal(productId, amount, timestamp, false);
     }
 
-    /**
-     * [v0.8.5 Fix] 线程安全重构：隔离数据库操作与 Bukkit API
-     */
     private void processTradeInternal(String productId, double amount, long timestamp, boolean writeToSql) {
         SaleRecord record = new SaleRecord(timestamp, amount);
-        List<SaleRecord> history = getGlobalHistory(productId);
-        if (history != null) {
-            history.add(0, record);
-            if (history.size() > maxHistorySize) history.remove(history.size() - 1);
-        }
 
+        // 更新内存 RingBuffer
+        ThreadSafeHistory historyContainer = getHistoryContainer(productId);
+        historyContainer.add(record, maxHistorySize);
+
+        // 异步日志记录
         java.util.UUID productLoggerUuid = java.util.UUID.nameUUIDFromBytes(("PRODUCT_" + productId).getBytes());
 
         if (writeToSql) {
@@ -217,33 +233,53 @@ public class PricingManager {
         }
     }
 
-    private MemorySegment prepareMarketConfig(Arena arena) {
-        MemorySegment cfg = arena.allocate(Layouts.MARKET_CONFIG);
-        var config = plugin.getConfig();
-
-        // [v0.8.9 Fix] 确保在 NativeBridge 中定义了对应的 VarHandle 句柄
-        NativeBridge.VH_CFG_LAMBDA.set(cfg, 0L, defaultLambda);
-        NativeBridge.VH_CFG_VOLATILITY.set(cfg, 0L, 1.0);
-        NativeBridge.VH_CFG_S_AMP.set(cfg, 0L, config.getDouble("economy.seasonal-amplitude", 0.15));
-        NativeBridge.VH_CFG_W_MULT.set(cfg, 0L, config.getDouble("economy.weekend-multiplier", 1.2));
-        NativeBridge.VH_CFG_N_PROT.set(cfg, 0L, config.getDouble("economy.newbie-protection-rate", 0.2));
-
-        NativeBridge.VH_CFG_W_SEASONAL.set(cfg, 0L, config.getDouble("economy.weights.seasonal", 0.25));
-        NativeBridge.VH_CFG_W_WEEKEND.set(cfg, 0L, config.getDouble("economy.weights.weekend", 0.25));
-        NativeBridge.VH_CFG_W_NEWBIE.set(cfg, 0L, config.getDouble("economy.weights.newbie", 0.25));
-        NativeBridge.VH_CFG_W_INFLATION.set(cfg, 0L, config.getDouble("economy.weights.inflation", 0.25));
-
-        return cfg;
+    public List<SaleRecord> getGlobalHistory(String productId) {
+        return getHistoryContainer(productId).getSnapshot();
     }
 
-    public List<SaleRecord> getGlobalHistory(String productId) {
-        return historyCache.get(productId, k ->
-        new CopyOnWriteArrayList<>(TransactionDao.getProductHistory(k, historyDaysLimit))
-    );
+    private ThreadSafeHistory getHistoryContainer(String productId) {
+        return historyCache.get(productId, k -> {
+            // Cache Miss: 从数据库加载历史
+            List<SaleRecord> dbData = TransactionDao.getProductHistory(k, historyDaysLimit);
+            return new ThreadSafeHistory(dbData);
+        });
     }
 
     public void clearCache() {
         historyCache.invalidateAll();
-        neffCache.invalidateAll();
+    }
+
+    /**
+     * 线程安全的历史记录容器
+     * 使用 ReentrantReadWriteLock 优化读多写少的场景
+     */
+    private static class ThreadSafeHistory {
+        private final ArrayDeque<SaleRecord> deque;
+        private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
+
+        public ThreadSafeHistory(List<SaleRecord> initialData) {
+            this.deque = new ArrayDeque<>(initialData);
+        }
+
+        public void add(SaleRecord record, int maxSize) {
+            lock.writeLock().lock();
+            try {
+                deque.addFirst(record);
+                if (deque.size() > maxSize) {
+                    deque.removeLast();
+                }
+            } finally {
+                lock.writeLock().unlock();
+            }
+        }
+
+        public List<SaleRecord> getSnapshot() {
+            lock.readLock().lock();
+            try {
+                return new ArrayList<>(deque);
+            } finally {
+                lock.readLock().unlock();
+            }
+        }
     }
 }
