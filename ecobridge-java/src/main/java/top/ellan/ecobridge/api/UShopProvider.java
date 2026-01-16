@@ -24,30 +24,20 @@ import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 
 /**
- * UltimateShop 数据适配器 (v0.8.9-Precision-Patch)
- * 职责：作为 Java 25 与 UltimateShop 之间的胶水层。
- * <p>
- * 架构变更日志：
- * 1. **OOM Protection**: [v0.8.9 Fix] 使用 Caffeine 替换 ConcurrentHashMap，并设定 maximumSize(2000) 防止内存溢出。
- * 2. **Nano-Cache**: 切换至 500ms 自动过期策略，大幅削减 FFI 调用背压。
- * 3. **SSoT Alignment**: 严格遵循 Rust v0.8 models.rs 的内存布局。
+ * UShop 适配器 - 强化生命周期安全版 (v0.8.9-Strict)
  */
 public final class UShopProvider {
 
-    // --- Tick-Loop Cache (Caffeine 驅動的有界原子緩存) ---
-    // [v0.8.9 Fix] 確保長期服在高併發、多商店環境下不會發生 OOM
     private static final Cache<String, Double> NEFF_CACHE = Caffeine.newBuilder()
     .maximumSize(2000)
     .expireAfterWrite(500, TimeUnit.MILLISECONDS)
     .build();
 
-    // --- 内存字段映射 ---
     private static final VarHandle VH_CFG_LAMBDA;
     private static final VarHandle VH_CFG_VOLATILITY;
     private static final VarHandle VH_CFG_S_AMP;
     private static final VarHandle VH_CFG_W_MULT;
     private static final VarHandle VH_CFG_N_PROT;
-
     private static final VarHandle VH_CFG_W_SEASONAL;
     private static final VarHandle VH_CFG_W_WEEKEND;
     private static final VarHandle VH_CFG_W_NEWBIE;
@@ -60,19 +50,16 @@ public final class UShopProvider {
         VH_CFG_S_AMP = layout.varHandle(MemoryLayout.PathElement.groupElement("seasonal_amplitude"));
         VH_CFG_W_MULT = layout.varHandle(MemoryLayout.PathElement.groupElement("weekend_multiplier"));
         VH_CFG_N_PROT = layout.varHandle(MemoryLayout.PathElement.groupElement("newbie_protection_rate"));
-
         VH_CFG_W_SEASONAL = layout.varHandle(MemoryLayout.PathElement.groupElement("seasonal_weight"));
         VH_CFG_W_WEEKEND = layout.varHandle(MemoryLayout.PathElement.groupElement("weekend_weight"));
         VH_CFG_W_NEWBIE = layout.varHandle(MemoryLayout.PathElement.groupElement("newbie_weight"));
         VH_CFG_W_INFLATION = layout.varHandle(MemoryLayout.PathElement.groupElement("inflation_weight"));
     }
 
-    /**
-     * 为商店物品演算动态价格
-     */
     public static double calculateDynamicPrice(Player player, ObjectItem item, int amount) {
         if (player == null || item == null || item.empty) return 0.0;
 
+        // 1. 基准价前置校验
         if (!isVaultEconomy(item)) {
             return PriceOracle.getOriginalBasePrice(item, amount < 0);
         }
@@ -80,56 +67,55 @@ public final class UShopProvider {
         double p0 = PriceOracle.getOriginalBasePrice(item, amount < 0);
         if (p0 <= 0) return 0.0;
 
+        // 2. 核心状态校验：如果 Native 引擎未载入，直接返回基准价 [cite: 82, 87]
+        if (!NativeBridge.isLoaded()) {
+            return p0;
+        }
+
         String shopId = item.getShop();
         String productId = item.getProduct();
 
+        // 3. 严格受限的作用域：Arena.ofConfined() 确保内存线程安全且即用即弃
         try (Arena arena = Arena.ofConfined()) {
-
+            // 获取经济参数
             double inflation = EconomyManager.getInstance().getInflationRate();
             var activity = ActivityCollector.capture(player, 48.0);
+            double lambda = EcoBridge.getInstance().getConfig().getDouble("economy.lambda", 0.01);
 
-            // [v0.8.9 Fix] 高效緩存存取：同一商品在 500ms 內的所有請求均共享同一 Neff 結果
+            // 获取或计算 nEff (成交量向量)
             String compositeKey = shopId + ":" + productId;
-            Double cachedNeff = NEFF_CACHE.getIfPresent(compositeKey);
-            double nEff;
-
-            if (cachedNeff != null) {
-                nEff = cachedNeff;
-            } else {
-                // 緩存未命中或已失效，調用 FFI 穿透至 Rust 物理引擎
+            double nEff = NEFF_CACHE.get(compositeKey, k -> {
                 double tau = EcoBridge.getInstance().getConfig().getDouble("economy.tau", 7.0);
-                nEff = NativeBridge.queryNeffVectorized(System.currentTimeMillis(), tau);
+                return NativeBridge.queryNeffVectorized(System.currentTimeMillis(), tau);
+            });
 
-                NEFF_CACHE.put(compositeKey, nEff);
-            }
-
-            // 构建 TradeContext
+            // --- Native 内存对齐分配 ---
             MemorySegment ctx = arena.allocate(NativeBridge.Layouts.TRADE_CONTEXT);
+            MemorySegment cfg = prepareMarketConfig(arena, shopId, productId);
+
+            // 填充 TradeContext
             NativeBridge.VH_CTX_BASE_PRICE.set(ctx, 0L, p0);
             NativeBridge.VH_CTX_CURR_AMT.set(ctx, 0L, (double) Math.abs(amount));
             NativeBridge.VH_CTX_INF_RATE.set(ctx, 0L, inflation);
             NativeBridge.VH_CTX_TIMESTAMP.set(ctx, 0L, System.currentTimeMillis());
             NativeBridge.VH_CTX_PLAY_TIME.set(ctx, 0L, (long) activity.seconds());
+            NativeBridge.VH_CTX_TIMEZONE_OFFSET.set(ctx, 0L, java.time.OffsetDateTime.now().getOffset().getTotalSeconds());
 
-            int zoneOffset = java.time.OffsetDateTime.now().getOffset().getTotalSeconds();
-            NativeBridge.VH_CTX_TIMEZONE_OFFSET.set(ctx, 0L, zoneOffset);
+            // 构造身份/环境掩码 (Newbie + Holiday)
+            int mask = (activity.isNewbie() == 1 ? 1 : 0) |
+            ((HolidayManager.isTodayHoliday() ? 1 : 0) << 1);
+            NativeBridge.VH_CTX_NEWBIE_MASK.set(ctx, 0L, mask);
 
-            int isNewbie = (activity.isNewbie() == 1) ? 1 : 0;
-            boolean forceFestival = EcoBridge.getInstance().getConfig().getBoolean("economy.force-festival-mode", false);
-            int isHoliday = (forceFestival || HolidayManager.isTodayHoliday()) ? 1 : 0;
-
-            int combinedMask = (isHoliday << 1) | isNewbie;
-            NativeBridge.VH_CTX_NEWBIE_MASK.set(ctx, 0L, combinedMask);
-
-            MemorySegment cfg = prepareMarketConfig(arena, shopId, productId);
-
+            // --- 关键 FFI 调用 ---
+            // 调用 calculateEpsilon 计算环境因子
             double epsilon = NativeBridge.calculateEpsilon(ctx, cfg);
-            double lambda = EcoBridge.getInstance().getConfig().getDouble("economy.lambda", 0.01);
 
+            // 调用最终定价函数并将结果立即转换为 primitive 类型，脱离内存段依赖 [cite: 36, 83]
             return NativeBridge.computePrice(p0, nEff, 0.0, lambda, epsilon);
 
         } catch (Throwable e) {
-            LogUtil.error("UShop 定价内核调用失败 [" + productId + "]", e);
+            // 兜底策略：内存泄露或内核 Panic 时返回原价，并打印详细错误 [cite: 37, 79]
+            LogUtil.error("物理定价内核演算严重故障 [" + productId + "]", e);
             return p0;
         }
     }
@@ -151,8 +137,8 @@ public final class UShopProvider {
 
     private static MemorySegment prepareMarketConfig(Arena arena, String shopId, String productId) {
         var globalConfig = EcoBridge.getInstance().getConfig();
+        // 严格分配：确保 Layout 包含完整的 MarketConfig 结构 [cite: 41, 96]
         MemorySegment cfg = arena.allocate(NativeBridge.Layouts.MARKET_CONFIG);
-
         String itemPath = "item-settings." + shopId + "." + productId + ".";
 
         VH_CFG_LAMBDA.set(cfg, 0L, globalConfig.getDouble("economy.lambda", 0.01));

@@ -30,7 +30,7 @@ chrono = { version = "0.4", features = ["std"] }
 lazy_static = "1.5"
 
 [build-dependencies]
-cbindgen = "0.26"
+cbindgen = "0.27"
 
 [features]
 # 默认不开启并行，以减小二进制体积和编译时间

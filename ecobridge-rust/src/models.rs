@@ -185,5 +185,7 @@ mod tests {
         assert_eq!(mem::offset_of!(MarketConfig, seasonal_weight), 40);
         // newbie_mask 必须在 offset 44 (5 * 8 + 4)
         assert_eq!(mem::offset_of!(TradeContext, newbie_mask), 44);
+        
     }
 }
+

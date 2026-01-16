@@ -3,6 +3,7 @@ package top.ellan.ecobridge.database;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import top.ellan.ecobridge.EcoBridge;
+import top.ellan.ecobridge.cache.HotDataCache;
 import top.ellan.ecobridge.cache.HotDataCache.PlayerData;
 import top.ellan.ecobridge.model.SaleRecord;
 import top.ellan.ecobridge.util.LogUtil;
@@ -16,12 +17,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 交易数据访问对象 (TransactionDao v0.8.8)
+ * 交易数据访问对象 (TransactionDao v0.8.9-Optimistic-Lock)
  * 职责：SQL 连接池维护、高精度交易历史存取、玩家资产持久化。
- * 修复：
- * 1. [Critical] 修复 JDBC URL 被截断导致的数据库初始化失败。
- * 2. [Reliability] 引入写入重试机制 (Retry Policy)，活锁防御增强。
- * 3. [Compatibility] 移除 MySQL 8.0 弃用的 VALUES() 语法。
  */
 public class TransactionDao {
 
@@ -51,7 +48,6 @@ public class TransactionDao {
         String user = config.getString("database.username", "root");
         String pass = config.getString("database.password", "");
 
-        // [致命修复]: 使用 String.format 完整拼接 JDBC URL，注入地址、端口及数据库名
         String jdbcUrl = String.format(
         "jdbc:mysql://%s:%d/%s?useSSL=false&serverTimezone=UTC&rewriteBatchedStatements=true&allowPublicKeyRetrieval=true",
         host, port, dbName
@@ -69,7 +65,7 @@ public class TransactionDao {
         try {
             dataSource = new HikariDataSource(hikari);
             createTables();
-            LogUtil.info("<green>SQL 数据源已就绪。");
+            LogUtil.info("<green>SQL 数据源已就绪 (乐观锁模式)。");
         } catch (Exception e) {
             LogUtil.error("数据库初始化失败！", e);
         }
@@ -88,10 +84,12 @@ public class TransactionDao {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
         """;
 
+        // [修改]: 增加 version 字段，用于乐观锁校验
         String sqlPlayers = """
         CREATE TABLE IF NOT EXISTS ecobridge_players (
         uuid CHAR(36) PRIMARY KEY,
         balance DOUBLE NOT NULL DEFAULT 0.0,
+        version BIGINT NOT NULL DEFAULT 0,
         last_updated BIGINT NOT NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
         """;
@@ -107,80 +105,93 @@ public class TransactionDao {
     // ==================== 模块 A: 玩家画像存取 (SSoT) ====================
 
     public static PlayerData loadPlayerData(UUID uuid) {
-        if (dataSource == null) return new PlayerData(uuid, 0.0);
+        if (dataSource == null) return new PlayerData(uuid, 0.0, 0);
 
-        String sql = "SELECT balance FROM ecobridge_players WHERE uuid = ?";
+        // [修改]: 同时读取 balance 和 version
+        String sql = "SELECT balance, version FROM ecobridge_players WHERE uuid = ?";
         try (Connection conn = dataSource.getConnection();
         PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, uuid.toString());
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {
-                    return new PlayerData(uuid, rs.getDouble("balance"));
+                    return new PlayerData(uuid, rs.getDouble("balance"), rs.getLong("version"));
                 }
             }
         } catch (SQLException e) {
             LogUtil.error("读取玩家 SQL 失败: " + uuid, e);
         }
-        return new PlayerData(uuid, 0.0);
+        return new PlayerData(uuid, 0.0, 0);
     }
 
     public static void updateBalance(UUID uuid, double balance) {
         if (dbExecutor == null) return;
-        // 提交到虚拟线程池执行异步写操作
         dbExecutor.execute(() -> updateBalanceSync(uuid, balance));
     }
 
     /**
-     * 同步持久化 + 智能重试机制
-     * 解决了高并发环境下由于锁争用或网络抖动导致的数据丢失问题
+     * 同步持久化 + 乐观锁重试机制
      */
     public static void updateBalanceSync(UUID uuid, double balance) {
         if (dataSource == null) return;
 
-        // 移除已弃用的 VALUES() 语法，使用 UPSERT 标准写法
-        String sql = """
-        INSERT INTO ecobridge_players (uuid, balance, last_updated)
-        VALUES (?, ?, ?)
-        ON DUPLICATE KEY UPDATE
-        balance = ?,
-        last_updated = ?
-        """;
+        // [修改]: 乐观锁更新 SQL
+        String updateSql = "UPDATE ecobridge_players SET balance = ?, version = version + 1, last_updated = ? WHERE uuid = ? AND version = ?";
+        String insertSql = "INSERT IGNORE INTO ecobridge_players (uuid, balance, version, last_updated) VALUES (?, ?, 0, ?)";
 
         long now = System.currentTimeMillis();
         int maxRetries = 3;
         SQLException lastEx = null;
 
         for (int attempt = 1; attempt <= maxRetries; attempt++) {
-            try (Connection conn = dataSource.getConnection();
-            PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            PlayerData cached = HotDataCache.get(uuid);
+            long currentVersion = (cached != null) ? cached.getVersion() : -1;
 
-                pstmt.setString(1, uuid.toString());
-                pstmt.setDouble(2, balance);
-                pstmt.setLong(3, now);
-                pstmt.setDouble(4, balance);
-                pstmt.setLong(5, now);
+            try (Connection conn = dataSource.getConnection()) {
+                // 如果数据库没记录，先尝试插入
+                if (currentVersion == -1) {
+                    try (PreparedStatement ipstmt = conn.prepareStatement(insertSql)) {
+                        ipstmt.setString(1, uuid.toString());
+                        ipstmt.setDouble(2, balance);
+                        ipstmt.setLong(3, now);
+                        if (ipstmt.executeUpdate() > 0) return;
+                    }
+                }
 
-                pstmt.executeUpdate();
-                return;
+                // 执行 CAS (Compare And Swap) 更新
+                try (PreparedStatement upstmt = conn.prepareStatement(updateSql)) {
+                    upstmt.setDouble(1, balance);
+                    upstmt.setLong(2, now);
+                    upstmt.setString(3, uuid.toString());
+                    upstmt.setLong(4, Math.max(0, currentVersion));
+
+                    int affected = upstmt.executeUpdate();
+                    if (affected > 0) {
+                        // 更新成功，同步本地版本号
+                        if (cached != null) cached.setVersion(currentVersion + 1);
+                        return;
+                    }
+                }
+
+                // 走到这里说明版本冲突，重新加载最新版本并重试
+                PlayerData fresh = loadPlayerData(uuid);
+                if (cached != null) cached.setVersion(fresh.getVersion());
+
+                if (attempt < maxRetries) {
+                    Thread.sleep(50L * attempt);
+                }
 
             } catch (SQLException e) {
                 lastEx = e;
                 if (isFatalError(e)) break;
-
-                if (attempt < maxRetries) {
-                    try {
-                        // 线性回退策略，减轻数据库瞬时压力
-                        Thread.sleep(100L * attempt);
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                        break;
-                    }
-                }
+                try { Thread.sleep(100L * attempt); } catch (InterruptedException ie) { break; }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
             }
         }
 
-        LogUtil.error("持久化玩家余额最终失败 (重试 " + maxRetries + " 次): " + uuid, lastEx);
+        LogUtil.error("持久化玩家余额最终失败 (乐观锁冲突/重试耗尽): " + uuid, lastEx);
     }
 
     // ==================== 模块 B: 市场交易流备份 ====================
@@ -206,10 +217,6 @@ public class TransactionDao {
 
     // ==================== 模块 C: 行为经济学数据支持 ====================
 
-    /**
-     * 获取指定商品过去 7 天的滚动平均交易值
-     * 用于驱动行为演算链中的滑动地板保护逻辑
-     */
     public static double get7DayAverage(String productId) {
         if (dataSource == null) return 0.0;
 

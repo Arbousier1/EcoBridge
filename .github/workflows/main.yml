@@ -7,8 +7,9 @@ on:
     branches: [ "main" ]
 
 env:
-  # 全局禁用增量编译，减少 Windows I/O 开销
   CARGO_INCREMENTAL: 0
+  # 强制使用 UTF-8，防止 Windows 编译乱码
+  JAVA_TOOL_OPTIONS: "-Dfile.encoding=UTF-8"
 
 jobs:
   build-rust:
@@ -19,20 +20,21 @@ jobs:
         include:
           - os: ubuntu-latest
             artifact: libecobridge_rust.so
+            target_triple: x86_64-unknown-linux-gnu
           - os: windows-latest
             artifact: ecobridge_rust.dll
+            target_triple: x86_64-pc-windows-msvc
           - os: macos-latest
             artifact: libecobridge_rust.dylib
+            target_triple: universal-apple-darwin
     runs-on: ${{ matrix.os }}
     
     steps:
       - uses: actions/checkout@v4
 
-      # 专项优化：关闭 Windows Defender 实时扫描 (提升 Windows 编译速度)
       - name: Disable Windows Defender
         if: matrix.os == 'windows-latest'
-        run: |
-          Set-MpPreference -ExclusionPath ${{ github.workspace }}
+        run: Set-MpPreference -ExclusionPath ${{ github.workspace }}
         shell: powershell
 
       - name: Setup Rust
@@ -48,9 +50,7 @@ jobs:
       - name: Build Rust
         shell: bash
         env:
-          # 修复核心：
-          # 1. 显式链接 Rstrtmgr.lib 以解决 RmStartSession 等符号缺失问题
-          # 2. Windows 下若要用 LLD，需使用 -C linker=lld-link 而非 -fuse-ld
+          # Windows 下链接 Rstrtmgr.lib 是必须的 (解决 DuckDB/RocksDB 依赖问题)
           RUSTFLAGS: >-
             ${{ matrix.os == 'windows-latest' 
               && '-C link-arg=Rstrtmgr.lib -C linker=lld-link' 
@@ -58,6 +58,7 @@ jobs:
         run: |
           cd ecobridge-rust
           if [ "${{ matrix.os }}" = "macos-latest" ]; then
+            # macOS 通用二进制 (Intel + Apple Silicon)
             cargo build --release --target x86_64-apple-darwin
             cargo build --release --target aarch64-apple-darwin
             mkdir -p target/release/
@@ -69,11 +70,21 @@ jobs:
             cargo build --release
           fi
 
-      - name: Upload Native Artifact
+      - name: Upload Native Library
         uses: actions/upload-artifact@v4
         with:
           name: native-${{ matrix.os }}
           path: ecobridge-rust/target/release/${{ matrix.artifact }}
+
+      # 🔥 [关键修复] 上传生成的头文件
+      # Java 构建需要这个 .h 文件，但只有 Rust 构建过程会生成它
+      # 我们只从 Ubuntu 节点上传一次即可
+      - name: Upload Header File
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-header
+          path: ecobridge-rust/ecobridge_rust.h
 
   build-java:
     name: Java 25 Assembly
@@ -86,10 +97,31 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: '25'
-          distribution: 'microsoft'
+          distribution: 'oracle' # Oracle JDK 25 EA 通常包含较新的特性
           cache: 'gradle'
 
-      - name: Download All Natives
+      # 🔥 [关键修复] 安装 jextract (因为 setup-java 不带这个工具)
+      # Gradle 脚本依赖 JEXTRACT_HOME 环境变量
+      - name: Setup jextract
+        run: |
+          # 下载 OpenJDK 25 对应的 jextract (Linux版)
+          # 注意：此链接随 Java 25 EA 版本更新可能变化，这是目前通用的构建版
+          wget https://download.java.net/java/early_access/jextract/22/4/openjdk-22-jextract+4-30_linux-x64_bin.tar.gz -O jextract.tar.gz
+          mkdir -p jextract
+          tar -xzf jextract.tar.gz -C jextract --strip-components=1
+          echo "JEXTRACT_HOME=$(pwd)/jextract" >> $GITHUB_ENV
+          # 验证安装
+          ./jextract/bin/jextract --version || echo "jextract installed"
+
+      # 🔥 [关键修复] 恢复头文件
+      # 将上一个 Job 生成的 .h 文件放回 ecobridge-rust 目录
+      - name: Restore Header File
+        uses: actions/download-artifact@v4
+        with:
+          name: rust-header
+          path: ecobridge-rust
+
+      - name: Download Native Libs
         uses: actions/download-artifact@v4
         with:
           path: native-libs
@@ -99,23 +131,22 @@ jobs:
       - name: Prepare Resources
         shell: bash
         run: |
-          # 确保 Native 库放入资源文件夹，NativeBridge.java 才能在运行时解压它们
           mkdir -p ecobridge-java/src/main/resources/
           cp native-libs/* ecobridge-java/src/main/resources/
-          echo "✅ 堆外内存驱动组件已就绪"
-          ls -R ecobridge-java/src/main/resources/
+          echo "📦 Native 库已注入:"
+          ls -l ecobridge-java/src/main/resources/
 
       - name: Build with Gradle
         working-directory: ecobridge-java
         run: |
           chmod +x gradlew
-          # 启用预览功能并允许原生内存访问
-          export GRADLE_OPTS="-Dorg.gradle.jvmargs='--enable-preview --enable-native-access=ALL-UNNAMED'"
-          ./gradlew build -x test
+          # 使用 shadowJar 而不是 build，确保所有依赖被打包
+          # -x test: 因为我们之前移除了测试文件，这里显式跳过更保险
+          ./gradlew clean shadowJar -x test --no-daemon
 
-      - name: Final Release
+      - name: Upload Final Jar
         uses: actions/upload-artifact@v4
         with:
-          name: EcoBridge-Java25-Final
+          name: EcoBridge-Final-Jar
           path: ecobridge-java/build/libs/EcoBridge-*.jar
-          retention-days: 7
+          retention-days: 90

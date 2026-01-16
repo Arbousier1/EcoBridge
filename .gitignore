@@ -13,5 +13,7 @@ out/
 *.iml
 
 # 忽略沒必要的文件
-.txt
-.py
+exported_code.txt
+a.py
+b.py
+local.properties

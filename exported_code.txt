@@ -4,6 +4,7 @@ FILE: ecobridge-java\build.gradle.kts
 ==================================================
 
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import java.util.Properties
 buildscript {
 repositories {
 mavenCentral()
@@ -21,41 +22,106 @@ id("com.gradleup.shadow") version "8.3.6"
 }
 group = "top.ellan"
 version = "1.0-SNAPSHOT"
+// --- [jextract 自动化配置逻辑] ---
+val rustHeaderFile = file("${projectDir}/../ecobridge-rust/ecobridge_rust.h")
+val generatedSourceDir = layout.buildDirectory.dir("generated/sources/jextract")
+val targetPackage = "top.ellan.ecobridge.gen"
+// 🔍 智能查找 jextract 启动脚本
+fun findJextract(): String {
+val os = org.gradle.internal.os.OperatingSystem.current()
+val binaryName = if (os.isWindows) "jextract.bat" else "jextract"
+// 1. 优先读取 local.properties
+val localPropsFile = file("local.properties")
+if (localPropsFile.exists()) {
+val props = Properties()
+localPropsFile.inputStream().use { props.load(it) }
+val localHome = props.getProperty("jextract.home")
+if (localHome != null) {
+val possiblePaths = listOf(
+file("$localHome/bin/$binaryName"),
+file("$localHome/$binaryName")
+)
+for (path in possiblePaths) {
+if (path.exists()) {
+println("✅ [Local] 找到 jextract 脚本: ${path.absolutePath}")
+return path.absolutePath
+}
+}
+}
+}
+// 2. 尝试环境变量
+val envHome = System.getenv("JEXTRACT_HOME")
+if (envHome != null) {
+val path = file("$envHome/bin/$binaryName")
+if (path.exists()) return path.absolutePath
+}
+// 3. 尝试 JAVA_HOME
+val javaHome = System.getProperty("java.home")
+val jdkPath = file("$javaHome/bin/$binaryName")
+if (jdkPath.exists()) return jdkPath.absolutePath
+return binaryName
+}
+// 核心任务：自动化生成 Java 绑定
+val generateBindings = tasks.register<Exec>("generateBindings") {
+group = "build"
+description = "使用 jextract 自动从 Rust 头文件生成 Java FFM 绑定。"
+doFirst {
+if (!rustHeaderFile.exists()) {
+throw GradleException("未找到 Rust 头文件: ${rustHeaderFile.absolutePath}。请先编译 Rust 项目。")
+}
+generatedSourceDir.get().asFile.mkdirs()
+}
+commandLine(
+findJextract(),
+"--output", generatedSourceDir.get().asFile.absolutePath,
+"--target-package", targetPackage,
+// 🔥🔥🔥 [关键修复] 强制指定辅助类名为 ecobridge_rust_h 🔥🔥🔥
+// 这样生成的 MarketConfig.java 才能正确找到它
+"--header-class-name", "ecobridge_rust_h",
+"--library", "ecobridge_rust",
+rustHeaderFile.absolutePath
+)
+inputs.file(rustHeaderFile)
+outputs.dir(generatedSourceDir)
+}
+// --- [Java 编译与工具链配置] ---
 java {
 toolchain { languageVersion.set(JavaLanguageVersion.of(25)) }
 }
+// 将生成的代码加入源代码集
+sourceSets {
+main {
+java.srcDir(generatedSourceDir)
+}
+}
 repositories {
 mavenCentral()
-// 关键修复：NightCore 依赖的 UniversalScheduler 托管在 JitPack
 maven("https://jitpack.io")
 maven("https://repo.papermc.io/repository/maven-public/")
-// NightExpress 官方仓库 (CoinsEngine/NightCore)
 maven("https://repo.nightexpressdev.com/releases")
-// UltimateShop 官方 Maven 仓库
 maven("https://repo.lanink.cn/repository/maven-public/")
-// 备用仓库
-maven("https://jitpack.io")
 flatDir { dirs("libs") }
 }
 dependencies {
-// 1. 本地依赖 (将任何无法从 Maven 下载的 Jar 放入 libs 目录)
 compileOnly(fileTree(mapOf("dir" to "libs", "include" to listOf("**/*.jar"))))
-// 2. 外部插件 API
 compileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
-// CoinsEngine 及其前置
 compileOnly("su.nightexpress.nightcore:main:2.13.0")
 compileOnly("su.nightexpress.coinsengine:CoinsEngine:2.6.0")
-// UltimateShop API (根据 2026 最新版)
 compileOnly("cn.superiormc.ultimateshop:plugin:4.2.3")
-// 3. 运行时打包依赖 (ShadowJar)
 implementation("org.mariadb.jdbc:mariadb-java-client:3.5.7")
 implementation("com.zaxxer:HikariCP:6.2.1")
-// Gson 由 Paper 提供，改为 compileOnly 避免重定位冲突风险
-compileOnly("com.google.code.gson:gson:2.12.1")
 implementation("com.github.ben-manes.caffeine:caffeine:3.2.3")
 implementation("redis.clients:jedis:7.2.0")
+compileOnly("com.google.code.gson:gson:2.12.1")
+// JUnit 5 测试依赖
+testImplementation(platform("org.junit:junit-bom:5.10.2"))
+testImplementation("org.junit.jupiter:junit-jupiter")
+}
+tasks.test {
+useJUnitPlatform()
 }
 tasks.withType<JavaCompile> {
+dependsOn(generateBindings)
 options.encoding = "UTF-8"
 options.release.set(25)
 options.compilerArgs.addAll(listOf(
@@ -66,14 +132,11 @@ options.compilerArgs.addAll(listOf(
 }
 tasks.named<ShadowJar>("shadowJar") {
 archiveClassifier.set("")
-// 依赖重定位 (Relocation) 避免插件冲突
 val prefix = "top.ellan.ecobridge.libs"
 relocate("com.zaxxer.hikari", "$prefix.hikari")
 relocate("org.mariadb.jdbc", "$prefix.mariadb")
 relocate("com.github.benmanes.caffeine", "$prefix.caffeine")
-// 仅重定位 Jedis 核心包
 relocate("redis.clients", "$prefix.jedis")
-// 打包 Rust 编译产物 (*.dll, *.so, *.dylib)
 from("src/main/resources") {
 include("*.dll", "*.so", "*.dylib")
 }
@@ -121,11 +184,12 @@ import top.ellan.ecobridge.util.LogUtil;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 public final class EcoBridge extends JavaPlugin {
 private static EcoBridge instance;
 private static final MiniMessage MM = MiniMessage.miniMessage();
 private ExecutorService virtualExecutor;
-private boolean fullyInitialized = false;
+private final AtomicBoolean fullyInitialized = new AtomicBoolean(false);
 @Override
 public void onEnable() {
 instance = this;
@@ -147,7 +211,7 @@ PricingManager.init(this);
 TransferManager.init(this);
 registerCommands();
 registerListeners();
-this.fullyInitialized = true;
+this.fullyInitialized.set(true);
 sendConsole("<blue>┃ <green>系统状态: <white>物理演算核心已进入实时同步状态 (v0.8.8) <blue>┃");
 sendConsole("<gradient:aqua:blue>┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛</gradient>");
 } catch (Throwable e) {
@@ -158,7 +222,7 @@ Bukkit.getPluginManager().disablePlugin(this);
 @Override
 public void onDisable() {
 sendConsole("<yellow>[EcoBridge] 正在启动安全关机序列 (Panic-Safe Shutdown)...");
-this.fullyInitialized = false;
+this.fullyInitialized.set(false);
 if (RedisManager.getInstance() != null) {
 RedisManager.getInstance().shutdown();
 }
@@ -229,7 +293,7 @@ sendConsole("<green>[EcoBridge] 逻辑参数重载成功。Native 内存布局�
 public static EcoBridge getInstance() { return instance; }
 public ExecutorService getVirtualExecutor() { return virtualExecutor; }
 public static MiniMessage getMiniMessage() { return MM; }
-public boolean isFullyInitialized() { return fullyInitialized; }
+public boolean isFullyInitialized() { return fullyInitialized.get(); }
 private void printBanner() {
 String version = getPluginMeta().getVersion();
 sendConsole("<gradient:aqua:blue>┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓</gradient>");
@@ -299,40 +363,35 @@ return PriceOracle.getOriginalBasePrice(item, amount < 0);
 }
 double p0 = PriceOracle.getOriginalBasePrice(item, amount < 0);
 if (p0 <= 0) return 0.0;
+if (!NativeBridge.isLoaded()) {
+return p0;
+}
 String shopId = item.getShop();
 String productId = item.getProduct();
 try (Arena arena = Arena.ofConfined()) {
 double inflation = EconomyManager.getInstance().getInflationRate();
 var activity = ActivityCollector.capture(player, 48.0);
+double lambda = EcoBridge.getInstance().getConfig().getDouble("economy.lambda", 0.01);
 String compositeKey = shopId + ":" + productId;
-Double cachedNeff = NEFF_CACHE.getIfPresent(compositeKey);
-double nEff;
-if (cachedNeff != null) {
-nEff = cachedNeff;
-} else {
+double nEff = NEFF_CACHE.get(compositeKey, k -> {
 double tau = EcoBridge.getInstance().getConfig().getDouble("economy.tau", 7.0);
-nEff = NativeBridge.queryNeffVectorized(System.currentTimeMillis(), tau);
-NEFF_CACHE.put(compositeKey, nEff);
-}
+return NativeBridge.queryNeffVectorized(System.currentTimeMillis(), tau);
+});
 MemorySegment ctx = arena.allocate(NativeBridge.Layouts.TRADE_CONTEXT);
+MemorySegment cfg = prepareMarketConfig(arena, shopId, productId);
 NativeBridge.VH_CTX_BASE_PRICE.set(ctx, 0L, p0);
 NativeBridge.VH_CTX_CURR_AMT.set(ctx, 0L, (double) Math.abs(amount));
 NativeBridge.VH_CTX_INF_RATE.set(ctx, 0L, inflation);
 NativeBridge.VH_CTX_TIMESTAMP.set(ctx, 0L, System.currentTimeMillis());
 NativeBridge.VH_CTX_PLAY_TIME.set(ctx, 0L, (long) activity.seconds());
-int zoneOffset = java.time.OffsetDateTime.now().getOffset().getTotalSeconds();
-NativeBridge.VH_CTX_TIMEZONE_OFFSET.set(ctx, 0L, zoneOffset);
-int isNewbie = (activity.isNewbie() == 1) ? 1 : 0;
-boolean forceFestival = EcoBridge.getInstance().getConfig().getBoolean("economy.force-festival-mode", false);
-int isHoliday = (forceFestival || HolidayManager.isTodayHoliday()) ? 1 : 0;
-int combinedMask = (isHoliday << 1) | isNewbie;
-NativeBridge.VH_CTX_NEWBIE_MASK.set(ctx, 0L, combinedMask);
-MemorySegment cfg = prepareMarketConfig(arena, shopId, productId);
+NativeBridge.VH_CTX_TIMEZONE_OFFSET.set(ctx, 0L, java.time.OffsetDateTime.now().getOffset().getTotalSeconds());
+int mask = (activity.isNewbie() == 1 ? 1 : 0) |
+((HolidayManager.isTodayHoliday() ? 1 : 0) << 1);
+NativeBridge.VH_CTX_NEWBIE_MASK.set(ctx, 0L, mask);
 double epsilon = NativeBridge.calculateEpsilon(ctx, cfg);
-double lambda = EcoBridge.getInstance().getConfig().getDouble("economy.lambda", 0.01);
 return NativeBridge.computePrice(p0, nEff, 0.0, lambda, epsilon);
 } catch (Throwable e) {
-LogUtil.error("UShop 定价内核调用失败 [" + productId + "]", e);
+LogUtil.error("物理定价内核演算严重故障 [" + productId + "]", e);
 return p0;
 }
 }
@@ -453,6 +512,7 @@ FILE: ecobridge-java\src\main\java\top\ellan\ecobridge\bridge\NativeBridge.java
 package top.ellan.ecobridge.bridge;
 import top.ellan.ecobridge.EcoBridge;
 import top.ellan.ecobridge.util.LogUtil;
+import top.ellan.ecobridge.gen.*;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.foreign.*;
@@ -496,24 +556,36 @@ public static final VarHandle VH_CFG_W_SEASONAL;
 public static final VarHandle VH_CFG_W_WEEKEND;
 public static final VarHandle VH_CFG_W_NEWBIE;
 public static final VarHandle VH_CFG_W_INFLATION;
+private static final VarHandle VH_RES_TAX;
+private static final VarHandle VH_RES_BLOCKED;
+private static final VarHandle VH_RES_CODE;
 static {
-VH_CTX_BASE_PRICE = Layouts.TRADE_CONTEXT.varHandle(MemoryLayout.PathElement.groupElement("base_price"));
-VH_CTX_CURR_AMT = Layouts.TRADE_CONTEXT.varHandle(MemoryLayout.PathElement.groupElement("current_amount"));
-VH_CTX_INF_RATE = Layouts.TRADE_CONTEXT.varHandle(MemoryLayout.PathElement.groupElement("inflation_rate"));
-VH_CTX_TIMESTAMP = Layouts.TRADE_CONTEXT.varHandle(MemoryLayout.PathElement.groupElement("current_timestamp"));
-VH_CTX_PLAY_TIME = Layouts.TRADE_CONTEXT.varHandle(MemoryLayout.PathElement.groupElement("play_time_seconds"));
-VH_CTX_TIMEZONE_OFFSET = Layouts.TRADE_CONTEXT.varHandle(MemoryLayout.PathElement.groupElement("timezone_offset"));
-VH_CTX_NEWBIE_MASK = Layouts.TRADE_CONTEXT.varHandle(MemoryLayout.PathElement.groupElement("newbie_mask"));
-var mkt = Layouts.MARKET_CONFIG;
-VH_CFG_LAMBDA = mkt.varHandle(MemoryLayout.PathElement.groupElement("base_lambda"));
-VH_CFG_VOLATILITY = mkt.varHandle(MemoryLayout.PathElement.groupElement("volatility_factor"));
-VH_CFG_S_AMP = mkt.varHandle(MemoryLayout.PathElement.groupElement("seasonal_amplitude"));
-VH_CFG_W_MULT = mkt.varHandle(MemoryLayout.PathElement.groupElement("weekend_multiplier"));
-VH_CFG_N_PROT = mkt.varHandle(MemoryLayout.PathElement.groupElement("newbie_protection_rate"));
-VH_CFG_W_SEASONAL = mkt.varHandle(MemoryLayout.PathElement.groupElement("seasonal_weight"));
-VH_CFG_W_WEEKEND = mkt.varHandle(MemoryLayout.PathElement.groupElement("weekend_weight"));
-VH_CFG_W_NEWBIE = mkt.varHandle(MemoryLayout.PathElement.groupElement("newbie_weight"));
-VH_CFG_W_INFLATION = mkt.varHandle(MemoryLayout.PathElement.groupElement("inflation_weight"));
+try {
+GroupLayout ctxLayout = TradeContext.layout();
+VH_CTX_BASE_PRICE = ctxLayout.varHandle(MemoryLayout.PathElement.groupElement("base_price"));
+VH_CTX_CURR_AMT = ctxLayout.varHandle(MemoryLayout.PathElement.groupElement("current_amount"));
+VH_CTX_INF_RATE = ctxLayout.varHandle(MemoryLayout.PathElement.groupElement("inflation_rate"));
+VH_CTX_TIMESTAMP = ctxLayout.varHandle(MemoryLayout.PathElement.groupElement("current_timestamp"));
+VH_CTX_PLAY_TIME = ctxLayout.varHandle(MemoryLayout.PathElement.groupElement("play_time_seconds"));
+VH_CTX_TIMEZONE_OFFSET = ctxLayout.varHandle(MemoryLayout.PathElement.groupElement("timezone_offset"));
+VH_CTX_NEWBIE_MASK = ctxLayout.varHandle(MemoryLayout.PathElement.groupElement("newbie_mask"));
+GroupLayout cfgLayout = MarketConfig.layout();
+VH_CFG_LAMBDA = cfgLayout.varHandle(MemoryLayout.PathElement.groupElement("base_lambda"));
+VH_CFG_VOLATILITY = cfgLayout.varHandle(MemoryLayout.PathElement.groupElement("volatility_factor"));
+VH_CFG_S_AMP = cfgLayout.varHandle(MemoryLayout.PathElement.groupElement("seasonal_amplitude"));
+VH_CFG_W_MULT = cfgLayout.varHandle(MemoryLayout.PathElement.groupElement("weekend_multiplier"));
+VH_CFG_N_PROT = cfgLayout.varHandle(MemoryLayout.PathElement.groupElement("newbie_protection_rate"));
+VH_CFG_W_SEASONAL = cfgLayout.varHandle(MemoryLayout.PathElement.groupElement("seasonal_weight"));
+VH_CFG_W_WEEKEND = cfgLayout.varHandle(MemoryLayout.PathElement.groupElement("weekend_weight"));
+VH_CFG_W_NEWBIE = cfgLayout.varHandle(MemoryLayout.PathElement.groupElement("newbie_weight"));
+VH_CFG_W_INFLATION = cfgLayout.varHandle(MemoryLayout.PathElement.groupElement("inflation_weight"));
+GroupLayout resLayout = top.ellan.ecobridge.gen.TransferResult.layout();
+VH_RES_TAX = resLayout.varHandle(MemoryLayout.PathElement.groupElement("final_tax"));
+VH_RES_BLOCKED = resLayout.varHandle(MemoryLayout.PathElement.groupElement("is_blocked"));
+VH_RES_CODE = resLayout.varHandle(MemoryLayout.PathElement.groupElement("warning_code"));
+} catch (Exception e) {
+throw new RuntimeException("Init Layout failed", e);
+}
 }
 public static void init(EcoBridge plugin) {
 if (loaded) return;
@@ -522,148 +594,90 @@ Path libPath = extractLibrary(plugin);
 libraryArena = Arena.ofAuto();
 SymbolLookup libLookup = SymbolLookup.libraryLookup(libPath, libraryArena);
 Linker linker = Linker.nativeLinker();
-getAbiVersionMH = linker.downcallHandle(
-libLookup.find("ecobridge_abi_version").orElseThrow(),
-FunctionDescriptor.of(JAVA_INT)
-);
+getAbiVersionMH = linker.downcallHandle(libLookup.find("ecobridge_abi_version").orElseThrow(), FunctionDescriptor.of(JAVA_INT));
 int nativeVersion = (int) getAbiVersionMH.invokeExact();
 if (nativeVersion != EXPECTED_ABI_VERSION) {
-throw new IllegalStateException(String.format(
-"Native ABI 版本不匹配！Java期望: 0x%08X, Native返回: 0x%08X。",
-EXPECTED_ABI_VERSION, nativeVersion
-));
+throw new IllegalStateException(String.format("ABI Mismatch: 0x%08X != 0x%08X", EXPECTED_ABI_VERSION, nativeVersion));
 }
-initDBMH = linker.downcallHandle(libLookup.find("ecobridge_init_db").get(),
-FunctionDescriptor.of(JAVA_INT, ADDRESS));
-getVersionMH = linker.downcallHandle(libLookup.find("ecobridge_version").get(),
-FunctionDescriptor.of(ADDRESS));
-getHealthStatsMH = linker.downcallHandle(libLookup.find("ecobridge_get_health_stats").get(),
-FunctionDescriptor.ofVoid(ADDRESS, ADDRESS));
-shutdownDBMH = linker.downcallHandle(libLookup.find("ecobridge_shutdown_db").get(),
-FunctionDescriptor.of(JAVA_INT));
-pushToDuckDBMH = linker.downcallHandle(libLookup.find("ecobridge_log_to_duckdb").get(),
-FunctionDescriptor.ofVoid(JAVA_LONG, ADDRESS, JAVA_DOUBLE, JAVA_DOUBLE, ADDRESS));
-queryNeffVectorizedMH = linker.downcallHandle(libLookup.find("ecobridge_query_neff_vectorized").get(),
-FunctionDescriptor.of(JAVA_DOUBLE, JAVA_LONG, JAVA_DOUBLE));
-computePriceMH = linker.downcallHandle(libLookup.find("ecobridge_compute_price_humane").get(),
-FunctionDescriptor.of(JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE));
-calculateEpsilonMH = linker.downcallHandle(libLookup.find("ecobridge_calculate_epsilon").get(),
-FunctionDescriptor.of(JAVA_DOUBLE, ADDRESS, ADDRESS));
-checkTransferMH = linker.downcallHandle(libLookup.find("ecobridge_compute_transfer_check").get(),
-FunctionDescriptor.of(Layouts.TRANSFER_RESULT, ADDRESS, ADDRESS));
-computePidMH = linker.downcallHandle(libLookup.find("ecobridge_compute_pid_adjustment").get(),
-FunctionDescriptor.of(JAVA_DOUBLE, ADDRESS, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE));
-resetPidMH = linker.downcallHandle(libLookup.find("ecobridge_reset_pid_state").get(),
-FunctionDescriptor.ofVoid(ADDRESS));
+initDBMH = linker.downcallHandle(libLookup.find("ecobridge_init_db").get(), FunctionDescriptor.of(JAVA_INT, ADDRESS));
+getVersionMH = linker.downcallHandle(libLookup.find("ecobridge_version").get(), FunctionDescriptor.of(ADDRESS));
+getHealthStatsMH = linker.downcallHandle(libLookup.find("ecobridge_get_health_stats").get(), FunctionDescriptor.ofVoid(ADDRESS, ADDRESS));
+shutdownDBMH = linker.downcallHandle(libLookup.find("ecobridge_shutdown_db").get(), FunctionDescriptor.of(JAVA_INT));
+pushToDuckDBMH = linker.downcallHandle(libLookup.find("ecobridge_log_to_duckdb").get(), FunctionDescriptor.ofVoid(JAVA_LONG, ADDRESS, JAVA_DOUBLE, JAVA_DOUBLE, ADDRESS));
+queryNeffVectorizedMH = linker.downcallHandle(libLookup.find("ecobridge_query_neff_vectorized").get(), FunctionDescriptor.of(JAVA_DOUBLE, JAVA_LONG, JAVA_DOUBLE));
+computePriceMH = linker.downcallHandle(libLookup.find("ecobridge_compute_price_humane").get(), FunctionDescriptor.of(JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE));
+calculateEpsilonMH = linker.downcallHandle(libLookup.find("ecobridge_calculate_epsilon").get(), FunctionDescriptor.of(JAVA_DOUBLE, ADDRESS, ADDRESS));
+checkTransferMH = linker.downcallHandle(libLookup.find("ecobridge_compute_transfer_check").get(), FunctionDescriptor.of(Layouts.TRANSFER_RESULT, ADDRESS, ADDRESS));
+computePidMH = linker.downcallHandle(libLookup.find("ecobridge_compute_pid_adjustment").get(), FunctionDescriptor.of(JAVA_DOUBLE, ADDRESS, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE));
+resetPidMH = linker.downcallHandle(libLookup.find("ecobridge_reset_pid_state").get(), FunctionDescriptor.ofVoid(ADDRESS));
 try (Arena arena = Arena.ofConfined()) {
 String dataPath = plugin.getDataFolder().getAbsolutePath();
-MemorySegment pathSeg = arena.allocateFrom(dataPath);
-int result = (int) initDBMH.invokeExact(pathSeg);
-if (result != 0 && result != -3) {
-throw new IllegalStateException("Rust 物理内核初始化失败，错误码: " + result);
-}
+int result = (int) initDBMH.invokeExact(arena.allocateFrom(dataPath));
+if (result != 0 && result != -3) throw new IllegalStateException("Rust init failed: " + result);
 }
 loaded = true;
 MemorySegment v = (MemorySegment) getVersionMH.invokeExact();
-LogUtil.info("<green>Native 引擎载入成功! 内核: " + v.getString(0));
+LogUtil.info("<green>Native engine loaded: " + v.getString(0));
 } catch (Throwable e) {
-LogUtil.error("Native 链路绑定或初始化致命错误！", e);
+LogUtil.error("Native fatal error", e);
 shutdown();
 }
 }
 public static boolean isLoaded() { return loaded; }
 public static void getHealthStats(MemorySegment outTotal, MemorySegment outDropped) {
 if (!loaded) return;
-if (!outTotal.scope().isAlive() || !outDropped.scope().isAlive()) return;
 try { getHealthStatsMH.invokeExact(outTotal, outDropped); } catch (Throwable t) {}
 }
 public static void resetPidState(MemorySegment pidPtr) {
-if (!loaded || !pidPtr.scope().isAlive()) return;
-try { resetPidMH.invokeExact(pidPtr); } catch (Throwable t) { LogUtil.error("PID 状态重置失败", t); }
+if (!loaded) return;
+try { resetPidMH.invokeExact(pidPtr); } catch (Throwable t) { LogUtil.error("PID reset failed", t); }
 }
 public static double computePrice(double base, double nEff, double amount, double lambda, double epsilon) {
 if (!loaded) return base;
-try { return (double) computePriceMH.invokeExact(base, nEff, amount, lambda, epsilon); }
-catch (Throwable t) { return base; }
+try { return (double) computePriceMH.invokeExact(base, nEff, amount, lambda, epsilon); } catch (Throwable t) { return base; }
 }
 public static double queryNeffVectorized(long now, double tau) {
 if (!loaded) return 0.0;
-try { return (double) queryNeffVectorizedMH.invokeExact(now, tau); }
-catch (Throwable t) { return 0.0; }
+try { return (double) queryNeffVectorizedMH.invokeExact(now, tau); } catch (Throwable t) { return 0.0; }
 }
 public static void pushToDuckDB(long ts, String uuid, double amount, double bal, String meta) {
 if (!loaded) return;
 try (Arena arena = Arena.ofConfined()) {
 pushToDuckDBMH.invokeExact(ts, arena.allocateFrom(uuid), amount, bal, arena.allocateFrom(meta));
-} catch (Throwable t) { LogUtil.error("DuckDB 推送失败", t); }
+} catch (Throwable t) { LogUtil.error("DuckDB log failed", t); }
 }
 public static double calculateEpsilon(MemorySegment tradeCtx, MemorySegment marketCfg) {
-if (!loaded || !tradeCtx.scope().isAlive() || !marketCfg.scope().isAlive()) return 1.0;
-try { return (double) calculateEpsilonMH.invokeExact(tradeCtx, marketCfg); }
-catch (Throwable t) { return 1.0; }
+if (!loaded) return 1.0;
+try { return (double) calculateEpsilonMH.invokeExact(tradeCtx, marketCfg); } catch (Throwable t) { return 1.0; }
 }
 public static TransferResult checkTransfer(MemorySegment ctxSeg, MemorySegment cfgSeg) {
-if (!loaded || !ctxSeg.scope().isAlive() || !cfgSeg.scope().isAlive()) return new TransferResult(0.0, true, -1);
+if (!loaded) return new TransferResult(0.0, true, -1);
 try (Arena localArena = Arena.ofConfined()) {
 MemorySegment res = (MemorySegment) checkTransferMH.invokeExact(localArena, ctxSeg, cfgSeg);
-return new TransferResult(res.get(JAVA_DOUBLE, 0), res.get(JAVA_INT, 8) == 1, res.get(JAVA_INT, 12));
+double tax = (double) VH_RES_TAX.get(res);
+boolean isBlocked = ((int) VH_RES_BLOCKED.get(res)) != 0;
+int warningCode = (int) VH_RES_CODE.get(res);
+return new TransferResult(tax, isBlocked, warningCode);
 } catch (Throwable t) { return new TransferResult(0.0, true, -2); }
 }
 public static double computePidAdjustment(MemorySegment pidPtr, double target, double current, double dt, double inflation) {
-if (!loaded || !pidPtr.scope().isAlive()) return 0.0;
-try { return (double) computePidMH.invokeExact(pidPtr, target, current, dt, inflation); }
-catch (Throwable t) { return 0.0; }
+if (!loaded) return 0.0;
+try { return (double) computePidMH.invokeExact(pidPtr, target, current, dt, inflation); } catch (Throwable t) { return 0.0; }
 }
 public static class Layouts {
-public static final GroupLayout TRADE_CONTEXT = MemoryLayout.structLayout(
-JAVA_DOUBLE.withName("base_price"), JAVA_DOUBLE.withName("current_amount"),
-JAVA_DOUBLE.withName("inflation_rate"), JAVA_LONG.withName("current_timestamp"),
-JAVA_LONG.withName("play_time_seconds"), JAVA_INT.withName("timezone_offset"),
-JAVA_INT.withName("newbie_mask")
-).withByteAlignment(8);
-public static final GroupLayout TRANSFER_CONTEXT = MemoryLayout.structLayout(
-JAVA_DOUBLE.withName("amount"), JAVA_DOUBLE.withName("sender_balance"),
-JAVA_DOUBLE.withName("receiver_balance"), JAVA_DOUBLE.withName("inflation_rate"),
-JAVA_DOUBLE.withName("newbie_limit"), JAVA_LONG.withName("sender_play_time"),
-JAVA_LONG.withName("receiver_play_time")
-).withByteAlignment(8);
-public static final GroupLayout MARKET_CONFIG = MemoryLayout.structLayout(
-JAVA_DOUBLE.withName("base_lambda"), JAVA_DOUBLE.withName("volatility_factor"),
-JAVA_DOUBLE.withName("seasonal_amplitude"), JAVA_DOUBLE.withName("weekend_multiplier"),
-JAVA_DOUBLE.withName("newbie_protection_rate"), JAVA_DOUBLE.withName("seasonal_weight"),
-JAVA_DOUBLE.withName("weekend_weight"), JAVA_DOUBLE.withName("newbie_weight"),
-JAVA_DOUBLE.withName("inflation_weight")
-).withByteAlignment(8);
-public static final GroupLayout REGULATOR_CONFIG = MemoryLayout.structLayout(
-JAVA_DOUBLE.withName("base_tax_rate"), JAVA_DOUBLE.withName("luxury_threshold"),
-JAVA_DOUBLE.withName("luxury_tax_rate"), JAVA_DOUBLE.withName("wealth_gap_tax_rate"),
-JAVA_DOUBLE.withName("poor_threshold"), JAVA_DOUBLE.withName("rich_threshold"),
-JAVA_DOUBLE.withName("newbie_receive_limit"), JAVA_DOUBLE.withName("warning_ratio"),
-JAVA_DOUBLE.withName("warning_min_amount"), JAVA_DOUBLE.withName("newbie_hours"),
-JAVA_DOUBLE.withName("veteran_hours")
-).withByteAlignment(8);
-public static final GroupLayout PID_STATE = MemoryLayout.structLayout(
-JAVA_DOUBLE.withName("kp"), JAVA_DOUBLE.withName("ki"), JAVA_DOUBLE.withName("kd"),
-JAVA_DOUBLE.withName("lambda"), JAVA_DOUBLE.withName("integral"),
-JAVA_DOUBLE.withName("prev_pv"), JAVA_DOUBLE.withName("filtered_d"),
-JAVA_DOUBLE.withName("integration_limit"), JAVA_INT.withName("is_saturated"),
-MemoryLayout.paddingLayout(4)
-).withByteAlignment(8);
-public static final GroupLayout TRANSFER_RESULT = MemoryLayout.structLayout(
-JAVA_DOUBLE.withName("final_tax"), JAVA_INT.withName("is_blocked"),
-JAVA_INT.withName("warning_code")
-).withByteAlignment(8);
+public static final GroupLayout TRADE_CONTEXT = TradeContext.layout();
+public static final GroupLayout TRANSFER_CONTEXT = TransferContext.layout();
+public static final GroupLayout MARKET_CONFIG = MarketConfig.layout();
+public static final GroupLayout REGULATOR_CONFIG = RegulatorConfig.layout();
+public static final GroupLayout PID_STATE = PidState.layout();
+public static final GroupLayout TRANSFER_RESULT = top.ellan.ecobridge.gen.TransferResult.layout();
 }
 public record TransferResult(double tax, boolean isBlocked, int warningCode) {}
 public static void shutdown() {
 if (loaded && shutdownDBMH != null) {
-try {
-int res = (int) shutdownDBMH.invokeExact();
-LogUtil.info("Native 数据库管线关闭信号已发送: " + res);
-} catch (Throwable t) { LogUtil.error("无法关闭 Native 数据库", t); }
+try { shutdownDBMH.invokeExact(); } catch (Throwable t) {}
 }
 loaded = false;
-LogUtil.info("Native 流量入口已安全切断。");
 }
 private static Path extractLibrary(EcoBridge plugin) throws IOException {
 String os = System.getProperty("os.name").toLowerCase();
@@ -671,29 +685,36 @@ String suffix = os.contains("win") ? ".dll" : (os.contains("mac") ? ".dylib" : "
 String name = (os.contains("win") ? "" : "lib") + LIB_NAME + suffix;
 Path target = plugin.getDataFolder().toPath().resolve("natives").resolve(name);
 try (InputStream in = plugin.getResource(name)) {
-if (in == null) throw new IOException("Resource not found: " + name);
+if (in == null) throw new IOException("Native lib not found: " + name);
 if (Files.exists(target)) {
-byte[] resourceBytes = in.readAllBytes();
-if (calculateHash(resourceBytes).equals(calculateHash(Files.readAllBytes(target)))) {
-return target;
-}
+String h1 = calculateHash(in.readAllBytes());
+String h2 = calculateHash(Files.readAllBytes(target));
+if (h1.equals(h2)) return target;
 }
 Files.createDirectories(target.getParent());
 try (InputStream inFresh = plugin.getResource(name)) {
+if (inFresh == null) throw new IOException("Stream null");
 Files.copy(inFresh, target, StandardCopyOption.REPLACE_EXISTING);
 }
+} catch (IOException e) {
+if (Files.exists(target)) return target;
+throw e;
 } catch (Exception e) {
 if (Files.exists(target)) return target;
-throw new IOException("无法初始化 Native 库", e);
+throw new IOException("Extraction failed", e);
 }
 return target;
 }
-private static String calculateHash(byte[] data) throws Exception {
+private static String calculateHash(byte[] data) {
+try {
 MessageDigest md = MessageDigest.getInstance("SHA-256");
 byte[] hash = md.digest(data);
 StringBuilder sb = new StringBuilder();
 for (byte b : hash) sb.append(String.format("%02x", b));
 return sb.toString();
+} catch (Exception e) {
+throw new RuntimeException(e);
+}
 }
 }
 
@@ -733,9 +754,9 @@ Bukkit.getScheduler().runTask(EcoBridge.getInstance(), () -> {
 Player p = Bukkit.getPlayer(uuid);
 if (p != null && p.isOnline()) {
 CACHE.put(uuid, data);
-LogUtil.debug("已为玩家 " + p.getName() + " 完成原子路径数据挂载。");
+LogUtil.debug("已为玩家 " + p.getName() + " 完成数据挂载 (Version: " + data.getVersion() + ")");
 } else {
-LogUtil.debug("拦截到过时加载回调 (" + uuid + ")，玩家已离线，取消回写。");
+LogUtil.debug("拦截到过时加载回调 (" + uuid + ")，玩家已离线。");
 }
 });
 } catch (Exception e) {
@@ -751,7 +772,7 @@ CACHE.invalidate(uuid);
 }
 private static void saveAsync(UUID uuid, PlayerData data, String reason) {
 EcoBridge.getInstance().getVirtualExecutor().execute(() -> {
-TransactionDao.updateBalance(uuid, data.getBalance());
+TransactionDao.updateBalanceSync(uuid, data.getBalance());
 if (LogUtil.isDebugEnabled()) {
 LogUtil.debug("数据写回成功 [" + reason + "]: " + uuid + " (Balance: " + data.getBalance() + ")");
 }
@@ -769,13 +790,21 @@ LogUtil.info("所有活跃数据已安全落盘。");
 public static class PlayerData {
 private final UUID uuid;
 private final AtomicLong balanceBits;
-public PlayerData(UUID uuid, double initialBalance) {
+private volatile long version;
+public PlayerData(UUID uuid, double initialBalance, long version) {
 this.uuid = uuid;
 this.balanceBits = new AtomicLong(Double.doubleToRawLongBits(initialBalance));
+this.version = version;
 }
 public UUID getUuid() { return uuid; }
 public double getBalance() {
 return Double.longBitsToDouble(balanceBits.get());
+}
+public long getVersion() {
+return version;
+}
+public void setVersion(long version) {
+this.version = version;
 }
 public void updateFromTruth(double newBalance) {
 balanceBits.set(Double.doubleToRawLongBits(newBalance));
@@ -910,6 +939,7 @@ package top.ellan.ecobridge.database;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import top.ellan.ecobridge.EcoBridge;
+import top.ellan.ecobridge.cache.HotDataCache;
 import top.ellan.ecobridge.cache.HotDataCache.PlayerData;
 import top.ellan.ecobridge.model.SaleRecord;
 import top.ellan.ecobridge.util.LogUtil;
@@ -950,7 +980,7 @@ hikari.setMaxLifetime(1800000);
 try {
 dataSource = new HikariDataSource(hikari);
 createTables();
-LogUtil.info("<green>SQL 数据源已就绪。");
+LogUtil.info("<green>SQL 数据源已就绪 (乐观锁模式)。");
 } catch (Exception e) {
 LogUtil.error("数据库初始化失败！", e);
 }
@@ -971,6 +1001,7 @@ String sqlPlayers = """
 CREATE TABLE IF NOT EXISTS ecobridge_players (
 uuid CHAR(36) PRIMARY KEY,
 balance DOUBLE NOT NULL DEFAULT 0.0,
+version BIGINT NOT NULL DEFAULT 0,
 last_updated BIGINT NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 """;
@@ -982,20 +1013,20 @@ LogUtil.error("DDL 执行失败，请检查数据库权限或表结构。", e);
 }
 }
 public static PlayerData loadPlayerData(UUID uuid) {
-if (dataSource == null) return new PlayerData(uuid, 0.0);
-String sql = "SELECT balance FROM ecobridge_players WHERE uuid = ?";
+if (dataSource == null) return new PlayerData(uuid, 0.0, 0);
+String sql = "SELECT balance, version FROM ecobridge_players WHERE uuid = ?";
 try (Connection conn = dataSource.getConnection();
 PreparedStatement pstmt = conn.prepareStatement(sql)) {
 pstmt.setString(1, uuid.toString());
 try (ResultSet rs = pstmt.executeQuery()) {
 if (rs.next()) {
-return new PlayerData(uuid, rs.getDouble("balance"));
+return new PlayerData(uuid, rs.getDouble("balance"), rs.getLong("version"));
 }
 }
 } catch (SQLException e) {
 LogUtil.error("读取玩家 SQL 失败: " + uuid, e);
 }
-return new PlayerData(uuid, 0.0);
+return new PlayerData(uuid, 0.0, 0);
 }
 public static void updateBalance(UUID uuid, double balance) {
 if (dbExecutor == null) return;
@@ -1003,40 +1034,49 @@ dbExecutor.execute(() -> updateBalanceSync(uuid, balance));
 }
 public static void updateBalanceSync(UUID uuid, double balance) {
 if (dataSource == null) return;
-String sql = """
-INSERT INTO ecobridge_players (uuid, balance, last_updated)
-VALUES (?, ?, ?)
-ON DUPLICATE KEY UPDATE
-balance = ?,
-last_updated = ?
-""";
+String updateSql = "UPDATE ecobridge_players SET balance = ?, version = version + 1, last_updated = ? WHERE uuid = ? AND version = ?";
+String insertSql = "INSERT IGNORE INTO ecobridge_players (uuid, balance, version, last_updated) VALUES (?, ?, 0, ?)";
 long now = System.currentTimeMillis();
 int maxRetries = 3;
 SQLException lastEx = null;
 for (int attempt = 1; attempt <= maxRetries; attempt++) {
-try (Connection conn = dataSource.getConnection();
-PreparedStatement pstmt = conn.prepareStatement(sql)) {
-pstmt.setString(1, uuid.toString());
-pstmt.setDouble(2, balance);
-pstmt.setLong(3, now);
-pstmt.setDouble(4, balance);
-pstmt.setLong(5, now);
-pstmt.executeUpdate();
+PlayerData cached = HotDataCache.get(uuid);
+long currentVersion = (cached != null) ? cached.getVersion() : -1;
+try (Connection conn = dataSource.getConnection()) {
+if (currentVersion == -1) {
+try (PreparedStatement ipstmt = conn.prepareStatement(insertSql)) {
+ipstmt.setString(1, uuid.toString());
+ipstmt.setDouble(2, balance);
+ipstmt.setLong(3, now);
+if (ipstmt.executeUpdate() > 0) return;
+}
+}
+try (PreparedStatement upstmt = conn.prepareStatement(updateSql)) {
+upstmt.setDouble(1, balance);
+upstmt.setLong(2, now);
+upstmt.setString(3, uuid.toString());
+upstmt.setLong(4, Math.max(0, currentVersion));
+int affected = upstmt.executeUpdate();
+if (affected > 0) {
+if (cached != null) cached.setVersion(currentVersion + 1);
 return;
+}
+}
+PlayerData fresh = loadPlayerData(uuid);
+if (cached != null) cached.setVersion(fresh.getVersion());
+if (attempt < maxRetries) {
+Thread.sleep(50L * attempt);
+}
 } catch (SQLException e) {
 lastEx = e;
 if (isFatalError(e)) break;
-if (attempt < maxRetries) {
-try {
-Thread.sleep(100L * attempt);
-} catch (InterruptedException ie) {
+try { Thread.sleep(100L * attempt); } catch (InterruptedException ie) { break; }
+} catch (InterruptedException e) {
 Thread.currentThread().interrupt();
 break;
 }
 }
-}
-}
-LogUtil.error("持久化玩家余额最终失败 (重试 " + maxRetries + " 次): " + uuid, lastEx);
+LogUtil.error("持久化玩家余额最终失败 (乐观锁冲突/重试耗尽): " + uuid, lastEx);
 }
 public static void saveSaleAsync(UUID uuid, String productId, double amount) {
 if (dbExecutor == null) return;
@@ -2621,6 +2661,73 @@ Placeholder.unparsed("id", item.getProduct()));
 }
 
 ==================================================
+FILE: ecobridge-java\src\test\java\LayoutAlignmentTest.java
+==================================================
+
+package top.ellan.ecobridge;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import top.ellan.ecobridge.bridge.NativeBridge.Layouts;
+import java.lang.foreign.GroupLayout;
+import java.lang.foreign.MemoryLayout.PathElement;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+public class LayoutAlignmentTest {
+@BeforeAll
+static void setup() {
+}
+@Test
+@DisplayName("校验 TradeContext 布局与偏移量 (48 bytes)")
+void verifyTradeContextAlignment() {
+GroupLayout layout = Layouts.TRADE_CONTEXT;
+assertEquals(48, layout.byteSize(), "TradeContext 长度必须为 48 字节");
+assertOffset(layout, "base_price", 0);
+assertOffset(layout, "current_amount", 8);
+assertOffset(layout, "inflation_rate", 16);
+assertOffset(layout, "current_timestamp", 24);
+assertOffset(layout, "play_time_seconds", 32);
+assertOffset(layout, "timezone_offset", 40);
+assertOffset(layout, "newbie_mask", 44);
+}
+@Test
+@DisplayName("校验 MarketConfig 布局与偏移量 (72 bytes)")
+void verifyMarketConfigAlignment() {
+GroupLayout layout = Layouts.MARKET_CONFIG;
+assertEquals(72, layout.byteSize(), "MarketConfig 长度必须为 72 字节");
+assertOffset(layout, "base_lambda", 0);
+assertOffset(layout, "volatility_factor", 8);
+assertOffset(layout, "seasonal_amplitude", 16);
+assertOffset(layout, "seasonal_weight", 40);
+assertOffset(layout, "inflation_weight", 64);
+}
+@Test
+@DisplayName("校验 PidState 布局与偏移量 (72 bytes)")
+void verifyPidStateAlignment() {
+GroupLayout layout = Layouts.PID_STATE;
+assertEquals(72, layout.byteSize(), "PidState 长度必须为 72 字节");
+assertOffset(layout, "kp", 0);
+assertOffset(layout, "ki", 8);
+assertOffset(layout, "kd", 16);
+assertOffset(layout, "integral", 32);
+assertOffset(layout, "is_saturated", 64);
+}
+@Test
+@DisplayName("校验 TransferResult 布局与偏移量 (16 bytes)")
+void verifyTransferResultAlignment() {
+GroupLayout layout = Layouts.TRANSFER_RESULT;
+assertEquals(16, layout.byteSize(), "TransferResult 长度必须为 16 字节");
+assertOffset(layout, "final_tax", 0);
+assertOffset(layout, "is_blocked", 8);
+assertOffset(layout, "warning_code", 12);
+}
+private void assertOffset(GroupLayout layout, String name, long expectedOffset) {
+long actualOffset = layout.byteOffset(PathElement.groupElement(name));
+assertEquals(expectedOffset, actualOffset,
+String.format("字段 [%s] 的内存偏移量不匹配！", name));
+}
+}
+
+==================================================
 FILE: ecobridge-rust\build.rs
 ==================================================
 
@@ -2631,6 +2738,7 @@ let crate_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
 let output_file = PathBuf::from(&crate_dir).join("ecobridge_rust.h");
 let mut config = cbindgen::Config::default();
 config.language = cbindgen::Language::C;
+config.style = cbindgen::Style::Type;
 config.header = Some(String::from(
 "\n\
 \n\
@@ -2644,7 +2752,7 @@ String::from("stdbool.h"),
 config.no_includes = true;
 config.parse.parse_deps = false;
 config.parse.clean = true;
-config.export.prefix = Some(String::from("ecobridge_"));
+config.export.prefix = None;
 config.structure.rename_fields = cbindgen::RenameRule::None;
 config.enumeration.rename_variants = cbindgen::RenameRule::ScreamingSnakeCase;
 config.documentation = true;
@@ -2693,7 +2801,7 @@ rayon = { version = "1.10", optional = true }
 chrono = { version = "0.4", features = ["std"] }
 lazy_static = "1.5"
 [build-dependencies]
-cbindgen = "0.26"
+cbindgen = "0.27"
 [features]
 default = []
 parallel = ["dep:rayon"]
@@ -2702,6 +2810,26 @@ opt-level = 3
 lto = "fat"
 codegen-units = 1
 strip = "symbols"
+
+==================================================
+FILE: ecobridge-rust\cbindgen.toml
+==================================================
+
+language = "C"
+header = "/* Generated by cbindgen. Do not edit manually. */"
+style = "type"
+[export]
+include = [
+"PidState",
+"TradeContext",
+"MarketConfig",
+"TransferResult",
+"TransferContext",
+"RegulatorConfig"
+]
+[parse]
+parse_deps = true
+clean = true
 
 ==================================================
 FILE: ecobridge-rust\src\lib.rs
@@ -2817,7 +2945,7 @@ lambda: c_double,
 epsilon: c_double,
 ) -> c_double {
 ffi_guard!(base, {
-economy::pricing::ecobridge_compute_price_humane(base, n_eff, trade_amount, lambda, epsilon)
+economy::pricing::compute_price_humane_internal(base, n_eff, trade_amount, lambda, epsilon)
 })
 }
 #[no_mangle]
@@ -2876,7 +3004,7 @@ security::regulator::compute_transfer_check_internal(ctx, cfg)
 }
 #[no_mangle]
 pub extern "C" fn ecobridge_shutdown_db() -> c_int {
-storage::ecobridge_shutdown_db()
+storage::shutdown_db_internal()
 }
 
 ==================================================
@@ -3331,7 +3459,7 @@ eps_future: f64,
 compute_price_behavioral_core(base_price, n_eff_current, trade_amount_amount, lambda, eps_future)
 }
 #[no_mangle]
-pub extern "C" fn ecobridge_compute_price_humane(
+pub fn compute_price_humane_internal(
 base_price: f64,
 n_eff: f64,
 trade_amount: f64,
@@ -3667,8 +3795,7 @@ let _ = self.pool_sender.send(conn);
 }
 }
 }
-#[no_mangle]
-pub extern "C" fn ecobridge_shutdown_db() -> c_int {
+pub fn shutdown_db_internal() -> c_int {
 if let Some(sender) = LOG_SENDER.get() {
 let res = sender.send(LogEvent {
 ts: -1,

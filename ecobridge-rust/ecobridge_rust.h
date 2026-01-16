@@ -8,49 +8,49 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define ecobridge_DEFAULT_LAMBDA 0.01
+#define DEFAULT_LAMBDA 0.01
 
-#define ecobridge_DEFAULT_TAU 7.0
+#define DEFAULT_TAU 7.0
 
-#define ecobridge_MIN_PHYSICAL_PRICE 0.01
+#define MIN_PHYSICAL_PRICE 0.01
 
-#define ecobridge_DEFAULT_INTEGRATION_LIMIT 30.0
+#define DEFAULT_INTEGRATION_LIMIT 30.0
 
-#define ecobridge_MAX_SAFE_DT 1.0
+#define MAX_SAFE_DT 1.0
 
-#define ecobridge_MIN_TIME_STEP 1e-6
+#define MIN_TIME_STEP 1e-6
 
-#define ecobridge_OUTPUT_MIN_CLAMP 0.5
+#define OUTPUT_MIN_CLAMP 0.5
 
-#define ecobridge_OUTPUT_MAX_CLAMP 5.0
+#define OUTPUT_MAX_CLAMP 5.0
 
-#define ecobridge_OUTPUT_BASELINE 1.0
+#define OUTPUT_BASELINE 1.0
 
-#define ecobridge_INTEGRAL_DECAY 0.99999
+#define INTEGRAL_DECAY 0.99999
 
-#define ecobridge_BACK_CALC_GAIN 0.2
+#define BACK_CALC_GAIN 0.2
 
-#define ecobridge_DERIVATIVE_FILTER_ALPHA 0.3
+#define DERIVATIVE_FILTER_ALPHA 0.3
 
-#define ecobridge_PANIC_THRESHOLD 50.0
+#define PANIC_THRESHOLD 50.0
 
-#define ecobridge_PANIC_DAMPING 1.8
+#define PANIC_DAMPING 1.8
 
-#define ecobridge_CODE_NORMAL 0
+#define CODE_NORMAL 0
 
-#define ecobridge_CODE_WARNING_HIGH_RISK 1
+#define CODE_WARNING_HIGH_RISK 1
 
-#define ecobridge_CODE_BLOCK_REVERSE_FLOW 2
+#define CODE_BLOCK_REVERSE_FLOW 2
 
-#define ecobridge_CODE_BLOCK_INJECTION 3
+#define CODE_BLOCK_INJECTION 3
 
-#define ecobridge_CODE_BLOCK_INSUFFICIENT_FUNDS 4
+#define CODE_BLOCK_INSUFFICIENT_FUNDS 4
 
 /*
  交易定价演算上下文 (48 bytes)
  严格对齐 Java 侧 NativeBridge.Layouts.TRADE_CONTEXT
  */
-typedef struct ecobridge_TradeContext {
+typedef struct {
   double base_price;
   double current_amount;
   double inflation_rate;
@@ -58,14 +58,14 @@ typedef struct ecobridge_TradeContext {
   long long play_time_seconds;
   int timezone_offset;
   int newbie_mask;
-} ecobridge_TradeContext;
+} TradeContext;
 
 /*
  [关键修复] 市场动态定价配置 (72 bytes)
  已移除 `weights: [f64; 4]` 数组，改为 4 个独立命名字段。
  这消除了 Java FFM 映射时的不确定性。
  */
-typedef struct ecobridge_MarketConfig {
+typedef struct {
   double base_lambda;
   double volatility_factor;
   double seasonal_amplitude;
@@ -75,13 +75,13 @@ typedef struct ecobridge_MarketConfig {
   double weekend_weight;
   double newbie_weight;
   double inflation_weight;
-} ecobridge_MarketConfig;
+} MarketConfig;
 
 /*
  工业级 PID 控制器状态 (72 bytes)
  用于动态调节市场税率与平抑异常波动。
  */
-typedef struct ecobridge_PidState {
+typedef struct {
   double kp;
   double ki;
   double kd;
@@ -95,23 +95,23 @@ typedef struct ecobridge_PidState {
    [显式填充]: 确保结构体总大小为 72 字节 (8的倍数)
    */
   int _padding;
-} ecobridge_PidState;
+} PidState;
 
 /*
  转账演算最终结果 (16 bytes)
  返回给 Java 侧的审计报告。
  */
-typedef struct ecobridge_TransferResult {
+typedef struct {
   double final_tax;
   int is_blocked;
   int warning_code;
-} ecobridge_TransferResult;
+} TransferResult;
 
 /*
  转账风控审计上下文 (56 bytes)
  对应 `ecobridge_compute_transfer_check` 的输入
  */
-typedef struct ecobridge_TransferContext {
+typedef struct {
   double amount;
   double sender_balance;
   double receiver_balance;
@@ -119,12 +119,12 @@ typedef struct ecobridge_TransferContext {
   double newbie_limit;
   long long sender_play_time;
   long long receiver_play_time;
-} ecobridge_TransferContext;
+} TransferContext;
 
 /*
  审计监管与计税配置 (88 bytes)
  */
-typedef struct ecobridge_RegulatorConfig {
+typedef struct {
   double base_tax_rate;
   double luxury_threshold;
   double luxury_tax_rate;
@@ -136,7 +136,7 @@ typedef struct ecobridge_RegulatorConfig {
   double warning_min_amount;
   double newbie_hours;
   double veteran_hours;
-} ecobridge_RegulatorConfig;
+} RegulatorConfig;
 
 /*
  返回 ABI 版本号 (Hex: 0x00080700 -> v0.8.7)
@@ -199,14 +199,13 @@ double ecobridge_compute_price_humane(double base,
  市场环境因子 (Epsilon) 计算 (纯数学)
  [修复] 使用 match 替代 explict return，防止绕过闭包逻辑
  */
-double ecobridge_calculate_epsilon(const struct ecobridge_TradeContext *ctx_ptr,
-                                   const struct ecobridge_MarketConfig *cfg_ptr);
+double ecobridge_calculate_epsilon(const TradeContext *ctx_ptr, const MarketConfig *cfg_ptr);
 
 /*
  PID 控制器步进计算 (状态机更新)
  已在 internal 实现中增强 D 项阻尼，用于预判恐慌抛售
  */
-double ecobridge_compute_pid_adjustment(struct ecobridge_PidState *pid_ptr,
+double ecobridge_compute_pid_adjustment(PidState *pid_ptr,
                                         double target,
                                         double current,
                                         double dt,
@@ -215,15 +214,15 @@ double ecobridge_compute_pid_adjustment(struct ecobridge_PidState *pid_ptr,
 /*
  重置 PID 状态
  */
-void ecobridge_reset_pid_state(struct ecobridge_PidState *pid_ptr);
+void ecobridge_reset_pid_state(PidState *pid_ptr);
 
 /*
  转账合规性检查
  返回 TransferResult 结构体 (值传递，避免内存分配)
  */
-struct ecobridge_TransferResult ecobridge_compute_transfer_check(const struct ecobridge_TransferContext *ctx_ptr,
-                                                                 const struct ecobridge_RegulatorConfig *cfg_ptr);
+TransferResult ecobridge_compute_transfer_check(const TransferContext *ctx_ptr,
+                                                const RegulatorConfig *cfg_ptr);
 
 int ecobridge_shutdown_db(void);
 
-#endif /* ECOBRIDGE_RUST_H */
+#endif  /* ECOBRIDGE_RUST_H */
