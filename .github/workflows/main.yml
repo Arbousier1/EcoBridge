@@ -8,10 +8,10 @@ on:
 
 env:
   CARGO_INCREMENTAL: 0
-  # 强制使用 UTF-8，防止 Windows 编译乱码
   JAVA_TOOL_OPTIONS: "-Dfile.encoding=UTF-8"
 
 jobs:
+  # 第一阶段：编译多平台 Native 内核
   build-rust:
     name: Native Core (${{ matrix.os }})
     strategy:
@@ -20,13 +20,10 @@ jobs:
         include:
           - os: ubuntu-latest
             artifact: libecobridge_rust.so
-            target_triple: x86_64-unknown-linux-gnu
           - os: windows-latest
             artifact: ecobridge_rust.dll
-            target_triple: x86_64-pc-windows-msvc
           - os: macos-latest
             artifact: libecobridge_rust.dylib
-            target_triple: universal-apple-darwin
     runs-on: ${{ matrix.os }}
     
     steps:
@@ -34,12 +31,15 @@ jobs:
 
       - name: Disable Windows Defender
         if: matrix.os == 'windows-latest'
-        run: Set-MpPreference -ExclusionPath ${{ github.workspace }}
+        run: |
+          Set-MpPreference -ExclusionPath ${{ github.workspace }}
+          Write-Host "✅ Windows Defender 已排除工作目录，防止编译卡死。"
         shell: powershell
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
+          # 为 macOS 准备通用二进制支持
           targets: ${{ matrix.os == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - name: Rust Cache
@@ -50,7 +50,7 @@ jobs:
       - name: Build Rust
         shell: bash
         env:
-          # Windows 下链接 Rstrtmgr.lib 是必须的 (解决 DuckDB/RocksDB 依赖问题)
+          # Windows 下强制使用 LLD 链接器，这是解决 Windows 编译长时间卡住的关键
           RUSTFLAGS: >-
             ${{ matrix.os == 'windows-latest' 
               && '-C link-arg=Rstrtmgr.lib -C linker=lld-link' 
@@ -58,7 +58,6 @@ jobs:
         run: |
           cd ecobridge-rust
           if [ "${{ matrix.os }}" = "macos-latest" ]; then
-            # macOS 通用二进制 (Intel + Apple Silicon)
             cargo build --release --target x86_64-apple-darwin
             cargo build --release --target aarch64-apple-darwin
             mkdir -p target/release/
@@ -76,9 +75,6 @@ jobs:
           name: native-${{ matrix.os }}
           path: ecobridge-rust/target/release/${{ matrix.artifact }}
 
-      # 🔥 [关键修复] 上传生成的头文件
-      # Java 构建需要这个 .h 文件，但只有 Rust 构建过程会生成它
-      # 我们只从 Ubuntu 节点上传一次即可
       - name: Upload Header File
         if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
@@ -86,6 +82,7 @@ jobs:
           name: rust-header
           path: ecobridge-rust/ecobridge_rust.h
 
+  # 第二阶段：组装 Java 插件
   build-java:
     name: Java 25 Assembly
     needs: build-rust
@@ -97,24 +94,19 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: '25'
-          distribution: 'oracle' # Oracle JDK 25 EA 通常包含较新的特性
+          distribution: 'oracle'
           cache: 'gradle'
 
-      # 🔥 [关键修复] 安装 jextract (因为 setup-java 不带这个工具)
-      # Gradle 脚本依赖 JEXTRACT_HOME 环境变量
       - name: Setup jextract
         run: |
-          # 下载 OpenJDK 25 对应的 jextract (Linux版)
-          # 注意：此链接随 Java 25 EA 版本更新可能变化，这是目前通用的构建版
+          # 下载适用于 Java 22+ 的 jextract (FFM API 绑定工具)
           wget https://download.java.net/java/early_access/jextract/22/4/openjdk-22-jextract+4-30_linux-x64_bin.tar.gz -O jextract.tar.gz
-          mkdir -p jextract
-          tar -xzf jextract.tar.gz -C jextract --strip-components=1
-          echo "JEXTRACT_HOME=$(pwd)/jextract" >> $GITHUB_ENV
-          # 验证安装
-          ./jextract/bin/jextract --version || echo "jextract installed"
+          mkdir -p jextract_bin
+          tar -xzf jextract.tar.gz -C jextract_bin --strip-components=1
+          # 注入环境变量，使 build.gradle.kts 中的 findJextract() 能找到它
+          echo "JEXTRACT_HOME=$(pwd)/jextract_bin" >> $GITHUB_ENV
+          echo "✅ jextract 环境已就绪: $(pwd)/jextract_bin/bin/jextract"
 
-      # 🔥 [关键修复] 恢复头文件
-      # 将上一个 Job 生成的 .h 文件放回 ecobridge-rust 目录
       - name: Restore Header File
         uses: actions/download-artifact@v4
         with:
@@ -131,17 +123,18 @@ jobs:
       - name: Prepare Resources
         shell: bash
         run: |
+          # 将编译好的库放入 Java 资源目录，供 ShadowJar 打包 
           mkdir -p ecobridge-java/src/main/resources/
           cp native-libs/* ecobridge-java/src/main/resources/
-          echo "📦 Native 库已注入:"
+          echo "📦 已注入的 Native 库列表:"
           ls -l ecobridge-java/src/main/resources/
 
       - name: Build with Gradle
         working-directory: ecobridge-java
         run: |
           chmod +x gradlew
-          # 使用 shadowJar 而不是 build，确保所有依赖被打包
-          # -x test: 因为我们之前移除了测试文件，这里显式跳过更保险
+          # 显式执行 generateBindings 以确保 FFM 代码生成成功 [cite: 1]
+          ./gradlew generateBindings --no-daemon
           ./gradlew clean shadowJar -x test --no-daemon
 
       - name: Upload Final Jar
