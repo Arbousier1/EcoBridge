@@ -1,5 +1,6 @@
 package top.ellan.ecobridge.manager;
 
+import com.google.common.base.Preconditions;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.bukkit.Bukkit;
@@ -73,8 +74,13 @@ public class TransferManager {
         this.mainCurrencyId = plugin.getConfig().getString("economy.currency-id", "coins");
     }
 
-    public static void init(EcoBridge plugin) { instance = new TransferManager(plugin); }
-    public static TransferManager getInstance() { return instance; }
+    public static void init(EcoBridge plugin) { 
+        instance = new TransferManager(plugin); 
+    }
+
+    public static TransferManager getInstance() { 
+        return instance; 
+    }
 
     public void initiateTransfer(Player sender, Player receiver, double amount) {
         Currency currency = CoinsEngineAPI.getCurrency(mainCurrencyId);
@@ -93,7 +99,6 @@ public class TransferManager {
     }
 
     private void captureAndAudit(Player sender, Player receiver, Currency currency, double amount, double senderBal) {
-        // 采集参与者行为快照
         var sSnapshot = ActivityCollector.getSafeSnapshot(sender.getUniqueId());
         var rSnapshot = ActivityCollector.getSafeSnapshot(receiver.getUniqueId());
         
@@ -103,15 +108,12 @@ public class TransferManager {
             sender.sendMessage(EcoBridge.getMiniMessage().deserialize("<gray><italic>EcoKernel 正在注入宏观流速并进行行为审计..."));
         }
 
-        // 使用虚拟线程执行 Native 审计，防止阻塞主线程
         vExecutor.submit(() -> {
             try (Arena arena = Arena.ofConfined()) {
-                // 1. 获取最新宏观数据
                 EconomyManager macro = EconomyManager.getInstance();
                 double inflation = macro.getInflationRate();
                 int currentMarketHeat = (int) macro.getMarketHeat();
 
-                // 2. 分配并填充 TransferContext
                 MemorySegment ctx = arena.allocate(NativeBridge.Layouts.TRANSFER_CONTEXT);
                 VH_TR_AMOUNT.set(ctx, 0L, amount);
                 VH_TR_S_BAL.set(ctx, 0L, senderBal);
@@ -121,18 +123,14 @@ public class TransferManager {
                 VH_TR_S_TIME.set(ctx, 0L, sSnapshot.playTimeSeconds());
                 VH_TR_R_TIME.set(ctx, 0L, rSnapshot.playTimeSeconds());
                 
-                // [核心集成] 写入信用分与宏观流速
                 VH_TCTX_SCORE.set(ctx, 0L, sSnapshot.activityScore());
                 VH_TCTX_VELOCITY.set(ctx, 0L, currentMarketHeat);
 
-                // 3. 填充配置
                 MemorySegment cfg = arena.allocate(NativeBridge.Layouts.REGULATOR_CONFIG);
                 populateRegulatorConfig(cfg);
 
-                // 4. 调用 Rust 审计核心
                 TransferResult result = NativeBridge.checkTransfer(ctx, cfg);
 
-                // 5. 回到主线程执行结算
                 Bukkit.getScheduler().runTask(plugin, () ->
                         executeSettlement(sender, receiver, currency, amount, result));
 
@@ -145,13 +143,15 @@ public class TransferManager {
     }
 
     private void executeSettlement(Player sender, Player receiver, Currency currency, double amount, TransferResult audit) {
+        // [加固] 确保结算逻辑在主线程执行
+        Preconditions.checkState(Bukkit.isPrimaryThread(), "结算逻辑必须在主线程执行！");
+
         boolean canBypassBlock = sender.isOp() || sender.hasPermission(BYPASS_BLOCK_PERMISSION);
         if (audit.isBlocked() && !canBypassBlock) {
             handleBlocked(sender, audit.warningCode());
             return;
         }
 
-        // 资金原子性二次校验
         double currentSenderBal = CoinsEngineAPI.getBalance(sender, currency);
         if (currentSenderBal < amount) {
             sender.sendMessage(EcoBridge.getMiniMessage().deserialize("<red>转账失败：审计期间账户资金发生异常变动。"));
@@ -168,7 +168,6 @@ public class TransferManager {
             }
             CoinsEngineAPI.addBalance(receiver, currency, netAmount);
 
-            // [闭环] 将此笔转账金额记入宏观热度累加器
             EconomyManager.getInstance().recordTradeVolume(amount);
 
             long ts = System.currentTimeMillis();
@@ -204,7 +203,6 @@ public class TransferManager {
         cfg.set(JAVA_DOUBLE, 72, section.getDouble("newbie-hours", 10.0));
         cfg.set(JAVA_DOUBLE, 80, section.getDouble("veteran-hours", 100.0));
         
-        // [New] 动态频率审计阈值
         VH_RCFG_V_THRESHOLD.set(cfg, 0L, section.getDouble("velocity-threshold", 20.0));
     }
 
@@ -232,7 +230,10 @@ public class TransferManager {
 
     public void shutdown() {
         vExecutor.shutdown();
-        try { if (!vExecutor.awaitTermination(5, TimeUnit.SECONDS)) vExecutor.shutdownNow(); }
-        catch (InterruptedException e) { vExecutor.shutdownNow(); }
+        try { 
+            if (!vExecutor.awaitTermination(5, TimeUnit.SECONDS)) vExecutor.shutdownNow(); 
+        } catch (InterruptedException e) { 
+            vExecutor.shutdownNow(); 
+        }
     }
 }

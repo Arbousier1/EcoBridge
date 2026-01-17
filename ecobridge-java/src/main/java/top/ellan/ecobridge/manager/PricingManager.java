@@ -5,6 +5,7 @@ import cn.superiormc.ultimateshop.objects.ObjectShop;
 import cn.superiormc.ultimateshop.objects.buttons.ObjectItem;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.RemovalCause;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import top.ellan.ecobridge.EcoBridge;
@@ -29,22 +30,18 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
- * 核心定价管理器 (PricingManager v1.4.1 - Striped Lock & Diagnostic Fix)
- * * 职责：
- * 1. 宏观调控：基于全服财富流速 (Heat) 执行自适应 PID 调节。
- * 2. 并发安全：利用分段读写锁消除异步计算与主线程交易间的竞态条件。
- * 3. 历史审计：提供线程安全的历史记录查询接口。
+ * 核心定价管理器 (PricingManager v1.4.2 - Hardened Production)
  */
 public class PricingManager {
 
     private static PricingManager instance;
     private final EcoBridge plugin;
 
-    // [状态] 堆外内存管理
+    // [状态] 堆外内存管理 (FFM Shared Arena)
     private final Arena managerArena = Arena.ofShared();
     private final MemorySegment globalPidState;
 
-    // [状态] 价格快照
+    // [状态] 价格快照 (原子引用提供无锁读取性能)
     private final AtomicReference<Map<String, Double>> priceSnapshot =
             new AtomicReference<>(Collections.emptyMap());
 
@@ -71,15 +68,23 @@ public class PricingManager {
     private PricingManager(EcoBridge plugin) {
         this.plugin = plugin;
         
+        // 1. 初始化分段锁
         this.itemLocks = Caffeine.newBuilder()
                 .expireAfterAccess(Duration.ofMinutes(10))
                 .build();
 
+        // 2. 初始化历史缓存
         this.historyCache = Caffeine.newBuilder()
                 .maximumSize(2000)
                 .expireAfterAccess(Duration.ofMinutes(30))
+                .removalListener((String key, ThreadSafeHistory value, RemovalCause cause) -> {
+                    if (cause.wasEvicted()) {
+                        LogUtil.debug("缓存清理: 商品 " + key + " 已从内存安全释放 (" + cause.name() + ")");
+                    }
+                })
                 .build();
 
+        // 3. 分配堆外内存
         this.globalPidState = managerArena.allocate(NativeBridge.Layouts.PID_STATE);
         NativeBridge.resetPidState(globalPidState);
 
@@ -111,9 +116,15 @@ public class PricingManager {
 
     public void shutdown() {
         this.isRunning = false;
-        this.historyCache.invalidateAll();
-        this.itemLocks.invalidateAll();
-        managerArena.close();
+        try {
+            this.historyCache.invalidateAll();
+            this.itemLocks.invalidateAll();
+            LogUtil.info("PricingManager 正在安全释放 FFM 资源...");
+        } finally {
+            if (managerArena.scope().isAlive()) {
+                managerArena.close();
+            }
+        }
     }
 
     // ==================== SECTION 1: 宏观调控引擎 ====================
@@ -126,7 +137,12 @@ public class PricingManager {
                     double dt = (now - lastComputeTime) / 1000.0;
                     lastComputeTime = now;
 
-                    int onlineCount = Bukkit.getOnlinePlayers().size();
+                    // ✅ 修复：在异步线程安全地获取在线人数
+                    int onlineCount = CompletableFuture.supplyAsync(
+                            () -> Bukkit.getOnlinePlayers().size(),
+                            runnable -> Bukkit.getScheduler().runTask(plugin, runnable)
+                    ).get(100, TimeUnit.MILLISECONDS);
+
                     long currentTrades = globalTradeCounter.getAndSet(0);
                     double currentHeat = currentTrades / Math.max(dt, 0.1);
                     double targetHeat = Math.max(0.1, onlineCount * targetTradesPerUser);
@@ -137,6 +153,7 @@ public class PricingManager {
                             globalPidState, targetHeat, currentHeat, dt, inflation, currentHeat
                     );
 
+                    // ✅ 恢复：对齐你的 PriceComputeEngine 原始签名 (3 参数)
                     Map<String, Double> nextPrices = PriceComputeEngine.computeSnapshot(
                             plugin, configTau, defaultLambda * macroAdjustment
                     );
@@ -150,7 +167,7 @@ public class PricingManager {
                     Thread.currentThread().interrupt();
                     break;
                 } catch (Throwable e) {
-                    LogUtil.warn("宏观调控引擎异常: " + e.getMessage());
+                    LogUtil.warn("宏观引擎演算异常: " + e.getMessage());
                 }
             }
         });
@@ -191,10 +208,11 @@ public class PricingManager {
                 return event.getFinalPrice();
             }
 
+            // ✅ 线程安全修复：通过 Bukkit 调度器将事件抛回主线程执行
             return CompletableFuture.runAsync(() -> Bukkit.getPluginManager().callEvent(event), 
                     runnable -> Bukkit.getScheduler().runTask(plugin, runnable))
                     .thenApply(v -> event.getFinalPrice())
-                    .orTimeout(500, TimeUnit.MILLISECONDS) 
+                    .orTimeout(200, TimeUnit.MILLISECONDS) 
                     .join();
         } catch (Exception e) {
             return PriceOracle.getOriginalBasePrice(item, amount < 0);
@@ -203,7 +221,7 @@ public class PricingManager {
         }
     }
 
-    // ==================== SECTION 3: 交易处理 (事务保护) ====================
+    // ==================== SECTION 3: 交易处理 ====================
 
     public void onTradeComplete(ObjectItem item, double effectiveAmount) {
         onTradeComplete(item.getProduct(), effectiveAmount);
@@ -213,8 +231,21 @@ public class PricingManager {
         var lock = getItemLock(productId).writeLock();
         lock.lock();
         try {
+            long now = System.currentTimeMillis();
             globalTradeCounter.incrementAndGet();
-            processTradeInternal(productId, effectiveAmount, System.currentTimeMillis(), true);
+
+            SaleRecord record = new SaleRecord(now, effectiveAmount);
+            getHistoryContainer(productId).add(record, maxHistorySize);
+
+            plugin.getVirtualExecutor().execute(() -> {
+                try {
+                    AsyncLogger.log(java.util.UUID.nameUUIDFromBytes(productId.getBytes()), effectiveAmount, 0, now, "TRX_WRITE_THROUGH");
+                    TransactionDao.saveSaleAsync(null, productId, effectiveAmount);
+                } catch (Exception e) {
+                    LogUtil.error("写穿透 SQL 任务失败: " + productId, e);
+                }
+            });
+
             if (RedisManager.getInstance() != null) {
                 RedisManager.getInstance().publishTrade(productId, effectiveAmount);
             }
@@ -227,29 +258,13 @@ public class PricingManager {
         var lock = getItemLock(productId).writeLock();
         lock.lock();
         try {
-            processTradeInternal(productId, amount, timestamp, false);
+            SaleRecord record = new SaleRecord(timestamp, amount);
+            getHistoryContainer(productId).add(record, maxHistorySize);
         } finally {
             lock.unlock();
         }
     }
 
-    private void processTradeInternal(String productId, double amount, long timestamp, boolean writeToSql) {
-        SaleRecord record = new SaleRecord(timestamp, amount);
-        getHistoryContainer(productId).add(record, maxHistorySize);
-
-        if (writeToSql) {
-            java.util.UUID productLoggerUuid = java.util.UUID.nameUUIDFromBytes(("PRODUCT_" + productId).getBytes());
-            plugin.getVirtualExecutor().execute(() -> {
-                AsyncLogger.log(productLoggerUuid, amount, 0.0, timestamp, "LOCAL_TRADE");
-                TransactionDao.saveSaleAsync(null, productId, amount);
-            });
-        }
-    }
-
-    /**
-     * [修复] 获取全局历史记录接口
-     * 正确调用 ThreadSafeHistory.getSnapshot() 以消除本地未使用警告
-     */
     public List<SaleRecord> getGlobalHistory(String productId) {
         return getHistoryContainer(productId).getSnapshot();
     }
@@ -266,16 +281,31 @@ public class PricingManager {
     }
 
     public double getSnapshotPrice(String shopId, String productId) {
+        Map<String, Double> current = priceSnapshot.get();
         if (shopId == null) {
-            return priceSnapshot.get().entrySet().stream()
+            return current.entrySet().stream()
                     .filter(e -> e.getKey().endsWith(":" + productId))
                     .map(Map.Entry::getValue).findFirst().orElse(-1.0);
         }
-        return priceSnapshot.get().getOrDefault(shopId + ":" + productId, -1.0);
+        return current.getOrDefault(shopId + ":" + productId, -1.0);
     }
 
+    /**
+     * ✅ 修复：解决缓存加载时的阻塞问题
+     */
     private ThreadSafeHistory getHistoryContainer(String productId) {
-        return historyCache.get(productId, k -> new ThreadSafeHistory(TransactionDao.getProductHistory(k, historyDaysLimit)));
+        ThreadSafeHistory container = historyCache.getIfPresent(productId);
+        if (container == null) {
+            container = new ThreadSafeHistory(new ArrayList<>());
+            historyCache.put(productId, container);
+            
+            final ThreadSafeHistory finalContainer = container;
+            plugin.getVirtualExecutor().execute(() -> {
+                List<SaleRecord> initialData = TransactionDao.getProductHistory(productId, historyDaysLimit);
+                finalContainer.loadBatch(initialData);
+            });
+        }
+        return container;
     }
 
     public void clearCache() {
@@ -283,7 +313,7 @@ public class PricingManager {
         itemLocks.invalidateAll();
     }
 
-    // ==================== 内部类：并发安全历史容器 ====================
+    // --- 内部类：保持原有结构 ---
 
     private static class ThreadSafeHistory {
         private final ArrayDeque<SaleRecord> deque;
@@ -291,6 +321,16 @@ public class PricingManager {
 
         public ThreadSafeHistory(List<SaleRecord> initialData) {
             this.deque = new ArrayDeque<>(initialData);
+        }
+
+        public void loadBatch(List<SaleRecord> records) {
+            lock.writeLock().lock();
+            try {
+                deque.clear();
+                deque.addAll(records);
+            } finally {
+                lock.writeLock().unlock();
+            }
         }
 
         public void add(SaleRecord record, int maxSize) {
@@ -303,10 +343,6 @@ public class PricingManager {
             }
         }
 
-        /**
-         * 提取历史记录快照
-         * [Fix] 现在由 PricingManager.getGlobalHistory 正确调用
-         */
         public List<SaleRecord> getSnapshot() {
             lock.readLock().lock();
             try {

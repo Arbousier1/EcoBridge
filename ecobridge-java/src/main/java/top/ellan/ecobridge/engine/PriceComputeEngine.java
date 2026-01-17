@@ -17,11 +17,11 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import static java.lang.foreign.ValueLayout.JAVA_DOUBLE;
 
 /**
- * 价格计算引擎 (PriceComputeEngine v1.4.7 - Striped Lock Aware)
- * * 更新日志：
- * 1. 结果回填锁感知：在提取演算结果时，竞争商品的 writeLock，确保数据原子性。
- * 2. 保持 SIMD 批处理架构，利用 Java 25 Arena 管理堆外内存。
- * 3. 增强降级演算的事务安全性。
+ * 价格计算引擎 (PriceComputeEngine v1.4.8 - FFM Safety & Striped Lock Aware)
+ * 职责：
+ * 1. 资源安全：通过 try-with-resources 严格管理 Arena 生命周期，防止堆外内存泄漏。
+ * 2. 线程安全：在结果回填与降级演算中竞争分段写锁，确保快照与实时交易的事务一致性。
+ * 3. 性能优化：保持 SIMD 批处理架构，最大化 CPU 指令集效率。
  */
 public class PriceComputeEngine {
 
@@ -49,22 +49,25 @@ public class PriceComputeEngine {
         ConfigurationSection itemSection = config.getConfigurationSection("item-settings");
         if (itemSection == null) return resultMap;
 
-        // 1. 扫描并收集元数据
+        // 1. 扫描元数据
         List<ItemMeta> activeItems = collectActiveItems(itemSection, currentLambda);
         if (activeItems.isEmpty()) return resultMap;
 
         int count = activeItems.size();
         long now = System.currentTimeMillis();
 
-        // 2. 批量获取 7 日均价 (数据库 IO 聚合)
+        // 2. IO 聚合：预加载历史均价
         Map<String, Double> histAvgMap = loadHistoryAverages(activeItems);
 
-        // 3. 线性堆外内存编排 (FFM Arena)
+        // 3. FFM 资源安全封装：使用 try-with-resources 管理 Arena
+        // 即使 FFI 调用发生崩溃，堆外内存也会在此块结束时立即释放
         try (Arena arena = Arena.ofConfined()) {
+            // 定义连续内存布局
             SequenceLayout tradeCtxLayout = MemoryLayout.sequenceLayout(count, Layouts.TRADE_CONTEXT);
             SequenceLayout marketCfgLayout = MemoryLayout.sequenceLayout(count, Layouts.MARKET_CONFIG);
             SequenceLayout doubleArrLayout = MemoryLayout.sequenceLayout(count, JAVA_DOUBLE);
 
+            // 分配内存段
             MemorySegment ctxArray = arena.allocate(tradeCtxLayout);
             MemorySegment cfgArray = arena.allocate(marketCfgLayout);
             MemorySegment histAvgArray = arena.allocate(doubleArrLayout);
@@ -73,7 +76,7 @@ public class PriceComputeEngine {
 
             double neff = NativeBridge.queryNeffVectorized(now, configTau);
 
-            // 4. 数据 Packing (平铺至连续内存)
+            // 4. 数据 Packing：平铺至连续 Native 内存
             for (ItemMeta meta : activeItems) {
                 long ctxOffset = (long) meta.index() * Layouts.TRADE_CONTEXT.byteSize();
                 long cfgOffset = (long) meta.index() * Layouts.MARKET_CONFIG.byteSize();
@@ -90,7 +93,7 @@ public class PriceComputeEngine {
                 lambdaArray.setAtIndex(JAVA_DOUBLE, meta.index(), meta.lambda());
             }
 
-            // 5. 单次批量 FFI 调用 (驱动 Rust 并行计算)
+            // 5. 执行批处理 FFI 调用
             NativeBridge.computeBatchPrices(
                 (long) count,
                 neff,
@@ -101,28 +104,26 @@ public class PriceComputeEngine {
                 resultsArray
             );
 
-            // 6. [关键修复] 结果回填 (带分段锁保护)
-            // 确保写入 resultMap 的瞬间，该商品没有正在进行的实时交易写入
+            // 6. 结果 Unpacking (带事务锁保护)
             extractResultsWithLock(activeItems, resultsArray, resultMap);
 
         } catch (Throwable e) {
-            LogUtil.error("SIMD 批量计算失败，触发紧急降级演算", e);
+            LogUtil.error("SIMD 批量计算任务中断，启动带锁降级演算", e);
             fallbackToSingleWithLock(activeItems, resultMap, plugin, now, configTau);
         }
 
         double durationMs = (System.nanoTime() - startTime) / 1_000_000.0;
-        LogUtil.debug("快照批量演算耗时: " + String.format("%.2f", durationMs) + "ms (Items: " + count + ")");
+        LogUtil.debug("快照演算完成: " + count + " 个商品, 耗时: " + String.format("%.2f", durationMs) + "ms");
         
         return resultMap;
     }
 
     /**
-     * 提取演算结果，并利用分段锁确保事务一致性
+     * 提取演算结果，并通过写锁确保不覆盖实时交易数据
      */
     private static void extractResultsWithLock(List<ItemMeta> activeItems, MemorySegment resultsArray, Map<String, Double> resultMap) {
         PricingManager pm = PricingManager.getInstance();
         for (ItemMeta meta : activeItems) {
-            // 获取该商品的写锁
             ReentrantReadWriteLock.WriteLock writeLock = pm.getItemLock(meta.productId()).writeLock();
             writeLock.lock();
             try {
@@ -133,10 +134,44 @@ public class PriceComputeEngine {
                     resultMap.put(meta.key(), meta.basePrice());
                 }
             } finally {
+                writeLock.unlock(); // 确保锁必然释放
+            }
+        }
+    }
+
+    /**
+     * 降级方案：单商品原子演算 (深度整合资源安全与事务安全)
+     */
+    private static void fallbackToSingleWithLock(List<ItemMeta> items, Map<String, Double> map, EcoBridge plugin, long now, double tau) {
+        PricingManager pm = PricingManager.getInstance();
+        for (ItemMeta meta : items) {
+            if (map.containsKey(meta.key())) continue;
+            
+            ReentrantReadWriteLock.WriteLock writeLock = pm.getItemLock(meta.productId()).writeLock();
+            writeLock.lock();
+            // 在锁内部使用 try-with-resources 管理 Arena
+            try (Arena arena = Arena.ofConfined()) {
+                MemorySegment ctx = arena.allocate(Layouts.TRADE_CONTEXT);
+                MemorySegment cfg = arena.allocate(Layouts.MARKET_CONFIG);
+                NativeContextBuilder.fillGlobalContext(ctx, now);
+                NativeBridge.VH_CTX_BASE_PRICE.set(ctx, 0L, meta.basePrice());
+                
+                double histAvg = TransactionDao.get7DayAverage(meta.productId());
+                double price = NativeBridge.computePriceBounded(
+                    meta.basePrice(), NativeBridge.queryNeffVectorized(now, tau), 0, meta.lambda(),
+                    NativeBridge.calculateEpsilon(ctx, cfg), histAvg
+                );
+                map.put(meta.key(), price);
+            } catch (Exception ex) {
+                LogUtil.error("单体降级演算失败: " + meta.key(), ex);
+                map.put(meta.key(), meta.basePrice());
+            } finally {
                 writeLock.unlock();
             }
         }
     }
+
+    // --- 内部辅助方法 ---
 
     private static List<ItemMeta> collectActiveItems(ConfigurationSection itemSection, double macroLambda) {
         List<ItemMeta> items = new ArrayList<>();
@@ -159,15 +194,12 @@ public class PriceComputeEngine {
         return TransactionDao.get7DayAveragesBatch(ids);
     }
 
-    private static void fillMarketConfigAtOffset(
-            MemorySegment cfgBase, long offset, 
-            ConfigurationSection itemSec, FileConfiguration globalConfig, double currentLambda
-    ) {
+    private static void fillMarketConfigAtOffset(MemorySegment cfgBase, long offset, ConfigurationSection itemSec, FileConfiguration globalConfig, double currentLambda) {
         NativeBridge.VH_CFG_LAMBDA.set(cfgBase, offset, currentLambda);
         NativeBridge.VH_CFG_VOLATILITY.set(cfgBase, offset, 1.0);
         NativeBridge.VH_CFG_S_AMP.set(cfgBase, offset, globalConfig.getDouble("economy.seasonal-amplitude", 0.15));
         NativeBridge.VH_CFG_W_MULT.set(cfgBase, offset, globalConfig.getDouble("economy.weekend-multiplier", 1.2));
-        NativeBridge.VH_CFG_N_PROT.set(cfgBase, offset, globalConfig.getDouble("economy.newbie-protection-rate", 0.2));
+        NativeBridge.VH_CFG_N_PROT.set(cfgBase, offset, globalConfig.getDouble("economy.newbie-protection", 0.2));
 
         if (itemSec != null) {
             NativeBridge.VH_CFG_W_SEASONAL.set(cfgBase, offset, itemSec.getDouble("weights.seasonal", 0.25));
@@ -179,36 +211,6 @@ public class PriceComputeEngine {
             NativeBridge.VH_CFG_W_WEEKEND.set(cfgBase, offset, 0.25);
             NativeBridge.VH_CFG_W_NEWBIE.set(cfgBase, offset, 0.25);
             NativeBridge.VH_CFG_W_INFLATION.set(cfgBase, offset, 0.25);
-        }
-    }
-
-    /**
-     * 降级演算：单商品原子计算 (同样带写锁保护)
-     */
-    private static void fallbackToSingleWithLock(List<ItemMeta> items, Map<String, Double> map, EcoBridge plugin, long now, double tau) {
-        PricingManager pm = PricingManager.getInstance();
-        for (ItemMeta meta : items) {
-            if (map.containsKey(meta.key())) continue;
-            
-            ReentrantReadWriteLock.WriteLock writeLock = pm.getItemLock(meta.productId()).writeLock();
-            writeLock.lock();
-            try (Arena arena = Arena.ofConfined()) {
-                MemorySegment ctx = arena.allocate(Layouts.TRADE_CONTEXT);
-                MemorySegment cfg = arena.allocate(Layouts.MARKET_CONFIG);
-                NativeContextBuilder.fillGlobalContext(ctx, now);
-                NativeBridge.VH_CTX_BASE_PRICE.set(ctx, 0L, meta.basePrice());
-                
-                double histAvg = TransactionDao.get7DayAverage(meta.productId());
-                double price = NativeBridge.computePriceBounded(
-                    meta.basePrice(), NativeBridge.queryNeffVectorized(now, tau), 0, meta.lambda(),
-                    NativeBridge.calculateEpsilon(ctx, cfg), histAvg
-                );
-                map.put(meta.key(), price);
-            } catch (Exception ex) {
-                map.put(meta.key(), meta.basePrice());
-            } finally {
-                writeLock.unlock();
-            }
         }
     }
 }

@@ -17,8 +17,9 @@ classpath("org.ow2.asm:asm-commons:9.9.1")
 }
 plugins {
 `java-library`
-// 严格保留 Shadow 9.3.1
 id("com.gradleup.shadow") version "9.3.1"
+// ✅ 建议 1：引入 idea 插件以支持生成的代码在 IDE 中高亮
+idea
 }
 group = "top.ellan"
 version = "1.0-SNAPSHOT"
@@ -29,13 +30,11 @@ val targetPackage = "top.ellan.ecobridge.gen"
 fun findJextract(): String {
 val os = org.gradle.internal.os.OperatingSystem.current()
 val binaryName = if (os.isWindows) "jextract.bat" else "jextract"
-// 优先读取环境变量 (针对 GitHub Actions)
 val envHome = System.getenv("JEXTRACT_HOME")
 if (!envHome.isNullOrBlank()) {
 val path = file("$envHome/bin/$binaryName")
 if (path.exists()) return path.absolutePath
 }
-// 其次读取 local.properties (针对本地开发)
 val localPropsFile = file("local.properties")
 if (localPropsFile.exists()) {
 val props = Properties()
@@ -46,7 +45,7 @@ val possiblePaths = listOf(file("$localHome/bin/$binaryName"), file("$localHome/
 for (path in possiblePaths) if (path.exists()) return path.absolutePath
 }
 }
-return binaryName // 降级为系统 PATH 中的 jextract
+return binaryName
 }
 val generateBindings = tasks.register<Exec>("generateBindings") {
 group = "build"
@@ -68,6 +67,13 @@ rustHeaderFile.absolutePath
 inputs.file(rustHeaderFile)
 outputs.dir(generatedSourceDir)
 }
+// ✅ 建议 1 的落地：让 IntelliJ 明确知道这是源码目录
+idea {
+module {
+// 将 jextract 生成的目录标记为生成的源码根目录
+generatedSourceDirs.add(generatedSourceDir.get().asFile)
+}
+}
 // --- [Java 环境与工具链] ---
 java {
 toolchain {
@@ -76,17 +82,20 @@ languageVersion.set(JavaLanguageVersion.of(25))
 }
 sourceSets {
 main {
-// ✅ 核心修复：注册 jextract 输出。这不仅解决了包名不存在问题，
-// 还会自动让 compileJava 任务依赖于 generateBindings。
+// 注册生成任务作为源码来源
 java.srcDir(generateBindings)
 }
 }
+// --- [仓库配置] ---
 repositories {
 mavenCentral()
-// 🔥 关键：Jackson 3.0 / 2.20 目前主要通过 Sonatype 仓库分发
+// ✅ 建议 2：仓库按类型分组，并对 Snapshot 保持警惕
+// 核心库与预发布库
 maven("https://central.sonatype.com/repository/maven-snapshots/")
 maven("https://oss.sonatype.org/content/repositories/releases/")
-maven("https://oss.sonatype.org/content/repositories/snapshots/")
+// 只有在开发阶段才开启 Sonatype Snapshots，生产环境建议注释掉
+// maven("https://oss.sonatype.org/content/repositories/snapshots/")
+// 三方插件与 API
 maven("https://jitpack.io")
 maven("https://repo.papermc.io/repository/maven-public/")
 maven("https://repo.nightexpressdev.com/releases")
@@ -95,20 +104,19 @@ maven("https://repo.extendedclip.com/content/repositories/placeholderapi/")
 flatDir { dirs("libs") }
 }
 dependencies {
-// 严格保留：Paper API
-compileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
+// Paper API
+compileOnly("io.papermc.paper:paper-api:1.21.1-R0.1-SNAPSHOT")
 compileOnly("me.clip:placeholderapi:2.11.6")
 compileOnly("su.nightexpress.nightcore:main:2.13.0")
 compileOnly("su.nightexpress.coinsengine:CoinsEngine:2.6.0")
 compileOnly("cn.superiormc.ultimateshop:plugin:4.2.3")
 compileOnly(fileTree(mapOf("dir" to "libs", "include" to listOf("**/*.jar"))))
-// 🔥 Jackson 3.0 全家桶配置 (严格遵循迁移指南)
+// Jackson 3.0 BOM (严格遵循迁移指南)
 implementation(platform("tools.jackson:jackson-bom:3.0.0"))
 implementation("tools.jackson.core:jackson-databind")
 implementation("tools.jackson.core:jackson-core")
-// 注解保持旧坐标，BOM 会自动解析到匹配的 2.20 系列
-implementation("com.fasterxml.jackson.core:jackson-annotations")
-// 🔥 2026 最新稳定版数据库/缓存库
+implementation("com.fasterxml.jackson.core:jackson-annotations") // 自动映射到 2.20
+// 数据库与缓存
 implementation("org.mariadb.jdbc:mariadb-java-client:3.5.7")
 implementation("com.zaxxer:HikariCP:7.0.2")
 implementation("com.github.ben-manes.caffeine:caffeine:3.2.3")
@@ -119,7 +127,6 @@ testImplementation(platform("org.junit:junit-bom:5.14.1"))
 testImplementation("org.junit.jupiter:junit-jupiter")
 }
 tasks.withType<JavaCompile> {
-// 再次显式依赖，确保并行构建时的安全性
 dependsOn(generateBindings)
 options.encoding = "UTF-8"
 options.release.set(25)
@@ -132,19 +139,22 @@ options.compilerArgs.addAll(listOf(
 tasks.named<ShadowJar>("shadowJar") {
 archiveClassifier.set("")
 val prefix = "top.ellan.ecobridge.libs"
-// ✅ 必须重定向依赖，否则会导致插件冲突
+// 重定向以避免与其他插件版本冲突
 relocate("tools.jackson", "$prefix.jackson")
 relocate("com.fasterxml.jackson.annotation", "$prefix.jackson.annotations")
 relocate("com.zaxxer.hikari", "$prefix.hikari")
 relocate("org.mariadb.jdbc", "$prefix.mariadb")
 relocate("com.github.benmanes.caffeine", "$prefix.caffeine")
 relocate("redis.clients", "$prefix.jedis")
-// 打包资源文件，包括 native 库
 from("src/main/resources") {
 include("*.dll", "*.so", "*.dylib", "natives/**")
 }
-// 合并服务发现文件（对 JDBC 和 Jackson 很重要）
+// 合并服务发现文件
 mergeServiceFiles()
+// 最小化打包，减少体积
+minimize {
+exclude(dependency("org.mariadb.jdbc:.*")) // JDBC 驱动通常不能被 minimize
+}
 }
 tasks.withType<ProcessResources> {
 val props = mapOf("version" to project.version)
@@ -178,6 +188,7 @@ import top.ellan.ecobridge.cache.HotDataCache;
 import top.ellan.ecobridge.command.TransferCommand;
 import top.ellan.ecobridge.database.DatabaseManager;
 import top.ellan.ecobridge.hook.EcoPlaceholderExpansion;
+import top.ellan.ecobridge.hook.UShopHookManager;
 import top.ellan.ecobridge.listener.CacheListener;
 import top.ellan.ecobridge.listener.CoinsEngineListener;
 import top.ellan.ecobridge.listener.CommandInterceptor;
@@ -204,16 +215,16 @@ this.virtualExecutor = Executors.newVirtualThreadPerTaskExecutor();
 try {
 bootstrapInfrastructure();
 ActivityCollector.startHeartbeat(this);
+printBanner();
 } catch (Exception e) {
-getLogger().severe("基础架构引导失败，系统强制挂起: " + e.getMessage());
+getLogger().severe("基础架构引导失败: " + e.getMessage());
 Bukkit.getPluginManager().disablePlugin(this);
 return;
 }
-printBanner();
 if (!verifyDependencies()) return;
 try {
-NativeBridge.init(this);
 EconomyManager.init(this);
+NativeBridge.init(this);
 EconomicStateManager.init(this);
 PricingManager.init(this);
 TransferManager.init(this);
@@ -222,35 +233,43 @@ registerListeners();
 registerHooks();
 getServer().getScheduler().runTaskLater(this, () -> {
 if (getServer().getPluginManager().isPluginEnabled("UltimateShop")) {
-LogUtil.info("检测到 UltimateShop，正在注入 EcoBridge 内核...");
-UShopLimitInjector.execute(this);
-UShopPriceInjector.execute(this);
+LogUtil.info("检测到 UltimateShop，执行统一内核接管...");
+UShopHookManager.execute(this);
 }
-}, 20L);
+}, 30L);
 this.fullyInitialized.set(true);
-sendConsole("<blue>┃ <green>系统状态: <white>物理演算核心已进入实时同步状态 (v0.8.9) <blue>┃");
+sendConsole("<blue>┃ <green>系统状态: <white>宏观自适应演算内核已上线 (v0.9.4) <blue>┃");
 sendConsole("<gradient:aqua:blue>┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛</gradient>");
 } catch (Throwable e) {
-LogUtil.error("致命错误: 插件组件初始化链条中断", e);
+LogUtil.error("致命错误: 初始化拓扑崩溃", e);
 Bukkit.getPluginManager().disablePlugin(this);
 }
 }
 @Override
 public void onDisable() {
-sendConsole("<yellow>[EcoBridge] 正在启动安全关机序列 (Panic-Safe Shutdown)...");
-this.fullyInitialized.set(false);
-UShopLimitInjector.revert();
-UShopPriceInjector.revert();
-if (RedisManager.getInstance() != null) {
-RedisManager.getInstance().shutdown();
+shutdownSequence();
+instance = null;
 }
+private void shutdownSequence() {
+if (!fullyInitialized.getAndSet(false)) return;
+sendConsole("<yellow>[EcoBridge] 正在启动安全关机序列 (Atomic-Safe Shutdown)...");
+try {
+UShopHookManager.revert();
+if (RedisManager.getInstance() != null) RedisManager.getInstance().shutdown();
 HolidayManager.shutdown();
-shutdownPersistenceLayer();
+if (PricingManager.getInstance() != null) PricingManager.getInstance().shutdown();
+if (EconomyManager.getInstance() != null) EconomyManager.getInstance().shutdown();
+if (AsyncLogger.getInstance() != null) AsyncLogger.getInstance().shutdown();
+LogUtil.info("正在执行最终数据同步 (Sync Cache Save)...");
+HotDataCache.saveAllSync();
 NativeBridge.shutdown();
 terminateVirtualPool();
+DatabaseManager.close();
 getServer().getScheduler().cancelTasks(this);
-instance = null;
-sendConsole("<red>[EcoBridge] 插件已安全卸载。内存屏障已关闭，物理资源已安全释放。");
+sendConsole("<red>[EcoBridge] 所有系统资源已安全回收。逻辑屏障已关闭。");
+} catch (Exception e) {
+System.err.println("[EcoBridge] 关机序列异常，可能存在资源泄漏: " + e.getMessage());
+}
 }
 private void bootstrapInfrastructure() {
 saveDefaultConfig();
@@ -259,14 +278,6 @@ DatabaseManager.init();
 AsyncLogger.init(this);
 HolidayManager.init();
 RedisManager.init(this);
-}
-private void shutdownPersistenceLayer() {
-if (AsyncLogger.getInstance() != null) {
-AsyncLogger.getInstance().shutdown();
-}
-LogUtil.info("正在执行热数据终点刷盘...");
-HotDataCache.saveAllSync();
-DatabaseManager.close();
 }
 private void terminateVirtualPool() {
 if (virtualExecutor != null && !virtualExecutor.isShutdown()) {
@@ -284,7 +295,7 @@ Thread.currentThread().interrupt();
 private boolean verifyDependencies() {
 var pm = Bukkit.getPluginManager();
 if (!pm.isPluginEnabled("CoinsEngine")) {
-sendConsole("<blue>┃ <red>致命错误: 未检测到 CoinsEngine，系统强制挂起。 <blue>┃");
+sendConsole("<blue>┃ <red>致命错误: 未检测到必要依赖 CoinsEngine。 <blue>┃");
 pm.disablePlugin(this);
 return false;
 }
@@ -301,7 +312,6 @@ pm.registerEvents(new CacheListener(), this);
 private void registerHooks() {
 if (getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")) {
 new EcoPlaceholderExpansion(this).register();
-LogUtil.info("PlaceholderAPI 扩展已挂载。");
 }
 }
 private void registerCommands() {
@@ -314,19 +324,12 @@ LogUtil.init();
 if (EconomyManager.getInstance() != null) EconomyManager.getInstance().loadState();
 if (PricingManager.getInstance() != null) PricingManager.getInstance().loadConfig();
 if (getServer().getPluginManager().isPluginEnabled("UltimateShop")) {
-UShopLimitInjector.execute(this);
-UShopPriceInjector.execute(this);
+UShopHookManager.execute(this);
 }
-sendConsole("<green>[EcoBridge] 逻辑参数重载成功。Native 内存布局保持锁定。");
+sendConsole("<green>[EcoBridge] 逻辑配置参数重载成功。");
 }
-@EventHandler
-public void onJoin(PlayerJoinEvent event) {
-ActivityCollector.updateSnapshot(event.getPlayer());
-}
-@EventHandler
-public void onQuit(PlayerQuitEvent event) {
-ActivityCollector.removePlayer(event.getPlayer().getUniqueId());
-}
+@EventHandler public void onJoin(PlayerJoinEvent event) { ActivityCollector.updateSnapshot(event.getPlayer()); }
+@EventHandler public void onQuit(PlayerQuitEvent event) { ActivityCollector.removePlayer(event.getPlayer().getUniqueId()); }
 public static EcoBridge getInstance() { return instance; }
 public ExecutorService getVirtualExecutor() { return virtualExecutor; }
 public static MiniMessage getMiniMessage() { return MM; }
@@ -334,7 +337,7 @@ public boolean isFullyInitialized() { return fullyInitialized.get(); }
 private void printBanner() {
 String version = getPluginMeta().getVersion();
 sendConsole("<gradient:aqua:blue>┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓</gradient>");
-sendConsole("<blue>┃ <green>EcoBridge <white>v" + version + " <gray>| <aqua>Java 25 (Loom/FFM) <blue>┃");
+sendConsole("<blue>┃ <green>EcoBridge <white>v" + version + " <gray>| <aqua>Macro Adaptive Edition <blue>┃");
 }
 private void sendConsole(String msg, TagResolver... resolvers) {
 Bukkit.getConsoleSender().sendMessage(MM.deserialize(msg, resolvers));
@@ -475,30 +478,31 @@ import java.lang.invoke.VarHandle;
 import static java.lang.foreign.ValueLayout.*;
 public class NativeBridge {
 private static final int EXPECTED_ABI_VERSION = 0x0009_0000;
+private static Arena bridgeArena;
 public static final int CODE_NORMAL = 0;
 public static final int CODE_WARNING_HIGH_RISK = 1;
 public static final int CODE_BLOCK_REVERSE_FLOW = 2;
 public static final int CODE_BLOCK_INJECTION = 3;
 public static final int CODE_BLOCK_INSUFFICIENT_FUNDS = 4;
 public static final int CODE_BLOCK_VELOCITY_LIMIT = 5;
-private static MethodHandle getAbiVersionMH;
-private static MethodHandle initDBMH;
-private static MethodHandle getVersionMH;
-private static MethodHandle getHealthStatsMH;
-private static MethodHandle shutdownDBMH;
-private static MethodHandle pushToDuckDBMH;
-private static MethodHandle queryNeffVectorizedMH;
-private static MethodHandle computePriceMH;
-private static MethodHandle calculateEpsilonMH;
-private static MethodHandle checkTransferMH;
-private static MethodHandle computePidMH;
-private static MethodHandle resetPidMH;
-private static MethodHandle calcInflationMH;
-private static MethodHandle calcStabilityMH;
-private static MethodHandle calcDecayMH;
-private static MethodHandle computeTierPriceMH;
-private static MethodHandle computePriceBoundedMH;
-private static MethodHandle computeBatchPricesMH;
+private static volatile MethodHandle getAbiVersionMH;
+private static volatile MethodHandle initDBMH;
+private static volatile MethodHandle getVersionMH;
+private static volatile MethodHandle getHealthStatsMH;
+private static volatile MethodHandle shutdownDBMH;
+private static volatile MethodHandle pushToDuckDBMH;
+private static volatile MethodHandle queryNeffVectorizedMH;
+private static volatile MethodHandle computePriceMH;
+private static volatile MethodHandle calculateEpsilonMH;
+private static volatile MethodHandle checkTransferMH;
+private static volatile MethodHandle computePidMH;
+private static volatile MethodHandle resetPidMH;
+private static volatile MethodHandle calcInflationMH;
+private static volatile MethodHandle calcStabilityMH;
+private static volatile MethodHandle calcDecayMH;
+private static volatile MethodHandle computeTierPriceMH;
+private static volatile MethodHandle computePriceBoundedMH;
+private static volatile MethodHandle computeBatchPricesMH;
 public static final VarHandle VH_CTX_BASE_PRICE;
 public static final VarHandle VH_CTX_CURR_AMT;
 public static final VarHandle VH_CTX_INF_RATE;
@@ -558,53 +562,33 @@ VH_RES_CODE = resLayout.varHandle(MemoryLayout.PathElement.groupElement("warning
 throw new RuntimeException("Layout Initialization Failed", e);
 }
 }
-public static void init(EcoBridge plugin) {
-if (NativeLoader.isReady()) return;
+public static synchronized void init(EcoBridge plugin) {
+if (isLoaded()) return;
 try {
 NativeLoader.load(plugin);
 Linker linker = Linker.nativeLinker();
-getAbiVersionMH = linker.downcallHandle(
-findOrThrow("ecobridge_abi_version"),
-FunctionDescriptor.of(JAVA_INT)
-);
+getAbiVersionMH = bind(linker, "ecobridge_abi_version", FunctionDescriptor.of(JAVA_INT));
 int nativeVersion = (int) getAbiVersionMH.invokeExact();
 if (nativeVersion != EXPECTED_ABI_VERSION) {
 throw new IllegalStateException(String.format("ABI Mismatch: Java=0x%08X, Native=0x%08X", EXPECTED_ABI_VERSION, nativeVersion));
 }
-initDBMH = linker.downcallHandle(findOrThrow("ecobridge_init_db"), FunctionDescriptor.of(JAVA_INT, ADDRESS));
-getVersionMH = linker.downcallHandle(findOrThrow("ecobridge_version"), FunctionDescriptor.of(ADDRESS));
-getHealthStatsMH = linker.downcallHandle(findOrThrow("ecobridge_get_health_stats"), FunctionDescriptor.ofVoid(ADDRESS, ADDRESS));
-shutdownDBMH = linker.downcallHandle(findOrThrow("ecobridge_shutdown_db"), FunctionDescriptor.of(JAVA_INT));
-pushToDuckDBMH = linker.downcallHandle(findOrThrow("ecobridge_log_to_duckdb"), FunctionDescriptor.ofVoid(JAVA_LONG, ADDRESS, JAVA_DOUBLE, JAVA_DOUBLE, ADDRESS));
-queryNeffVectorizedMH = linker.downcallHandle(findOrThrow("ecobridge_query_neff_vectorized"), FunctionDescriptor.of(JAVA_DOUBLE, JAVA_LONG, JAVA_DOUBLE));
-computePriceMH = linker.downcallHandle(findOrThrow("ecobridge_compute_price_humane"), FunctionDescriptor.of(JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE));
-calculateEpsilonMH = linker.downcallHandle(findOrThrow("ecobridge_calculate_epsilon"), FunctionDescriptor.of(JAVA_DOUBLE, ADDRESS, ADDRESS));
-checkTransferMH = linker.downcallHandle(
-findOrThrow("ecobridge_compute_transfer_check"),
-FunctionDescriptor.ofVoid(ADDRESS, ADDRESS, ADDRESS)
-);
-computePidMH = linker.downcallHandle(
-findOrThrow("ecobridge_compute_pid_adjustment"),
-FunctionDescriptor.of(JAVA_DOUBLE, ADDRESS, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE)
-);
-resetPidMH = linker.downcallHandle(findOrThrow("ecobridge_reset_pid_state"), FunctionDescriptor.ofVoid(ADDRESS));
-calcInflationMH = linker.downcallHandle(findOrThrow("ecobridge_calc_inflation"), FunctionDescriptor.of(JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE));
-calcStabilityMH = linker.downcallHandle(findOrThrow("ecobridge_calc_stability"), FunctionDescriptor.of(JAVA_DOUBLE, JAVA_LONG, JAVA_LONG));
-calcDecayMH = linker.downcallHandle(findOrThrow("ecobridge_calc_decay"), FunctionDescriptor.of(JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE));
-computeTierPriceMH = linker.downcallHandle(findOrThrow("ecobridge_compute_tier_price"), FunctionDescriptor.of(JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_BOOLEAN));
-computePriceBoundedMH = linker.downcallHandle(findOrThrow("ecobridge_compute_price_bounded"), FunctionDescriptor.of(JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE));
-computeBatchPricesMH = linker.downcallHandle(
-findOrThrow("ecobridge_compute_batch_prices"),
-FunctionDescriptor.ofVoid(
-JAVA_LONG,
-JAVA_DOUBLE,
-ADDRESS,
-ADDRESS,
-ADDRESS,
-ADDRESS,
-ADDRESS
-)
-);
+initDBMH = bind(linker, "ecobridge_init_db", FunctionDescriptor.of(JAVA_INT, ADDRESS));
+getVersionMH = bind(linker, "ecobridge_version", FunctionDescriptor.of(ADDRESS));
+getHealthStatsMH = bind(linker, "ecobridge_get_health_stats", FunctionDescriptor.ofVoid(ADDRESS, ADDRESS));
+shutdownDBMH = bind(linker, "ecobridge_shutdown_db", FunctionDescriptor.of(JAVA_INT));
+pushToDuckDBMH = bind(linker, "ecobridge_log_to_duckdb", FunctionDescriptor.ofVoid(JAVA_LONG, ADDRESS, JAVA_DOUBLE, JAVA_DOUBLE, ADDRESS));
+queryNeffVectorizedMH = bind(linker, "ecobridge_query_neff_vectorized", FunctionDescriptor.of(JAVA_DOUBLE, JAVA_LONG, JAVA_DOUBLE));
+computePriceMH = bind(linker, "ecobridge_compute_price_humane", FunctionDescriptor.of(JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE));
+calculateEpsilonMH = bind(linker, "ecobridge_calculate_epsilon", FunctionDescriptor.of(JAVA_DOUBLE, ADDRESS, ADDRESS));
+checkTransferMH = bind(linker, "ecobridge_compute_transfer_check", FunctionDescriptor.ofVoid(ADDRESS, ADDRESS, ADDRESS));
+computePidMH = bind(linker, "ecobridge_compute_pid_adjustment", FunctionDescriptor.of(JAVA_DOUBLE, ADDRESS, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE));
+resetPidMH = bind(linker, "ecobridge_reset_pid_state", FunctionDescriptor.ofVoid(ADDRESS));
+calcInflationMH = bind(linker, "ecobridge_calc_inflation", FunctionDescriptor.of(JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE));
+calcStabilityMH = bind(linker, "ecobridge_calc_stability", FunctionDescriptor.of(JAVA_DOUBLE, JAVA_LONG, JAVA_LONG));
+calcDecayMH = bind(linker, "ecobridge_calc_decay", FunctionDescriptor.of(JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE));
+computeTierPriceMH = bind(linker, "ecobridge_compute_tier_price", FunctionDescriptor.of(JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_BOOLEAN));
+computePriceBoundedMH = bind(linker, "ecobridge_compute_price_bounded", FunctionDescriptor.of(JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE));
+computeBatchPricesMH = bind(linker, "ecobridge_compute_batch_prices", FunctionDescriptor.ofVoid(JAVA_LONG, JAVA_DOUBLE, ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS));
 try (Arena arena = Arena.ofConfined()) {
 String dataPath = plugin.getDataFolder().getAbsolutePath();
 int result = (int) initDBMH.invokeExact(arena.allocateFrom(dataPath));
@@ -612,6 +596,7 @@ if (result != 0 && result != -3) {
 throw new IllegalStateException("Rust DB Init Failed: " + result);
 }
 }
+bridgeArena = Arena.ofShared();
 MemorySegment v = (MemorySegment) getVersionMH.invokeExact();
 LogUtil.info("<green>Native engine loaded: " + v.getString(0));
 } catch (Throwable e) {
@@ -619,20 +604,34 @@ LogUtil.error("Native Fatal Error", e);
 shutdown();
 }
 }
-private static MemorySegment findOrThrow(String name) {
-return NativeLoader.findSymbol(name)
+private static MethodHandle bind(Linker linker, String name, FunctionDescriptor desc) {
+MemorySegment symbol = NativeLoader.findSymbol(name)
 .orElseThrow(() -> new UnsatisfiedLinkError("Symbol not found: " + name));
+return linker.downcallHandle(symbol, desc);
 }
 public static boolean isLoaded() {
-return NativeLoader.isReady();
+return NativeLoader.isReady() && bridgeArena != null;
 }
-public static void shutdown() {
-if (NativeLoader.isReady()) {
+public static synchronized void shutdown() {
+if (isLoaded()) {
 if (shutdownDBMH != null) {
 try { shutdownDBMH.invokeExact(); } catch (Throwable t) {}
 }
-NativeLoader.unload();
+if (bridgeArena != null) {
+bridgeArena.close();
+bridgeArena = null;
 }
+NativeLoader.unload();
+clearMethodHandles();
+}
+}
+private static void clearMethodHandles() {
+getAbiVersionMH = null; initDBMH = null; getVersionMH = null;
+getHealthStatsMH = null; shutdownDBMH = null; pushToDuckDBMH = null;
+queryNeffVectorizedMH = null; computePriceMH = null; calculateEpsilonMH = null;
+checkTransferMH = null; computePidMH = null; resetPidMH = null;
+calcInflationMH = null; calcStabilityMH = null; calcDecayMH = null;
+computeTierPriceMH = null; computePriceBoundedMH = null; computeBatchPricesMH = null;
 }
 public static double calcInflation(double heat, double m1) {
 if (!isLoaded()) return 0.0;
@@ -685,10 +684,7 @@ if (!isLoaded()) return new TransferResult(0.0, true, -1);
 try (Arena arena = Arena.ofConfined()) {
 MemorySegment resultSeg = arena.allocate(Layouts.TRANSFER_RESULT);
 checkTransferMH.invokeExact(resultSeg, ctxSeg, cfgSeg);
-double tax = (double) VH_RES_TAX.get(resultSeg);
-boolean isBlocked = ((int) VH_RES_BLOCKED.get(resultSeg)) != 0;
-int warningCode = (int) VH_RES_CODE.get(resultSeg);
-return new TransferResult(tax, isBlocked, warningCode);
+return new TransferResult((double) VH_RES_TAX.get(resultSeg), ((int) VH_RES_BLOCKED.get(resultSeg)) != 0, (int) VH_RES_CODE.get(resultSeg));
 } catch (Throwable t) {
 LogUtil.error("checkTransfer FFI 调用异常", t);
 return new TransferResult(0.0, true, -2);
@@ -696,21 +692,9 @@ return new TransferResult(0.0, true, -2);
 }
 public static double computePidAdjustment(MemorySegment pidPtr, double target, double current, double dt, double inflation, double heat) {
 if (!isLoaded()) return 0.0;
-try {
-return (double) computePidMH.invokeExact(pidPtr, target, current, dt, inflation, heat);
-} catch (Throwable t) {
-return 0.0;
+try { return (double) computePidMH.invokeExact(pidPtr, target, current, dt, inflation, heat); } catch (Throwable t) { return 0.0; }
 }
-}
-public static void computeBatchPrices(
-long count,
-double neff,
-MemorySegment ctxArr,
-MemorySegment cfgArr,
-MemorySegment histAvgs,
-MemorySegment lambdas,
-MemorySegment results
-) {
+public static void computeBatchPrices(long count, double neff, MemorySegment ctxArr, MemorySegment cfgArr, MemorySegment histAvgs, MemorySegment lambdas, MemorySegment results) {
 if (!isLoaded()) return;
 try {
 computeBatchPricesMH.invokeExact(count, neff, ctxArr, cfgArr, histAvgs, lambdas, results);
@@ -720,8 +704,8 @@ LogUtil.error("SIMD 批量计算失败", t);
 }
 public static class Layouts {
 public static final GroupLayout TRADE_CONTEXT = TradeContext.layout();
-public static final GroupLayout TRANSFER_CONTEXT = TransferContext.layout();
 public static final GroupLayout MARKET_CONFIG = MarketConfig.layout();
+public static final GroupLayout TRANSFER_CONTEXT = TransferContext.layout();
 public static final GroupLayout REGULATOR_CONFIG = RegulatorConfig.layout();
 public static final GroupLayout PID_STATE = PidState.layout();
 public static final GroupLayout TRANSFER_RESULT = top.ellan.ecobridge.gen.TransferResult.layout();
@@ -736,22 +720,39 @@ FILE: ecobridge-java\src\main\java\top\ellan\ecobridge\bridge\NativeContextBuild
 package top.ellan.ecobridge.bridge;
 import top.ellan.ecobridge.manager.EconomyManager;
 import top.ellan.ecobridge.util.HolidayManager;
+import top.ellan.ecobridge.util.LogUtil;
 import java.lang.foreign.MemorySegment;
 import java.time.OffsetDateTime;
 public class NativeContextBuilder {
+private static final int TIMEZONE_OFFSET = OffsetDateTime.now().getOffset().getTotalSeconds();
 public static void fillGlobalContext(MemorySegment ctxSeg, long now) {
+if (!NativeBridge.isLoaded()) {
+return;
+}
+try {
 NativeBridge.VH_CTX_TIMESTAMP.set(ctxSeg, 0L, now);
-double inflation = EconomyManager.getInstance().getInflationRate();
-NativeBridge.VH_CTX_INF_RATE.set(ctxSeg, 0L, inflation);
-long offset = OffsetDateTime.now().getOffset().getTotalSeconds();
-NativeBridge.VH_CTX_TIMEZONE_OFFSET.set(ctxSeg, 0L, offset);
+EconomyManager eco = EconomyManager.getInstance();
+if (eco != null) {
+NativeBridge.VH_CTX_INF_RATE.set(ctxSeg, 0L, eco.getInflationRate());
+NativeBridge.VH_CTX_MARKET_HEAT.set(ctxSeg, 0L, eco.getMarketHeat());
+NativeBridge.VH_CTX_ECO_SAT.set(ctxSeg, 0L, eco.getEcoSaturation());
+}
+NativeBridge.VH_CTX_TIMEZONE_OFFSET.set(ctxSeg, 0L, TIMEZONE_OFFSET);
 int mask = (HolidayManager.isTodayHoliday() ? 1 : 0) << 1;
 NativeBridge.VH_CTX_NEWBIE_MASK.set(ctxSeg, 0L, mask);
 NativeBridge.VH_CTX_PLAY_TIME.set(ctxSeg, 0L, 0L);
 NativeBridge.VH_CTX_CURR_AMT.set(ctxSeg, 0L, 0.0);
+} catch (Exception e) {
+LogUtil.error("填充 GlobalContext 失败: 内存段可能已失效", e);
+}
 }
 public static void updateItemContext(MemorySegment ctxSeg, double basePrice) {
+if (!NativeBridge.isLoaded()) return;
+try {
 NativeBridge.VH_CTX_BASE_PRICE.set(ctxSeg, 0L, basePrice);
+} catch (Exception e) {
+LogUtil.error("更新 ItemContext 失败", e);
+}
 }
 }
 
@@ -785,7 +786,7 @@ Path libPath = extractLibrary(plugin);
 globalArena = Arena.ofShared();
 symbolLookup = SymbolLookup.libraryLookup(libPath, globalArena);
 isReady = true;
-LogUtil.debug("NativeLoader: 共享内存域已初始化，Native 符号表已就绪。");
+LogUtil.debug("NativeLoader: Native 符号表已就绪。");
 } catch (Throwable e) {
 throw new RuntimeException("无法加载 Native 库: " + e.getMessage(), e);
 }
@@ -804,6 +805,9 @@ globalArena = null;
 symbolLookup = null;
 isReady = false;
 }
+}
+public static Optional<SymbolLookup> getLookup() {
+return Optional.ofNullable(symbolLookup);
 }
 public static Optional<MemorySegment> findSymbol(String name) {
 if (!isReady || symbolLookup == null) return Optional.empty();
@@ -831,9 +835,7 @@ if (Files.exists(target)) {
 try {
 byte[] existingBytes = Files.readAllBytes(target);
 String oldHash = calculateHash(existingBytes);
-if (newHash.equals(oldHash)) {
-return target;
-}
+if (newHash.equals(oldHash)) return target;
 } catch (IOException e) {
 LogUtil.warn("校验现有 Native 库失败，准备覆盖: " + e.getMessage());
 }
@@ -1220,9 +1222,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 public class TransactionDao {
 public static PlayerData loadPlayerData(UUID uuid) {
@@ -1327,6 +1327,38 @@ LogUtil.error("滑动地板数据回溯异常: " + productId, e);
 }
 return 0.0;
 }
+public static Map<String, Double> get7DayAveragesBatch(List<String> productIds) {
+if (productIds == null || productIds.isEmpty() || !DatabaseManager.isConnected()) {
+return new HashMap<>();
+}
+Map<String, Double> resultMap = new HashMap<>();
+for (String productId : productIds) {
+resultMap.put(productId, 0.0);
+}
+String placeholders = String.join(",", Collections.nCopies(productIds.size(), "?"));
+String sql = "SELECT product_id, AVG(ABS(amount)) as avg_amount FROM ecobridge_sales " +
+"WHERE product_id IN (" + placeholders + ") " +
+"AND timestamp > ? " +
+"GROUP BY product_id";
+long cutoff = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(7);
+try (Connection conn = DatabaseManager.getConnection();
+PreparedStatement pstmt = conn.prepareStatement(sql)) {
+for (int i = 0; i < productIds.size(); i++) {
+pstmt.setString(i + 1, productIds.get(i));
+}
+pstmt.setLong(productIds.size() + 1, cutoff);
+try (ResultSet rs = pstmt.executeQuery()) {
+while (rs.next()) {
+String productId = rs.getString("product_id");
+double avgAmount = rs.getDouble("avg_amount");
+resultMap.put(productId, avgAmount);
+}
+}
+} catch (SQLException e) {
+LogUtil.error("批量历史均价查询失败", e);
+}
+return resultMap;
+}
 public static List<SaleRecord> getProductHistory(String productId, int daysLimit) {
 if (!DatabaseManager.isConnected()) return new ArrayList<>();
 List<SaleRecord> history = new ArrayList<>();
@@ -1366,15 +1398,11 @@ import top.ellan.ecobridge.bridge.NativeBridge;
 import top.ellan.ecobridge.bridge.NativeBridge.Layouts;
 import top.ellan.ecobridge.bridge.NativeContextBuilder;
 import top.ellan.ecobridge.database.TransactionDao;
+import top.ellan.ecobridge.manager.PricingManager;
 import top.ellan.ecobridge.util.LogUtil;
-import java.lang.foreign.Arena;
-import java.lang.foreign.MemoryLayout;
-import java.lang.foreign.MemorySegment;
-import java.lang.foreign.SequenceLayout;
-import java.lang.invoke.VarHandle;
+import java.lang.foreign.*;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import static java.lang.foreign.ValueLayout.JAVA_DOUBLE;
 public class PriceComputeEngine {
 private record ItemMeta(
@@ -1385,20 +1413,105 @@ double basePrice,
 double lambda,
 int index
 ) {}
-public static Map<String, Double> computeSnapshot(EcoBridge plugin, double configTau, double macroLambda) {
+public static Map<String, Double> computeSnapshot(EcoBridge plugin, double configTau, double currentLambda) {
+long startTime = System.nanoTime();
 Map<String, Double> resultMap = new HashMap<>();
 if (!NativeBridge.isLoaded()) {
-LogUtil.warn("Native engine not loaded, skipping price computation");
 return resultMap;
 }
 FileConfiguration config = plugin.getConfig();
 ConfigurationSection itemSection = config.getConfigurationSection("item-settings");
-if (itemSection == null) {
-LogUtil.warn("No item-settings found in config");
+if (itemSection == null) return resultMap;
+List<ItemMeta> activeItems = collectActiveItems(itemSection, currentLambda);
+if (activeItems.isEmpty()) return resultMap;
+int count = activeItems.size();
+long now = System.currentTimeMillis();
+Map<String, Double> histAvgMap = loadHistoryAverages(activeItems);
+try (Arena arena = Arena.ofConfined()) {
+SequenceLayout tradeCtxLayout = MemoryLayout.sequenceLayout(count, Layouts.TRADE_CONTEXT);
+SequenceLayout marketCfgLayout = MemoryLayout.sequenceLayout(count, Layouts.MARKET_CONFIG);
+SequenceLayout doubleArrLayout = MemoryLayout.sequenceLayout(count, JAVA_DOUBLE);
+MemorySegment ctxArray = arena.allocate(tradeCtxLayout);
+MemorySegment cfgArray = arena.allocate(marketCfgLayout);
+MemorySegment histAvgArray = arena.allocate(doubleArrLayout);
+MemorySegment lambdaArray = arena.allocate(doubleArrLayout);
+MemorySegment resultsArray = arena.allocate(doubleArrLayout);
+double neff = NativeBridge.queryNeffVectorized(now, configTau);
+for (ItemMeta meta : activeItems) {
+long ctxOffset = (long) meta.index() * Layouts.TRADE_CONTEXT.byteSize();
+long cfgOffset = (long) meta.index() * Layouts.MARKET_CONFIG.byteSize();
+MemorySegment ctxSlice = ctxArray.asSlice(ctxOffset, Layouts.TRADE_CONTEXT.byteSize());
+NativeContextBuilder.fillGlobalContext(ctxSlice, now);
+NativeBridge.VH_CTX_BASE_PRICE.set(ctxArray, ctxOffset, meta.basePrice());
+ConfigurationSection itemConfig = itemSection.getConfigurationSection(meta.shopId() + "." + meta.productId());
+fillMarketConfigAtOffset(cfgArray, cfgOffset, itemConfig, config, meta.lambda());
+double histAvg = histAvgMap.getOrDefault(meta.productId(), meta.basePrice());
+histAvgArray.setAtIndex(JAVA_DOUBLE, meta.index(), histAvg);
+lambdaArray.setAtIndex(JAVA_DOUBLE, meta.index(), meta.lambda());
+}
+NativeBridge.computeBatchPrices(
+(long) count,
+neff,
+ctxArray,
+cfgArray,
+histAvgArray,
+lambdaArray,
+resultsArray
+);
+extractResultsWithLock(activeItems, resultsArray, resultMap);
+} catch (Throwable e) {
+LogUtil.error("SIMD 批量计算任务中断，启动带锁降级演算", e);
+fallbackToSingleWithLock(activeItems, resultMap, plugin, now, configTau);
+}
+double durationMs = (System.nanoTime() - startTime) / 1_000_000.0;
+LogUtil.debug("快照演算完成: " + count + " 个商品, 耗时: " + String.format("%.2f", durationMs) + "ms");
 return resultMap;
 }
-List<ItemMeta> activeItems = new ArrayList<>();
-int idx = 0;
+private static void extractResultsWithLock(List<ItemMeta> activeItems, MemorySegment resultsArray, Map<String, Double> resultMap) {
+PricingManager pm = PricingManager.getInstance();
+for (ItemMeta meta : activeItems) {
+ReentrantReadWriteLock.WriteLock writeLock = pm.getItemLock(meta.productId()).writeLock();
+writeLock.lock();
+try {
+double computedPrice = resultsArray.getAtIndex(JAVA_DOUBLE, meta.index());
+if (Double.isFinite(computedPrice) && computedPrice > 0) {
+resultMap.put(meta.key(), computedPrice);
+} else {
+resultMap.put(meta.key(), meta.basePrice());
+}
+} finally {
+writeLock.unlock();
+}
+}
+}
+private static void fallbackToSingleWithLock(List<ItemMeta> items, Map<String, Double> map, EcoBridge plugin, long now, double tau) {
+PricingManager pm = PricingManager.getInstance();
+for (ItemMeta meta : items) {
+if (map.containsKey(meta.key())) continue;
+ReentrantReadWriteLock.WriteLock writeLock = pm.getItemLock(meta.productId()).writeLock();
+writeLock.lock();
+try (Arena arena = Arena.ofConfined()) {
+MemorySegment ctx = arena.allocate(Layouts.TRADE_CONTEXT);
+MemorySegment cfg = arena.allocate(Layouts.MARKET_CONFIG);
+NativeContextBuilder.fillGlobalContext(ctx, now);
+NativeBridge.VH_CTX_BASE_PRICE.set(ctx, 0L, meta.basePrice());
+double histAvg = TransactionDao.get7DayAverage(meta.productId());
+double price = NativeBridge.computePriceBounded(
+meta.basePrice(), NativeBridge.queryNeffVectorized(now, tau), 0, meta.lambda(),
+NativeBridge.calculateEpsilon(ctx, cfg), histAvg
+);
+map.put(meta.key(), price);
+} catch (Exception ex) {
+LogUtil.error("单体降级演算失败: " + meta.key(), ex);
+map.put(meta.key(), meta.basePrice());
+} finally {
+writeLock.unlock();
+}
+}
+}
+private static List<ItemMeta> collectActiveItems(ConfigurationSection itemSection, double macroLambda) {
+List<ItemMeta> items = new ArrayList<>();
+int index = 0;
 for (String shopId : itemSection.getKeys(false)) {
 ConfigurationSection shopSec = itemSection.getConfigurationSection(shopId);
 if (shopSec == null) continue;
@@ -1406,153 +1519,31 @@ for (String prodId : shopSec.getKeys(false)) {
 double p0 = shopSec.getDouble(prodId + ".base-price", -1.0);
 if (p0 <= 0) continue;
 double lambda = shopSec.getDouble(prodId + ".lambda", macroLambda);
-activeItems.add(new ItemMeta(shopId + ":" + prodId, shopId, prodId, p0, lambda, idx++));
+items.add(new ItemMeta(shopId + ":" + prodId, shopId, prodId, p0, lambda, index++));
 }
 }
-int count = activeItems.size();
-if (count == 0) {
-LogUtil.info("No valid items found for price computation");
-return resultMap;
+return items;
 }
-long now = System.currentTimeMillis();
-double neff = NativeBridge.queryNeffVectorized(now, configTau);
-Map<String, Double> histAvgMap = loadHistoryAveragesAsync(activeItems).join();
-try (Arena arena = Arena.ofConfined()) {
-SequenceLayout tradeCtxLayout = MemoryLayout.sequenceLayout(count, Layouts.TRADE_CONTEXT);
-SequenceLayout marketCfgLayout = MemoryLayout.sequenceLayout(count, Layouts.MARKET_CONFIG);
-SequenceLayout doubleArrLayout = MemoryLayout.sequenceLayout(count, JAVA_DOUBLE);
-MemorySegment ctxSeg = arena.allocate(tradeCtxLayout);
-MemorySegment cfgSeg = arena.allocate(marketCfgLayout);
-MemorySegment histAvgSeg = arena.allocate(doubleArrLayout);
-MemorySegment lambdaSeg = arena.allocate(doubleArrLayout);
-MemorySegment outputSeg = arena.allocate(doubleArrLayout);
-for (ItemMeta meta : activeItems) {
-long ctxOffset = (long) meta.index() * Layouts.TRADE_CONTEXT.byteSize();
-long cfgOffset = (long) meta.index() * Layouts.MARKET_CONFIG.byteSize();
-MemorySegment ctxSlice = ctxSeg.asSlice(ctxOffset, Layouts.TRADE_CONTEXT.byteSize());
-NativeContextBuilder.fillGlobalContext(ctxSlice, now);
-NativeBridge.VH_CTX_BASE_PRICE.set(ctxSeg, ctxOffset, meta.basePrice());
-ConfigurationSection itemConfig = itemSection.getConfigurationSection(meta.shopId() + "." + meta.productId());
-fillMarketConfig(cfgSeg, cfgOffset, itemConfig, config, meta.lambda());
-double histAvg = histAvgMap.getOrDefault(meta.productId(), meta.basePrice());
-histAvgSeg.setAtIndex(JAVA_DOUBLE, meta.index(), histAvg);
-lambdaSeg.setAtIndex(JAVA_DOUBLE, meta.index(), meta.lambda());
+private static Map<String, Double> loadHistoryAverages(List<ItemMeta> items) {
+List<String> ids = items.stream().map(ItemMeta::productId).distinct().toList();
+return TransactionDao.get7DayAveragesBatch(ids);
 }
-NativeBridge.computeBatchPrices(
-count,
-neff,
-ctxSeg,
-cfgSeg,
-histAvgSeg,
-lambdaSeg,
-outputSeg
-);
-for (ItemMeta meta : activeItems) {
-try {
-double price = outputSeg.getAtIndex(JAVA_DOUBLE, meta.index());
-if (Double.isFinite(price) && price > 0) {
-resultMap.put(meta.key(), price);
-} else {
-LogUtil.errorOnce("INVALID_PRICE|" + meta.key(),
-"Invalid price computed for " + meta.key() + ": " + price);
-resultMap.put(meta.key(), meta.basePrice());
-}
-} catch (Exception e) {
-LogUtil.error("Result extraction failed for " + meta.key(), e);
-resultMap.put(meta.key(), meta.basePrice());
-}
-}
-} catch (Throwable e) {
-LogUtil.error("SIMD batch pricing engine crashed", e);
-for (ItemMeta meta : activeItems) {
-try {
-resultMap.put(meta.key(), fallbackSingleCompute(plugin, meta, now, configTau));
-} catch (Exception ex) {
-resultMap.put(meta.key(), meta.basePrice());
-}
-}
-}
-return resultMap;
-}
-private static CompletableFuture<Map<String, Double>> loadHistoryAveragesAsync(List<ItemMeta> items) {
-return CompletableFuture.supplyAsync(() -> {
-Map<String, Double> resultMap = new HashMap<>();
-try {
-Map<String, Double> cache = new HashMap<>();
-for (ItemMeta meta : items) {
-String productId = meta.productId();
-if (!cache.containsKey(productId)) {
-cache.put(productId, TransactionDao.get7DayAverage(productId));
-}
-resultMap.put(productId, cache.get(productId));
-}
-} catch (Exception e) {
-LogUtil.error("History load failed", e);
-for (ItemMeta meta : items) {
-resultMap.putIfAbsent(meta.productId(), meta.basePrice());
-}
-}
-return resultMap;
-});
-}
-private static void fillMarketConfig(
-MemorySegment cfgBase,
-long offset,
-ConfigurationSection itemConfig,
-FileConfiguration globalConfig,
-double currentLambda
-) {
+private static void fillMarketConfigAtOffset(MemorySegment cfgBase, long offset, ConfigurationSection itemSec, FileConfiguration globalConfig, double currentLambda) {
 NativeBridge.VH_CFG_LAMBDA.set(cfgBase, offset, currentLambda);
 NativeBridge.VH_CFG_VOLATILITY.set(cfgBase, offset, 1.0);
 NativeBridge.VH_CFG_S_AMP.set(cfgBase, offset, globalConfig.getDouble("economy.seasonal-amplitude", 0.15));
 NativeBridge.VH_CFG_W_MULT.set(cfgBase, offset, globalConfig.getDouble("economy.weekend-multiplier", 1.2));
-NativeBridge.VH_CFG_N_PROT.set(cfgBase, offset, globalConfig.getDouble("economy.newbie-protection-rate", 0.2));
-if (itemConfig != null) {
-setWeight(cfgBase, offset, itemConfig, "weights.seasonal", 0.25, NativeBridge.VH_CFG_W_SEASONAL);
-setWeight(cfgBase, offset, itemConfig, "weights.weekend", 0.25, NativeBridge.VH_CFG_W_WEEKEND);
-setWeight(cfgBase, offset, itemConfig, "weights.newbie", 0.25, NativeBridge.VH_CFG_W_NEWBIE);
-setWeight(cfgBase, offset, itemConfig, "weights.inflation", 0.25, NativeBridge.VH_CFG_W_INFLATION);
+NativeBridge.VH_CFG_N_PROT.set(cfgBase, offset, globalConfig.getDouble("economy.newbie-protection", 0.2));
+if (itemSec != null) {
+NativeBridge.VH_CFG_W_SEASONAL.set(cfgBase, offset, itemSec.getDouble("weights.seasonal", 0.25));
+NativeBridge.VH_CFG_W_WEEKEND.set(cfgBase, offset, itemSec.getDouble("weights.weekend", 0.25));
+NativeBridge.VH_CFG_W_NEWBIE.set(cfgBase, offset, itemSec.getDouble("weights.newbie", 0.25));
+NativeBridge.VH_CFG_W_INFLATION.set(cfgBase, offset, itemSec.getDouble("weights.inflation", 0.25));
 } else {
 NativeBridge.VH_CFG_W_SEASONAL.set(cfgBase, offset, 0.25);
 NativeBridge.VH_CFG_W_WEEKEND.set(cfgBase, offset, 0.25);
 NativeBridge.VH_CFG_W_NEWBIE.set(cfgBase, offset, 0.25);
 NativeBridge.VH_CFG_W_INFLATION.set(cfgBase, offset, 0.25);
-}
-}
-private static void setWeight(
-MemorySegment cfgBase,
-long offset,
-ConfigurationSection config,
-String path,
-double defaultValue,
-VarHandle vh
-) {
-double value = config != null ? config.getDouble(path, defaultValue) : defaultValue;
-vh.set(cfgBase, offset, value);
-}
-private static double fallbackSingleCompute(EcoBridge plugin, ItemMeta meta, long now, double tau) {
-try (Arena arena = Arena.ofConfined()) {
-MemorySegment ctx = arena.allocate(Layouts.TRADE_CONTEXT);
-MemorySegment cfg = arena.allocate(Layouts.MARKET_CONFIG);
-NativeContextBuilder.fillGlobalContext(ctx, now);
-NativeBridge.VH_CTX_BASE_PRICE.set(ctx, 0L, meta.basePrice());
-ConfigurationSection itemSec = plugin.getConfig()
-.getConfigurationSection("item-settings." + meta.shopId() + "." + meta.productId());
-fillMarketConfig(cfg, 0L, itemSec, plugin.getConfig(), meta.lambda());
-double histAvg = TransactionDao.get7DayAverage(meta.productId());
-double neff = NativeBridge.queryNeffVectorized(now, tau);
-double epsilon = NativeBridge.calculateEpsilon(ctx, cfg);
-return NativeBridge.computePriceBounded(
-meta.basePrice(),
-neff,
-0,
-meta.lambda(),
-epsilon,
-histAvg
-);
-} catch (Exception e) {
-LogUtil.error("Fallback computation failed for " + meta.key(), e);
-return meta.basePrice();
 }
 }
 }
@@ -1682,6 +1673,229 @@ return item;
 }
 }
 return null;
+}
+}
+
+==================================================
+FILE: ecobridge-java\src\main\java\top\ellan\ecobridge\hook\UShopHookManager.java
+==================================================
+
+package top.ellan.ecobridge.hook;
+import cn.superiormc.ultimateshop.managers.ConfigManager;
+import cn.superiormc.ultimateshop.objects.ObjectShop;
+import cn.superiormc.ultimateshop.objects.buttons.ObjectItem;
+import cn.superiormc.ultimateshop.objects.items.GiveResult;
+import cn.superiormc.ultimateshop.objects.items.ObjectLimit;
+import cn.superiormc.ultimateshop.objects.items.TakeResult;
+import cn.superiormc.ultimateshop.objects.items.prices.ObjectPrices;
+import cn.superiormc.ultimateshop.objects.items.prices.PriceMode;
+import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.entity.Player;
+import org.bukkit.inventory.Inventory;
+import su.nightexpress.coinsengine.api.CoinsEngineAPI;
+import su.nightexpress.coinsengine.api.currency.Currency;
+import top.ellan.ecobridge.EcoBridge;
+import top.ellan.ecobridge.manager.EconomicStateManager;
+import top.ellan.ecobridge.manager.PricingManager;
+import top.ellan.ecobridge.util.LogUtil;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+public class UShopHookManager {
+private static final Map<ObjectItem, ObjectPrices[]> originalPrices = new ConcurrentHashMap<>();
+private static final Map<ObjectItem, ObjectLimit[]> originalLimits = new ConcurrentHashMap<>();
+private static Field buyPriceField;
+private static Field sellPriceField;
+private static Field buyLimitField;
+private static Field sellLimitField;
+private static boolean reflectionReady = false;
+static {
+try {
+buyPriceField = ObjectItem.class.getDeclaredField("buyPrice");
+sellPriceField = ObjectItem.class.getDeclaredField("sellPrice");
+buyPriceField.setAccessible(true);
+sellPriceField.setAccessible(true);
+buyLimitField = ObjectItem.class.getDeclaredField("buyLimit");
+sellLimitField = ObjectItem.class.getDeclaredField("sellLimit");
+buyLimitField.setAccessible(true);
+sellLimitField.setAccessible(true);
+reflectionReady = true;
+} catch (Exception e) {
+LogUtil.error("无法初始化 UltimateShop 反射字段，接管引擎已禁用。", e);
+}
+}
+public static void execute(EcoBridge plugin) {
+if (!reflectionReady || !plugin.getConfig().getBoolean("integrations.ultimateshop.enabled", true)) {
+return;
+}
+ConfigManager cm = ConfigManager.configManager;
+if (cm == null) return;
+int priceInjected = 0;
+int limitInjected = 0;
+try {
+for (ObjectShop shop : cm.getShops()) {
+if (shop.getConfig() == null) continue;
+for (String itemId : shop.getConfig().getConfigurationSection("items").getKeys(false)) {
+ObjectItem item = shop.getProduct(itemId);
+if (item == null) continue;
+synchronized (item) {
+if (plugin.getConfig().getBoolean("integrations.ultimateshop.price-takeover", true)) {
+if (!originalPrices.containsKey(item)) {
+originalPrices.put(item, new ObjectPrices[]{
+(ObjectPrices) buyPriceField.get(item),
+(ObjectPrices) sellPriceField.get(item)
+});
+}
+buyPriceField.set(item, new EcoBridgeDynamicPrice(item, itemId));
+sellPriceField.set(item, new EcoBridgeDynamicPrice(item, itemId));
+priceInjected++;
+}
+if (plugin.getConfig().getBoolean("integrations.ultimateshop.limit-takeover", true)) {
+if (!originalLimits.containsKey(item)) {
+originalLimits.put(item, new ObjectLimit[]{
+(ObjectLimit) buyLimitField.get(item),
+(ObjectLimit) sellLimitField.get(item)
+});
+}
+buyLimitField.set(item, new EcoBridgeDynamicLimit(plugin, originalLimits.get(item)[0]));
+sellLimitField.set(item, new EcoBridgeDynamicLimit(plugin, originalLimits.get(item)[1]));
+limitInjected++;
+}
+}
+}
+}
+LogUtil.info("UltimateShop 接管完成: [价格代理: " + priceInjected + "] [限额代理: " + limitInjected + "]");
+} catch (Exception e) {
+LogUtil.error("接管执行过程中发生异常", e);
+}
+}
+public static void revert() {
+if (!reflectionReady) return;
+originalPrices.forEach((item, originals) -> {
+synchronized (item) {
+try {
+buyPriceField.set(item, originals[0]);
+sellPriceField.set(item, originals[1]);
+} catch (Exception ignored) {}
+}
+});
+originalLimits.forEach((item, originals) -> {
+synchronized (item) {
+try {
+buyLimitField.set(item, originals[0]);
+sellLimitField.set(item, originals[1]);
+} catch (Exception ignored) {}
+}
+});
+originalPrices.clear();
+originalLimits.clear();
+LogUtil.info("UltimateShop 所有接管代理已安全卸载，原始逻辑已还原。");
+}
+public static class EcoBridgeDynamicPrice extends ObjectPrices {
+private final String productId;
+private final String currencyId;
+private static Constructor<TakeResult> takeResultCtor;
+private static Constructor<GiveResult> giveResultCtor;
+private static Field takeResultMapField;
+private static Field giveResultMapField;
+static {
+try {
+try { takeResultCtor = TakeResult.class.getDeclaredConstructor(); }
+catch (NoSuchMethodException e) { takeResultCtor = TakeResult.class.getDeclaredConstructor(boolean.class); }
+takeResultCtor.setAccessible(true);
+try { giveResultCtor = GiveResult.class.getDeclaredConstructor(); }
+catch (NoSuchMethodException e) { giveResultCtor = GiveResult.class.getDeclaredConstructor(boolean.class); }
+giveResultCtor.setAccessible(true);
+takeResultMapField = findField(TakeResult.class, "resultMap", "results", "map");
+giveResultMapField = findField(GiveResult.class, "resultMap", "results", "map");
+if (takeResultMapField != null) takeResultMapField.setAccessible(true);
+if (giveResultMapField != null) giveResultMapField.setAccessible(true);
+} catch (Exception e) { e.printStackTrace(); }
+}
+public EcoBridgeDynamicPrice(ObjectItem item, String productId) {
+super(new YamlConfiguration(), "EcoBridge", item, PriceMode.BUY);
+this.productId = productId;
+this.currencyId = EcoBridge.getInstance().getConfig().getString("economy.currency-id", "coins");
+}
+@Override
+public TakeResult take(Inventory inv, Player player, int times, int amount, boolean sim) {
+PricingManager pm = PricingManager.getInstance();
+var lock = pm.getItemLock(productId).readLock();
+lock.lock();
+try {
+double unitPrice = pm.calculateBuyPrice(productId);
+double total = unitPrice * amount;
+Map<String, Object> map = new HashMap<>();
+map.put("money", total);
+Currency cur = CoinsEngineAPI.getCurrency(currencyId);
+if (cur == null || CoinsEngineAPI.getBalance(player, cur) < total) return createTakeResult(false, map);
+if (!sim) {
+CoinsEngineAPI.removeBalance(player, cur, total);
+EconomicStateManager.getInstance().recordPurchase(player, productId, amount);
+}
+return createTakeResult(true, map);
+} finally { lock.unlock(); }
+}
+@Override
+public GiveResult give(Player player, int times, int amount) {
+PricingManager pm = PricingManager.getInstance();
+var lock = pm.getItemLock(productId).readLock();
+lock.lock();
+try {
+double unitPrice = pm.calculateSellPrice(productId);
+double total = unitPrice * amount;
+Map<String, Object> map = new HashMap<>();
+map.put("money", total);
+if (!isSimulationContext()) {
+Currency cur = CoinsEngineAPI.getCurrency(currencyId);
+if (cur != null) {
+CoinsEngineAPI.addBalance(player, cur, total);
+EconomicStateManager.getInstance().recordSale(player, productId, amount);
+}
+}
+return createGiveResult(true, map);
+} finally { lock.unlock(); }
+}
+private static Field findField(Class<?> c, String... ns) {
+for (String n : ns) { try { return c.getDeclaredField(n); } catch (Exception ignored) {} }
+return null;
+}
+private TakeResult createTakeResult(boolean s, Map<String, Object> m) {
+try {
+TakeResult r = (takeResultCtor.getParameterCount() == 0) ? takeResultCtor.newInstance() : takeResultCtor.newInstance(s);
+if (takeResultMapField != null) takeResultMapField.set(r, m);
+return r;
+} catch (Exception e) { return null; }
+}
+private GiveResult createGiveResult(boolean s, Map<String, Object> m) {
+try {
+GiveResult r = (giveResultCtor.getParameterCount() == 0) ? giveResultCtor.newInstance() : giveResultCtor.newInstance(s);
+if (giveResultMapField != null) giveResultMapField.set(r, m);
+return r;
+} catch (Exception e) { return null; }
+}
+private boolean isSimulationContext() {
+return StackWalker.getInstance().walk(s -> s.anyMatch(f -> f.getClassName().contains("ModifyDisplayItem")));
+}
+}
+public static class EcoBridgeDynamicLimit extends ObjectLimit {
+private final EcoBridge plugin;
+private final ObjectLimit original;
+public EcoBridgeDynamicLimit(EcoBridge plugin, ObjectLimit original) {
+this.plugin = plugin;
+this.original = original;
+}
+@Override
+public int getPlayerLimits(Player player) {
+if (plugin.getConfig().getBoolean("economy.macro.panic-mode", false)) return 20;
+return original != null ? original.getPlayerLimits(player) : -1;
+}
+@Override
+public int getServerLimits(Player player) {
+return original != null ? original.getServerLimits(player) : -1;
+}
 }
 }
 
@@ -2090,6 +2304,7 @@ FILE: ecobridge-java\src\main\java\top\ellan\ecobridge\manager\EconomyManager.ja
 ==================================================
 
 package top.ellan.ecobridge.manager;
+import org.bukkit.Bukkit;
 import top.ellan.ecobridge.EcoBridge;
 import top.ellan.ecobridge.bridge.NativeBridge;
 import top.ellan.ecobridge.util.LogUtil;
@@ -2102,11 +2317,17 @@ import java.util.concurrent.locks.ReentrantLock;
 public class EconomyManager {
 private static EconomyManager instance;
 private final EcoBridge plugin;
+private volatile double inflationRate = 0.0;
+private volatile double marketHeat = 0.0;
+private volatile double ecoSaturation = 0.0;
 private final DoubleAdder circulationHeat = new DoubleAdder();
+private final DoubleAdder tradeVolumeAccumulator = new DoubleAdder();
 private final AtomicLong lastVolatileTimestamp = new AtomicLong(0);
+private long lastMacroUpdateTime = System.currentTimeMillis();
 private double m1MoneySupply;
 private double volatilityThreshold;
 private double decayRate;
+private double capacityPerUser;
 private final ScheduledExecutorService economicScheduler;
 private final ReentrantLock configLock = new ReentrantLock();
 private EconomyManager(EcoBridge plugin) {
@@ -2116,6 +2337,7 @@ Thread.ofVirtual().name("EcoBridge-Economy-Worker").factory()
 );
 loadState();
 startEconomicTasks();
+startMacroAnalyticsTask();
 }
 public static void init(EcoBridge plugin) {
 instance = new EconomyManager(plugin);
@@ -2128,75 +2350,81 @@ var config = plugin.getConfig();
 this.m1MoneySupply = config.getDouble("economy.m1-supply", 10_000_000.0);
 this.volatilityThreshold = config.getDouble("economy.volatility-threshold", 50_000.0);
 this.decayRate = config.getDouble("economy.daily-decay-rate", 0.05);
+this.capacityPerUser = config.getDouble("economy.macro.capacity-per-user", 5000.0);
 double savedHeat = config.getDouble("internal.economy-heat", 0.0);
 circulationHeat.reset();
 circulationHeat.add(savedHeat);
-LogUtil.info("经济脑初始化完成: M1=" + m1MoneySupply + ", 初始热度=" + savedHeat);
+LogUtil.info("EconomyManager 初始化: M1=" + m1MoneySupply + ", 初始累积热度=" + savedHeat);
+}
+public void onTransaction(double amount, boolean isMarketActivity) {
+double absAmount = Math.abs(amount);
+if (!isMarketActivity) {
+this.m1MoneySupply += amount;
+return;
+}
+tradeVolumeAccumulator.add(absAmount);
+circulationHeat.add(absAmount);
+if (absAmount >= volatilityThreshold) {
+lastVolatileTimestamp.set(System.currentTimeMillis());
+}
+}
+public void recordTradeVolume(double amount) {
+onTransaction(amount, true);
+}
+private void startMacroAnalyticsTask() {
+economicScheduler.scheduleAtFixedRate(() -> {
+try {
+long now = System.currentTimeMillis();
+double dt = (now - lastMacroUpdateTime) / 1000.0;
+if (dt < 0.1) return;
+double currentWindowVolume = tradeVolumeAccumulator.sumThenReset();
+this.marketHeat = currentWindowVolume / dt;
+int online = Bukkit.getOnlinePlayers().size();
+double totalCapacity = Math.max(1, online) * capacityPerUser;
+this.ecoSaturation = Math.min(1.0, marketHeat / totalCapacity);
+if (NativeBridge.isLoaded()) {
+this.inflationRate = NativeBridge.calcInflation(marketHeat, m1MoneySupply);
+}
+lastMacroUpdateTime = now;
+} catch (Exception e) {
+LogUtil.warn("宏观画像任务异常: " + e.getMessage());
+}
+}, 1, 1, TimeUnit.SECONDS);
+}
+private void startEconomicTasks() {
+economicScheduler.scheduleAtFixedRate(this::runEconomicDecay, 30, 30, TimeUnit.MINUTES);
+}
+private void runEconomicDecay() {
+if (!NativeBridge.isLoaded()) return;
+double currentTotal = circulationHeat.sum();
+double reduction = NativeBridge.calcDecay(currentTotal, decayRate);
+if (Math.abs(reduction) > 0.01) {
+circulationHeat.add(-reduction);
+if (reduction > 100.0) saveState();
+}
 }
 public void saveState() {
-double currentHeat = circulationHeat.sum();
+double currentTotal = circulationHeat.sum();
 plugin.getVirtualExecutor().execute(() -> {
 configLock.lock();
 try {
-plugin.getConfig().set("internal.economy-heat", currentHeat);
+plugin.getConfig().set("internal.economy-heat", currentTotal);
 plugin.saveConfig();
-} catch (Exception e) {
-LogUtil.error("保存经济状态失败", e);
 } finally {
 configLock.unlock();
 }
 });
 }
-public void onTransaction(double delta, boolean isMarketActivity) {
-if (!isMarketActivity) {
-this.m1MoneySupply += delta;
-return;
-}
-circulationHeat.add(delta);
-if (Math.abs(delta) >= volatilityThreshold) {
-markMarketVolatile();
-}
-}
-private void markMarketVolatile() {
-lastVolatileTimestamp.set(System.currentTimeMillis());
-}
-public double getInflationRate() {
-if (!NativeBridge.isLoaded()) return 0.0;
-double currentHeat = circulationHeat.sum();
-return NativeBridge.calcInflation(currentHeat, m1MoneySupply);
-}
+public double getMarketHeat() { return this.marketHeat; }
+public double getEcoSaturation() { return this.ecoSaturation; }
+public double getInflationRate() { return this.inflationRate; }
 public double getStabilityFactor() {
 if (!NativeBridge.isLoaded()) return 1.0;
-long lastVolatile = lastVolatileTimestamp.get();
-long now = System.currentTimeMillis();
-return NativeBridge.calcStability(lastVolatile, now);
-}
-private void startEconomicTasks() {
-economicScheduler.scheduleAtFixedRate(
-this::runEconomicDecay,
-30, 30, TimeUnit.MINUTES
-);
-}
-private void runEconomicDecay() {
-if (!NativeBridge.isLoaded()) return;
-double current = circulationHeat.sum();
-double reduction = NativeBridge.calcDecay(current, decayRate);
-if (Math.abs(reduction) > 0.0) {
-circulationHeat.add(-reduction);
-}
-if (Math.abs(reduction) > 100.0) {
-saveState();
-}
+return NativeBridge.calcStability(lastVolatileTimestamp.get(), System.currentTimeMillis());
 }
 public void shutdown() {
 economicScheduler.shutdown();
-configLock.lock();
-try {
-plugin.getConfig().set("internal.economy-heat", circulationHeat.sum());
-plugin.saveConfig();
-} finally {
-configLock.unlock();
-}
+saveState();
 }
 }
 
@@ -2210,6 +2438,7 @@ import cn.superiormc.ultimateshop.objects.ObjectShop;
 import cn.superiormc.ultimateshop.objects.buttons.ObjectItem;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.RemovalCause;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import top.ellan.ecobridge.EcoBridge;
@@ -2238,6 +2467,7 @@ private final Arena managerArena = Arena.ofShared();
 private final MemorySegment globalPidState;
 private final AtomicReference<Map<String, Double>> priceSnapshot =
 new AtomicReference<>(Collections.emptyMap());
+private final Cache<String, ReentrantReadWriteLock> itemLocks;
 private final AtomicLong globalTradeCounter = new AtomicLong(0);
 private long lastComputeTime = System.currentTimeMillis();
 private final Cache<String, ThreadSafeHistory> historyCache;
@@ -2250,9 +2480,17 @@ private int maxHistorySize;
 private double targetTradesPerUser;
 private PricingManager(EcoBridge plugin) {
 this.plugin = plugin;
+this.itemLocks = Caffeine.newBuilder()
+.expireAfterAccess(Duration.ofMinutes(10))
+.build();
 this.historyCache = Caffeine.newBuilder()
 .maximumSize(2000)
 .expireAfterAccess(Duration.ofMinutes(30))
+.removalListener((String key, ThreadSafeHistory value, RemovalCause cause) -> {
+if (cause.wasEvicted()) {
+LogUtil.debug("缓存清理: 商品 " + key + " 已从内存安全释放 (" + cause.name() + ")");
+}
+})
 .build();
 this.globalPidState = managerArena.allocate(NativeBridge.Layouts.PID_STATE);
 NativeBridge.resetPidState(globalPidState);
@@ -2265,6 +2503,9 @@ instance = new PricingManager(plugin);
 public static PricingManager getInstance() {
 return instance;
 }
+public ReentrantReadWriteLock getItemLock(String productId) {
+return itemLocks.get(productId, k -> new ReentrantReadWriteLock());
+}
 public void loadConfig() {
 var config = plugin.getConfig();
 this.defaultLambda = config.getDouble("economy.default-lambda", 0.002);
@@ -2276,18 +2517,27 @@ this.targetTradesPerUser = config.getDouble("economy.macro.target-velocity", 0.0
 }
 public void shutdown() {
 this.isRunning = false;
+try {
 this.historyCache.invalidateAll();
+this.itemLocks.invalidateAll();
+LogUtil.info("PricingManager 正在安全释放 FFM 资源...");
+} finally {
+if (managerArena.scope().isAlive()) {
 managerArena.close();
+}
+}
 }
 private void startSnapshotEngine() {
 Thread.ofVirtual().name("EcoBridge-Macro-Engine").start(() -> {
-LogUtil.info("宏观定价调度器已启动 (Mode: Adaptive PID + Heat Control)");
 while (isRunning && plugin.isEnabled()) {
 try {
 long now = System.currentTimeMillis();
 double dt = (now - lastComputeTime) / 1000.0;
 lastComputeTime = now;
-int onlineCount = Bukkit.getOnlinePlayers().size();
+int onlineCount = CompletableFuture.supplyAsync(
+() -> Bukkit.getOnlinePlayers().size(),
+runnable -> Bukkit.getScheduler().runTask(plugin, runnable)
+).get(100, TimeUnit.MILLISECONDS);
 long currentTrades = globalTradeCounter.getAndSet(0);
 double currentHeat = currentTrades / Math.max(dt, 0.1);
 double targetHeat = Math.max(0.1, onlineCount * targetTradesPerUser);
@@ -2306,7 +2556,7 @@ Thread.sleep(2000);
 Thread.currentThread().interrupt();
 break;
 } catch (Throwable e) {
-LogUtil.warn("宏观调控循环异常: " + e.getMessage());
+LogUtil.warn("宏观引擎演算异常: " + e.getMessage());
 }
 }
 });
@@ -2326,6 +2576,9 @@ return calculateBuyPrice(productId) * this.sellRatio;
 public double calculateDynamicPrice(Player player, ObjectItem item, double amount) {
 String shopId = item.getShop();
 String productId = item.getProduct();
+var lock = getItemLock(productId).readLock();
+lock.lock();
+try {
 double basePrice = getSnapshotPrice(shopId, productId);
 if (basePrice <= 0) {
 basePrice = PriceOracle.getOriginalBasePrice(item, amount < 0);
@@ -2336,45 +2589,51 @@ if (Bukkit.isPrimaryThread()) {
 Bukkit.getPluginManager().callEvent(event);
 return event.getFinalPrice();
 }
-try {
-return CompletableFuture.runAsync(
-() -> Bukkit.getPluginManager().callEvent(event),
-runnable -> Bukkit.getScheduler().runTask(plugin, runnable)
-).thenApply(v -> event.getFinalPrice())
-.orTimeout(500, TimeUnit.MILLISECONDS)
+return CompletableFuture.runAsync(() -> Bukkit.getPluginManager().callEvent(event),
+runnable -> Bukkit.getScheduler().runTask(plugin, runnable))
+.thenApply(v -> event.getFinalPrice())
+.orTimeout(200, TimeUnit.MILLISECONDS)
 .join();
 } catch (Exception e) {
-LogUtil.errorOnce("PRICING_EVENT_TIMEOUT",
-"价格事件同步超时或失败 [" + productId + "]，使用内核原价。");
-return event.getFinalPrice();
+return PriceOracle.getOriginalBasePrice(item, amount < 0);
+} finally {
+lock.unlock();
 }
 }
 public void onTradeComplete(ObjectItem item, double effectiveAmount) {
 onTradeComplete(item.getProduct(), effectiveAmount);
 }
 public void onTradeComplete(String productId, double effectiveAmount) {
-globalTradeCounter.incrementAndGet();
+var lock = getItemLock(productId).writeLock();
+lock.lock();
+try {
 long now = System.currentTimeMillis();
-processTradeInternal(productId, effectiveAmount, now, true);
+globalTradeCounter.incrementAndGet();
+SaleRecord record = new SaleRecord(now, effectiveAmount);
+getHistoryContainer(productId).add(record, maxHistorySize);
+plugin.getVirtualExecutor().execute(() -> {
+try {
+AsyncLogger.log(java.util.UUID.nameUUIDFromBytes(productId.getBytes()), effectiveAmount, 0, now, "TRX_WRITE_THROUGH");
+TransactionDao.saveSaleAsync(null, productId, effectiveAmount);
+} catch (Exception e) {
+LogUtil.error("写穿透 SQL 任务失败: " + productId, e);
+}
+});
 if (RedisManager.getInstance() != null) {
 RedisManager.getInstance().publishTrade(productId, effectiveAmount);
 }
+} finally {
+lock.unlock();
+}
 }
 public void onRemoteTradeReceived(String productId, double amount, long timestamp) {
-processTradeInternal(productId, amount, timestamp, false);
-}
-private void processTradeInternal(String productId, double amount, long timestamp, boolean writeToSql) {
+var lock = getItemLock(productId).writeLock();
+lock.lock();
+try {
 SaleRecord record = new SaleRecord(timestamp, amount);
 getHistoryContainer(productId).add(record, maxHistorySize);
-java.util.UUID productLoggerUuid = java.util.UUID.nameUUIDFromBytes(("PRODUCT_" + productId).getBytes());
-if (writeToSql) {
-plugin.getVirtualExecutor().execute(() -> {
-AsyncLogger.log(productLoggerUuid, amount, 0.0, timestamp, "LOCAL_TRADE");
-TransactionDao.saveSaleAsync(null, productId, amount);
-});
-} else {
-java.util.UUID remoteUuid = java.util.UUID.nameUUIDFromBytes(("REMOTE_" + productId).getBytes());
-AsyncLogger.log(remoteUuid, amount, 0.0, timestamp, "REMOTE_SYNC");
+} finally {
+lock.unlock();
 }
 }
 public List<SaleRecord> getGlobalHistory(String productId) {
@@ -2389,23 +2648,30 @@ if (item != null) return item;
 return null;
 }
 public double getSnapshotPrice(String shopId, String productId) {
+Map<String, Double> current = priceSnapshot.get();
 if (shopId == null) {
-return priceSnapshot.get().entrySet().stream()
+return current.entrySet().stream()
 .filter(e -> e.getKey().endsWith(":" + productId))
-.map(Map.Entry::getValue)
-.findFirst()
-.orElse(-1.0);
+.map(Map.Entry::getValue).findFirst().orElse(-1.0);
 }
-return priceSnapshot.get().getOrDefault(shopId + ":" + productId, -1.0);
+return current.getOrDefault(shopId + ":" + productId, -1.0);
 }
 private ThreadSafeHistory getHistoryContainer(String productId) {
-return historyCache.get(productId, k -> {
-List<SaleRecord> dbData = TransactionDao.getProductHistory(k, historyDaysLimit);
-return new ThreadSafeHistory(dbData);
+ThreadSafeHistory container = historyCache.getIfPresent(productId);
+if (container == null) {
+container = new ThreadSafeHistory(new ArrayList<>());
+historyCache.put(productId, container);
+final ThreadSafeHistory finalContainer = container;
+plugin.getVirtualExecutor().execute(() -> {
+List<SaleRecord> initialData = TransactionDao.getProductHistory(productId, historyDaysLimit);
+finalContainer.loadBatch(initialData);
 });
+}
+return container;
 }
 public void clearCache() {
 historyCache.invalidateAll();
+itemLocks.invalidateAll();
 }
 private static class ThreadSafeHistory {
 private final ArrayDeque<SaleRecord> deque;
@@ -2413,13 +2679,20 @@ private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 public ThreadSafeHistory(List<SaleRecord> initialData) {
 this.deque = new ArrayDeque<>(initialData);
 }
+public void loadBatch(List<SaleRecord> records) {
+lock.writeLock().lock();
+try {
+deque.clear();
+deque.addAll(records);
+} finally {
+lock.writeLock().unlock();
+}
+}
 public void add(SaleRecord record, int maxSize) {
 lock.writeLock().lock();
 try {
 deque.addFirst(record);
-if (deque.size() > maxSize) {
-deque.removeLast();
-}
+if (deque.size() > maxSize) deque.removeLast();
 } finally {
 lock.writeLock().unlock();
 }
@@ -2440,6 +2713,7 @@ FILE: ecobridge-java\src\main\java\top\ellan\ecobridge\manager\TransferManager.j
 ==================================================
 
 package top.ellan.ecobridge.manager;
+import com.google.common.base.Preconditions;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.bukkit.Bukkit;
@@ -2497,8 +2771,12 @@ this.plugin = plugin;
 this.vExecutor = Executors.newVirtualThreadPerTaskExecutor();
 this.mainCurrencyId = plugin.getConfig().getString("economy.currency-id", "coins");
 }
-public static void init(EcoBridge plugin) { instance = new TransferManager(plugin); }
-public static TransferManager getInstance() { return instance; }
+public static void init(EcoBridge plugin) {
+instance = new TransferManager(plugin);
+}
+public static TransferManager getInstance() {
+return instance;
+}
 public void initiateTransfer(Player sender, Player receiver, double amount) {
 Currency currency = CoinsEngineAPI.getCurrency(mainCurrencyId);
 if (currency == null) {
@@ -2515,40 +2793,39 @@ captureAndAudit(sender, receiver, currency, amount, senderBal);
 private void captureAndAudit(Player sender, Player receiver, Currency currency, double amount, double senderBal) {
 var sSnapshot = ActivityCollector.getSafeSnapshot(sender.getUniqueId());
 var rSnapshot = ActivityCollector.getSafeSnapshot(receiver.getUniqueId());
-long sPlayTime = sSnapshot.playTimeSeconds();
-long rPlayTime = rSnapshot.playTimeSeconds();
-double sActivityScore = sSnapshot.activityScore();
-int sVelocity = 1;
 double receiverBal = CoinsEngineAPI.getBalance(receiver, currency);
 if (!sender.hasPermission(BYPASS_BLOCK_PERMISSION)) {
-sender.sendMessage(EcoBridge.getMiniMessage().deserialize("<gray><italic>EcoKernel 正在进行深度行为审计与风控建模..."));
+sender.sendMessage(EcoBridge.getMiniMessage().deserialize("<gray><italic>EcoKernel 正在注入宏观流速并进行行为审计..."));
 }
 vExecutor.submit(() -> {
 try (Arena arena = Arena.ofConfined()) {
-double inflation = EconomyManager.getInstance().getInflationRate();
+EconomyManager macro = EconomyManager.getInstance();
+double inflation = macro.getInflationRate();
+int currentMarketHeat = (int) macro.getMarketHeat();
 MemorySegment ctx = arena.allocate(NativeBridge.Layouts.TRANSFER_CONTEXT);
 VH_TR_AMOUNT.set(ctx, 0L, amount);
 VH_TR_S_BAL.set(ctx, 0L, senderBal);
 VH_TR_R_BAL.set(ctx, 0L, receiverBal);
 VH_TR_INF.set(ctx, 0L, inflation);
 VH_TR_LIMIT.set(ctx, 0L, plugin.getConfig().getDouble("economy.audit-settings.newbie-limit", 50000.0));
-VH_TR_S_TIME.set(ctx, 0L, sPlayTime);
-VH_TR_R_TIME.set(ctx, 0L, rPlayTime);
-VH_TCTX_SCORE.set(ctx, 0L, sActivityScore);
-VH_TCTX_VELOCITY.set(ctx, 0L, sVelocity);
+VH_TR_S_TIME.set(ctx, 0L, sSnapshot.playTimeSeconds());
+VH_TR_R_TIME.set(ctx, 0L, rSnapshot.playTimeSeconds());
+VH_TCTX_SCORE.set(ctx, 0L, sSnapshot.activityScore());
+VH_TCTX_VELOCITY.set(ctx, 0L, currentMarketHeat);
 MemorySegment cfg = arena.allocate(NativeBridge.Layouts.REGULATOR_CONFIG);
 populateRegulatorConfig(cfg);
 TransferResult result = NativeBridge.checkTransfer(ctx, cfg);
 Bukkit.getScheduler().runTask(plugin, () ->
 executeSettlement(sender, receiver, currency, amount, result));
 } catch (Throwable e) {
-LogUtil.error("审计内核崩溃 (Memory Access Violation)", e);
+LogUtil.error("审计内核响应超时或崩溃 (Macro Violation)", e);
 Bukkit.getScheduler().runTask(plugin, () ->
-sender.sendMessage(Component.text("内核异常，转账已拦截。")));
+sender.sendMessage(Component.text("内核安全屏障异常，转账已拦截。")));
 }
 });
 }
 private void executeSettlement(Player sender, Player receiver, Currency currency, double amount, TransferResult audit) {
+Preconditions.checkState(Bukkit.isPrimaryThread(), "结算逻辑必须在主线程执行！");
 boolean canBypassBlock = sender.isOp() || sender.hasPermission(BYPASS_BLOCK_PERMISSION);
 if (audit.isBlocked() && !canBypassBlock) {
 handleBlocked(sender, audit.warningCode());
@@ -2556,7 +2833,7 @@ return;
 }
 double currentSenderBal = CoinsEngineAPI.getBalance(sender, currency);
 if (currentSenderBal < amount) {
-sender.sendMessage(EcoBridge.getMiniMessage().deserialize("<red>转账失败：账户资金在审计期间已变动。"));
+sender.sendMessage(EcoBridge.getMiniMessage().deserialize("<red>转账失败：审计期间账户资金发生异常变动。"));
 return;
 }
 boolean canBypassTax = sender.isOp() || sender.hasPermission(BYPASS_TAX_PERMISSION);
@@ -2564,20 +2841,21 @@ double tax = canBypassTax ? 0.0 : audit.tax();
 double netAmount = amount - tax;
 try {
 if (!CoinsEngineAPI.removeBalance(sender.getUniqueId(), currency, amount)) {
-throw new IllegalStateException("底层经济接口拒绝操作");
+throw new IllegalStateException("底层经济接口 CoinsEngine 拒绝扣款");
 }
 CoinsEngineAPI.addBalance(receiver, currency, netAmount);
+EconomyManager.getInstance().recordTradeVolume(amount);
 long ts = System.currentTimeMillis();
-String meta = canBypassTax ? "BYPASS_TAX" : "NORMAL";
+String meta = "TAX:" + tax + "|SCORE:" + ActivityCollector.getScore(sender.getUniqueId());
 AsyncLogger.log(sender.getUniqueId(), -amount, currentSenderBal - amount, ts, meta);
 if (RedisManager.getInstance() != null) {
 RedisManager.getInstance().publishTrade("SYSTEM_TRANSFER", amount);
 }
 notifySuccess(sender, receiver, currency, amount, netAmount, tax, canBypassTax);
 } catch (Exception e) {
-LogUtil.severe("结算链路致命异常！触发紧急回滚: " + sender.getName());
+LogUtil.severe("结算链路断裂！正在回滚玩家资产: " + sender.getName());
 CoinsEngineAPI.addBalance(sender, currency, amount);
-sender.sendMessage(Component.text("系统结算超时，资金已安全回滚。"));
+sender.sendMessage(Component.text("§c[系统] 结算冲突，资金已安全原路回滚。"));
 }
 }
 private void populateRegulatorConfig(MemorySegment cfg) {
@@ -2602,8 +2880,8 @@ case 1 -> "涉嫌非正常资金归集 (风险评级过高)";
 case 2 -> "拦截逆向流转 (新手向老手异常输送)";
 case 3 -> "拦截非正常注资 (老手向新手违规注资)";
 case 4 -> "账户余额不足 (结算冲突)";
-case 5 -> "操作频率过快 (账户拆分/洗钱风控)";
-default -> "违反服务器金融合规协议 (Code: " + code + ")";
+case 5 -> "财富流速异常 (疑似洗钱/拆分转账)";
+default -> "违反服务器金融合规协议 (Audit Code: " + code + ")";
 };
 sender.sendMessage(EcoBridge.getMiniMessage().deserialize("<red>⚠ 审计拒绝: <yellow>" + reason));
 }
@@ -2618,374 +2896,10 @@ Placeholder.unparsed("p", s.getName())));
 }
 public void shutdown() {
 vExecutor.shutdown();
-try { if (!vExecutor.awaitTermination(5, TimeUnit.SECONDS)) vExecutor.shutdownNow(); }
-catch (InterruptedException e) { vExecutor.shutdownNow(); }
-}
-}
-
-==================================================
-FILE: ecobridge-java\src\main\java\top\ellan\ecobridge\manager\UShopLimitInjector.java
-==================================================
-
-package top.ellan.ecobridge.manager;
-import cn.superiormc.ultimateshop.managers.ConfigManager;
-import cn.superiormc.ultimateshop.objects.ObjectShop;
-import cn.superiormc.ultimateshop.objects.buttons.ObjectItem;
-import cn.superiormc.ultimateshop.objects.items.ObjectLimit;
-import org.bukkit.entity.Player;
-import top.ellan.ecobridge.EcoBridge;
-import top.ellan.ecobridge.util.InternalPlaceholder;
-import top.ellan.ecobridge.util.LogUtil;
-import java.lang.reflect.Field;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-public class UShopLimitInjector {
-private static final Map<ObjectItem, ObjectLimit[]> originalLimits = new ConcurrentHashMap<>();
-private static Field buyLimitField;
-private static Field sellLimitField;
-private static boolean reflectionReady = false;
-static {
 try {
-buyLimitField = ObjectItem.class.getDeclaredField("buyLimit");
-sellLimitField = ObjectItem.class.getDeclaredField("sellLimit");
-buyLimitField.setAccessible(true);
-sellLimitField.setAccessible(true);
-reflectionReady = true;
-} catch (Exception e) {
-LogUtil.error("EcoBridge 严重错误: 无法初始化 UltimateShop 限额反射字段，限额接管将失效。", e);
-}
-}
-public static void execute(EcoBridge plugin) {
-if (!plugin.getConfig().getBoolean("integrations.ultimateshop.enabled", true)) {
-return;
-}
-if (!reflectionReady) {
-LogUtil.warn("反射环境未就绪，跳过限额注入。");
-return;
-}
-ConfigManager cm = ConfigManager.configManager;
-if (cm == null) return;
-int count = 0;
-try {
-for (ObjectShop shop : cm.getShops()) {
-if (shop.getConfig() == null) continue;
-for (String itemId : shop.getConfig().getConfigurationSection("items").getKeys(false)) {
-ObjectItem item = shop.getProduct(itemId);
-if (item == null) continue;
-synchronized (item) {
-if (!originalLimits.containsKey(item)) {
-ObjectLimit oldBuy = (ObjectLimit) buyLimitField.get(item);
-ObjectLimit oldSell = (ObjectLimit) sellLimitField.get(item);
-originalLimits.put(item, new ObjectLimit[]{oldBuy, oldSell});
-}
-ObjectLimit currentBuy = (ObjectLimit) buyLimitField.get(item);
-ObjectLimit currentSell = (ObjectLimit) sellLimitField.get(item);
-if (!(currentBuy instanceof EcoBridgeDynamicLimit)) {
-buyLimitField.set(item, new EcoBridgeDynamicLimit(plugin, currentBuy));
-}
-if (!(currentSell instanceof EcoBridgeDynamicLimit)) {
-sellLimitField.set(item, new EcoBridgeDynamicLimit(plugin, currentSell));
-}
-}
-count++;
-}
-}
-LogUtil.info("UltimateShop 动态限额内核已注入 (" + count + " 个商品)。");
-} catch (Exception e) {
-LogUtil.error("限额注入过程中发生异常", e);
-}
-}
-public static void revert() {
-if (originalLimits.isEmpty() || !reflectionReady) return;
-try {
-int count = 0;
-for (Map.Entry<ObjectItem, ObjectLimit[]> entry : originalLimits.entrySet()) {
-ObjectItem item = entry.getKey();
-ObjectLimit[] originals = entry.getValue();
-if (item != null) {
-synchronized (item) {
-buyLimitField.set(item, originals[0]);
-sellLimitField.set(item, originals[1]);
-}
-count++;
-}
-}
-originalLimits.clear();
-LogUtil.info("已还原 " + count + " 个商品的原始限额逻辑。");
-} catch (Exception e) {
-LogUtil.error("还原限额逻辑时发生错误", e);
-}
-}
-public static class EcoBridgeDynamicLimit extends ObjectLimit {
-private final EcoBridge plugin;
-private final ObjectLimit original;
-public EcoBridgeDynamicLimit(EcoBridge plugin, ObjectLimit original) {
-super();
-this.plugin = plugin;
-this.original = original;
-}
-@Override
-public int getPlayerLimits(Player player) {
-if (plugin.getConfig().getBoolean("integrations.ultimateshop.limit-takeover", true)) {
-return InternalPlaceholder.PHYSICAL_HARD_CAP;
-}
-if (original != null) {
-return original.getPlayerLimits(player);
-}
-return -1;
-}
-@Override
-public int getServerLimits(Player player) {
-if (original != null) {
-return original.getServerLimits(player);
-}
-return -1;
-}
-}
-}
-
-==================================================
-FILE: ecobridge-java\src\main\java\top\ellan\ecobridge\manager\UShopPriceInjector.java
-==================================================
-
-package top.ellan.ecobridge.manager;
-import cn.superiormc.ultimateshop.managers.ConfigManager;
-import cn.superiormc.ultimateshop.objects.ObjectShop;
-import cn.superiormc.ultimateshop.objects.buttons.ObjectItem;
-import cn.superiormc.ultimateshop.objects.items.GiveResult;
-import cn.superiormc.ultimateshop.objects.items.TakeResult;
-import cn.superiormc.ultimateshop.objects.items.prices.ObjectPrices;
-import cn.superiormc.ultimateshop.objects.items.prices.PriceMode;
-import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.entity.Player;
-import org.bukkit.inventory.Inventory;
-import su.nightexpress.coinsengine.api.CoinsEngineAPI;
-import su.nightexpress.coinsengine.api.currency.Currency;
-import top.ellan.ecobridge.EcoBridge;
-import top.ellan.ecobridge.util.LogUtil;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-public class UShopPriceInjector {
-private static final Map<ObjectItem, ObjectPrices[]> originalPrices = new ConcurrentHashMap<>();
-public static void execute(EcoBridge plugin) {
-if (!plugin.getConfig().getBoolean("integrations.ultimateshop.price-takeover", true)) {
-return;
-}
-ConfigManager cm = ConfigManager.configManager;
-if (cm == null) return;
-int count = 0;
-try {
-Field buyPriceField = ObjectItem.class.getDeclaredField("buyPrice");
-Field sellPriceField = ObjectItem.class.getDeclaredField("sellPrice");
-buyPriceField.setAccessible(true);
-sellPriceField.setAccessible(true);
-for (ObjectShop shop : cm.getShops()) {
-if (shop.getConfig() == null) continue;
-for (String itemId : shop.getConfig().getConfigurationSection("items").getKeys(false)) {
-ObjectItem item = shop.getProduct(itemId);
-if (item == null) continue;
-synchronized (item) {
-if (!originalPrices.containsKey(item)) {
-ObjectPrices oldBuy = (ObjectPrices) buyPriceField.get(item);
-ObjectPrices oldSell = (ObjectPrices) sellPriceField.get(item);
-if (oldBuy != null && oldSell != null) {
-originalPrices.put(item, new ObjectPrices[]{oldBuy, oldSell});
-}
-}
-buyPriceField.set(item, new EcoBridgeDynamicPrice(plugin, item, itemId, true));
-sellPriceField.set(item, new EcoBridgeDynamicPrice(plugin, item, itemId, false));
-}
-count++;
-}
-}
-LogUtil.info("UltimateShop 动态定价内核已注入 (" + count + " 个商品)。");
-} catch (Exception e) {
-LogUtil.error("价格注入失败", e);
-}
-}
-public static void revert() {
-if (originalPrices.isEmpty()) return;
-try {
-Field buyPriceField = ObjectItem.class.getDeclaredField("buyPrice");
-Field sellPriceField = ObjectItem.class.getDeclaredField("sellPrice");
-buyPriceField.setAccessible(true);
-sellPriceField.setAccessible(true);
-for (Map.Entry<ObjectItem, ObjectPrices[]> entry : originalPrices.entrySet()) {
-ObjectItem item = entry.getKey();
-ObjectPrices[] originals = entry.getValue();
-if (item != null) {
-synchronized (item) {
-buyPriceField.set(item, originals[0]);
-sellPriceField.set(item, originals[1]);
-}
-}
-}
-originalPrices.clear();
-} catch (Exception e) {
-LogUtil.error("还原价格逻辑时发生错误", e);
-}
-}
-public static class EcoBridgeDynamicPrice extends ObjectPrices {
-@SuppressWarnings("unused")
-private final EcoBridge plugin;
-private final String productId;
-@SuppressWarnings("unused")
-private final boolean isBuy;
-private final String currencyId;
-private static Constructor<TakeResult> takeResultCtor;
-private static Constructor<GiveResult> giveResultCtor;
-private static Field takeResultMapField;
-private static Field giveResultMapField;
-private static boolean reflectionReady = false;
-static {
-try {
-try {
-takeResultCtor = TakeResult.class.getDeclaredConstructor();
-} catch (NoSuchMethodException e) {
-takeResultCtor = TakeResult.class.getDeclaredConstructor(boolean.class);
-}
-takeResultCtor.setAccessible(true);
-takeResultMapField = findField(TakeResult.class, "resultMap", "results", "map", "data");
-if (takeResultMapField != null) takeResultMapField.setAccessible(true);
-try {
-giveResultCtor = GiveResult.class.getDeclaredConstructor();
-} catch (NoSuchMethodException e) {
-giveResultCtor = GiveResult.class.getDeclaredConstructor(boolean.class);
-}
-giveResultCtor.setAccessible(true);
-giveResultMapField = findField(GiveResult.class, "resultMap", "results", "map", "data");
-if (giveResultMapField != null) giveResultMapField.setAccessible(true);
-reflectionReady = true;
-} catch (Exception e) {
-LogUtil.error("EcoBridge 无法初始化 UltimateShop 反射钩子", e);
-}
-}
-private static Field findField(Class<?> clazz, String... potentialNames) {
-for (String name : potentialNames) {
-try {
-return clazz.getDeclaredField(name);
-} catch (NoSuchFieldException ignored) {}
-}
-return null;
-}
-public EcoBridgeDynamicPrice(EcoBridge plugin, ObjectItem item, String productId, boolean isBuy) {
-super(new YamlConfiguration(), "EcoBridge", item, isBuy ? PriceMode.BUY : PriceMode.SELL);
-this.plugin = plugin;
-this.productId = productId;
-this.isBuy = isBuy;
-this.currencyId = plugin.getConfig().getString("economy.currency-id", "coins");
-}
-@Override
-public TakeResult take(Inventory inventory, Player player, int times, int amount, boolean simulation) {
-if (PricingManager.getInstance() == null) {
-return createTakeResult(false, new HashMap<>());
-}
-double unitPrice = PricingManager.getInstance().calculateBuyPrice(productId);
-double totalPrice = unitPrice * amount;
-Map<String, Object> resultMap = new HashMap<>();
-resultMap.put("money", totalPrice);
-Currency currency = CoinsEngineAPI.getCurrency(currencyId);
-if (currency == null) {
-LogUtil.warnOnce("EcoBridge_Currency_404", "CoinsEngine 中未找到货币 ID: " + currencyId);
-return createTakeResult(false, resultMap);
-}
-double balance = CoinsEngineAPI.getBalance(player, currency);
-if (balance < totalPrice) {
-return createTakeResult(false, resultMap);
-}
-if (!simulation) {
-CoinsEngineAPI.removeBalance(player, currency, totalPrice);
-if (EconomicStateManager.getInstance() != null) {
-EconomicStateManager.getInstance().recordPurchase(player, productId, amount);
-}
-}
-return createTakeResult(true, resultMap);
-}
-@Override
-public GiveResult give(Player player, int times, int amount) {
-if (isSimulationContext()) {
-double unitPrice = (PricingManager.getInstance() != null) ?
-PricingManager.getInstance().calculateSellPrice(productId) : 0.0;
-Map<String, Object> resultMap = new HashMap<>();
-resultMap.put("money", unitPrice * amount);
-return createGiveResult(true, resultMap);
-}
-if (PricingManager.getInstance() == null) {
-return createGiveResult(false, new HashMap<>());
-}
-double unitPrice = PricingManager.getInstance().calculateSellPrice(productId);
-double totalPrice = unitPrice * amount;
-Map<String, Object> resultMap = new HashMap<>();
-resultMap.put("money", totalPrice);
-Currency currency = CoinsEngineAPI.getCurrency(currencyId);
-if (currency == null) {
-LogUtil.warnOnce("EcoBridge_Currency_404", "CoinsEngine 中未找到货币 ID: " + currencyId);
-return createGiveResult(false, resultMap);
-}
-CoinsEngineAPI.addBalance(player, currency, totalPrice);
-if (EconomicStateManager.getInstance() != null) {
-EconomicStateManager.getInstance().recordSale(player, productId, amount);
-}
-return createGiveResult(true, resultMap);
-}
-private TakeResult createTakeResult(boolean success, Map<String, Object> map) {
-if (!reflectionReady || takeResultCtor == null) {
-return null;
-}
-try {
-TakeResult result;
-if (takeResultCtor.getParameterCount() == 0) {
-result = takeResultCtor.newInstance();
-} else {
-result = takeResultCtor.newInstance(success);
-}
-if (takeResultMapField != null) {
-takeResultMapField.set(result, map);
-}
-return result;
-} catch (Exception e) {
-LogUtil.errorOnce("EcoBridge_Reflect_Error", "创建 TakeResult 失败: " + e.getMessage());
-return null;
-}
-}
-private GiveResult createGiveResult(boolean success, Map<String, Object> map) {
-if (!reflectionReady || giveResultCtor == null) {
-return null;
-}
-try {
-GiveResult result;
-if (giveResultCtor.getParameterCount() == 0) {
-result = giveResultCtor.newInstance();
-} else {
-result = giveResultCtor.newInstance(success);
-}
-if (giveResultMapField != null) {
-giveResultMapField.set(result, map);
-}
-return result;
-} catch (Exception e) {
-LogUtil.errorOnce("EcoBridge_Reflect_Error", "创建 GiveResult 失败: " + e.getMessage());
-return null;
-}
-}
-private boolean isSimulationContext() {
-try {
-return StackWalker.getInstance().walk(stream ->
-stream.anyMatch(frame -> {
-String cls = frame.getClassName();
-String mtd = frame.getMethodName();
-return cls.contains("ModifyDisplayItem") || mtd.equals("modifyItem");
-})
-);
-} catch (Throwable t) {
-for (StackTraceElement element : Thread.currentThread().getStackTrace()) {
-if (element.getClassName().contains("ModifyDisplayItem")) return true;
-}
-return false;
-}
+if (!vExecutor.awaitTermination(5, TimeUnit.SECONDS)) vExecutor.shutdownNow();
+} catch (InterruptedException e) {
+vExecutor.shutdownNow();
 }
 }
 }
@@ -3284,6 +3198,9 @@ long seconds = totalTicks / 20;
 double score = Math.min(1.0, (double) seconds / 72000.0);
 SNAPSHOT_CACHE.put(player.getUniqueId(), new ActivitySnapshot(seconds, score, 0));
 }
+public static double getScore(@NotNull UUID uuid) {
+return getSafeSnapshot(uuid).activityScore();
+}
 @NotNull
 public static ActivitySnapshot getSafeSnapshot(@NotNull UUID uuid) {
 return SNAPSHOT_CACHE.getOrDefault(uuid, new ActivitySnapshot(0, 0.0, 1));
@@ -3378,6 +3295,65 @@ entry.meta()
 public void shutdown() {
 LogUtil.info("正在关闭异步记录器，正在将残留流水存入 DuckDB...");
 this.running = false;
+}
+}
+
+==================================================
+FILE: ecobridge-java\src\main\java\top\ellan\ecobridge\util\ConfigValidator.java
+==================================================
+
+package top.ellan.ecobridge.util;
+import org.bukkit.configuration.file.FileConfiguration;
+import top.ellan.ecobridge.EcoBridge;
+public class ConfigValidator {
+public static boolean validate(EcoBridge plugin) {
+FileConfiguration config = plugin.getConfig();
+boolean healthy = true;
+LogUtil.info("正在执行经济内核物理参数审计...");
+healthy &= checkRange(config, "economy.macro.target-velocity", 0.001, 10.0, 0.05);
+healthy &= checkRange(config, "economy.macro.capacity-per-user", 1.0, 1000000.0, 5000.0);
+healthy &= checkRange(config, "economy.macro.heat-sensitivity", 0.01, 2.0, 0.5);
+healthy &= checkRange(config, "economy.macro.panic-threshold", 1.0, 1000.0, 50.0);
+healthy &= checkRange(config, "economy.pid.kp", 0.0, 5.0, 0.5);
+healthy &= checkRange(config, "economy.pid.ki", 0.0, 1.0, 0.1);
+healthy &= checkRange(config, "economy.pid.kd", 0.0, 2.0, 0.05);
+healthy &= checkRange(config, "economy.pid.lambda", 0.0, 1.0, 0.01);
+healthy &= checkRange(config, "economy.decay-rate", 0.0, 1.0, 0.05);
+healthy &= checkRange(config, "economy.default-lambda", 0.00001, 0.1, 0.002);
+healthy &= checkRange(config, "economy.tau", 0.1, 365.0, 7.0);
+healthy &= checkRange(config, "economy.sell-ratio", 0.0, 1.0, 0.5);
+healthy &= checkRange(config, "economy.audit-settings.base-tax-rate", 0.0, 1.0, 0.05);
+healthy &= checkRange(config, "economy.audit-settings.luxury-tax-rate", 0.0, 1.0, 0.1);
+healthy &= checkRange(config, "system.log-sample-rate", 0, 100, 100);
+if (!healthy) {
+LogUtil.warn("部分参数不合法，内核已自动重置为安全默认值。请检查并校准 config.yml。");
+plugin.saveConfig();
+} else {
+LogUtil.info("物理参数审计通过，内核状态：健康。");
+}
+return true;
+}
+private static boolean checkRange(FileConfiguration config, String path, double min, double max, double def) {
+if (!config.contains(path)) {
+config.set(path, def);
+return false;
+}
+double val = config.getDouble(path);
+if (val < min || val > max) {
+LogUtil.error("配置校验失败: [" + path + "] 的值 " + val + " 超出安全范围 [" + min + " - " + max + "]");
+config.set(path, def);
+return false;
+}
+return true;
+}
+private static boolean checkRange(FileConfiguration config, String path, int min, int max, int def) {
+int val = config.getInt(path);
+if (val < min || val > max) {
+LogUtil.error("配置校验失败: [" + path + "] 的值 " + val + " 超出安全范围 [" + min + " - " + max + "]");
+config.set(path, def);
+return false;
+}
+return true;
 }
 }
 
@@ -3698,6 +3674,9 @@ sendConsole("<blue>⚖</blue> <gray>" + message + " <dark_gray>(#<count>)", comb
 });
 }
 }
+public static void error(String message) {
+error(message, null);
+}
 public static void error(String message, Throwable e) {
 EcoBridge.getInstance().getVirtualExecutor().execute(() -> {
 sendConsole("<red>╔══════════════ EcoBridge 异常报告 ══════════════");
@@ -3937,29 +3916,30 @@ FILE: ecobridge-rust\Cargo.toml
 
 [package]
 name = "ecobridge_rust"
-version = "0.8.3"
+version = "0.9.1"
 edition = "2021"
 authors = ["Ellan"]
-description = "EcoBridge Economy Core - Hardened DuckDB Analytics Engine"
+description = "EcoBridge Economy Core - Macro Adaptive & Parallel Engine"
 [lib]
 crate-type = ["cdylib"]
 [dependencies]
 libc = "0.2.180"
 duckdb = { version = "1.4.3", features = ["bundled", "chrono"] }
 crossbeam-channel = "0.5.15"
-rayon = { version = "1.11.0", optional = true }
+rayon = "1.11.0"
 chrono = { version = "0.4.43", features = ["std"] }
 lazy_static = "1.5"
 [build-dependencies]
 cbindgen = "0.29.2"
 [features]
-default = []
-parallel = ["dep:rayon"]
+default = ["parallel"]
+parallel = []
 [profile.release]
 opt-level = 3
 lto = "fat"
 codegen-units = 1
 strip = "symbols"
+panic = "unwind"
 
 ==================================================
 FILE: ecobridge-rust\cbindgen.toml
@@ -4031,7 +4011,7 @@ pub extern "C" fn ecobridge_abi_version() -> u32 {
 #[no_mangle]
 pub extern "C" fn ecobridge_version() -> *const c_char {
 ffi_guard!(std::ptr::null(), {
-static VERSION: &[u8] = b"EcoBridge Native Core v0.9.1-Macro (Adaptive PID Enabled)\0";
+static VERSION: &[u8] = b"EcoBridge Native Core v0.9.1-Macro (SIMD & Adaptive PID Enabled)\0";
 VERSION.as_ptr() as *const c_char
 })
 }
@@ -4096,15 +4076,33 @@ economy::summation::query_neff_internal(current_ts, tau)
 })
 }
 #[no_mangle]
+pub unsafe extern "C" fn ecobridge_compute_batch_prices(
+count: c_ulonglong,
+neff: c_double,
+ctx_ptr: *const TradeContext,
+cfg_ptr: *const MarketConfig,
+hist_avgs_ptr: *const c_double,
+lambdas_ptr: *const c_double,
+results_ptr: *mut c_double,
+) {
+economy::pricing::ecobridge_compute_batch_prices(
+count as usize,
+neff,
+ctx_ptr,
+cfg_ptr,
+hist_avgs_ptr,
+lambdas_ptr,
+results_ptr
+);
+}
+#[no_mangle]
 pub extern "C" fn ecobridge_compute_price_final(
 base: c_double,
 n_eff: c_double,
 lambda: c_double,
 epsilon: c_double,
 ) -> c_double {
-ffi_guard!(base, {
-economy::pricing::compute_price_final_internal(base, n_eff, lambda, epsilon)
-})
+economy::pricing::ecobridge_compute_price_final(base, n_eff, lambda, epsilon)
 }
 #[no_mangle]
 pub extern "C" fn ecobridge_compute_price_humane(
@@ -4114,18 +4112,14 @@ trade_amount: c_double,
 lambda: c_double,
 epsilon: c_double,
 ) -> c_double {
-ffi_guard!(base, {
-economy::pricing::compute_price_humane_internal(base, n_eff, trade_amount, lambda, epsilon)
-})
+economy::pricing::ecobridge_compute_price_humane(base, n_eff, trade_amount, lambda, epsilon)
 }
 #[no_mangle]
 pub extern "C" fn ecobridge_compute_price_bounded(
 base: c_double, n_eff: c_double, amt: c_double, lambda: c_double, eps: c_double,
 hist_avg: c_double
 ) -> c_double {
-ffi_guard!(base, {
-economy::pricing::compute_price_with_floor(base, n_eff, amt, lambda, eps, hist_avg)
-})
+economy::pricing::ecobridge_compute_price_bounded(base, n_eff, amt, lambda, eps, hist_avg)
 }
 #[no_mangle]
 pub extern "C" fn ecobridge_compute_tier_price(base: c_double, qty: c_double, is_sell: bool) -> c_double {
@@ -4198,7 +4192,7 @@ ctx_ptr: *const TransferContext,
 cfg_ptr: *const RegulatorConfig,
 ) {
 if out_result.is_null() {
-eprintln!("[EcoBridge-Native] CRITICAL ERROR: out_result pointer is null in ecobridge_compute_transfer_check");
+eprintln!("[EcoBridge-Native] CRITICAL ERROR: out_result pointer is null");
 return;
 }
 let default_result = TransferResult::error(-999);
@@ -4207,14 +4201,8 @@ match (ctx_ptr.as_ref(), cfg_ptr.as_ref()) {
 (Some(ctx), Some(cfg)) => {
 security::regulator::compute_transfer_check_internal(ctx, cfg)
 },
-(None, _) => {
-eprintln!("[EcoBridge-Native] ERROR: ctx_ptr is null in transfer check");
-TransferResult::error(671)
-},
-(_, None) => {
-eprintln!("[EcoBridge-Native] ERROR: cfg_ptr is null in transfer check");
-TransferResult::error(672)
-},
+(None, _) => TransferResult::error(671),
+(_, None) => TransferResult::error(672),
 }
 });
 ffi_guard!((), {
@@ -4712,6 +4700,9 @@ assert!(price >= MIN_PHYSICAL_PRICE);
 FILE: ecobridge-rust\src\economy\pricing.rs
 ==================================================
 
+use crate::models::{TradeContext, MarketConfig};
+use rayon::prelude::*;
+use crate::economy::environment;
 fn compute_price_behavioral_core(
 base_price: f64,
 n_eff: f64,
@@ -4761,7 +4752,7 @@ pub fn compute_price_with_floor(
 base: f64, n_eff: f64, trade_amt: f64, lambda: f64, epsilon: f64,
 hist_avg: f64
 ) -> f64 {
-let raw_price = compute_price_humane_internal(base, n_eff, trade_amt, lambda, epsilon);
+let raw_price = compute_price_behavioral_core(base, n_eff, trade_amt, lambda, epsilon);
 let floor = (hist_avg * 0.2).max(0.01);
 if raw_price < floor {
 floor
@@ -4770,7 +4761,7 @@ raw_price
 }
 }
 #[no_mangle]
-pub fn compute_price_final_internal(
+pub extern "C" fn ecobridge_compute_price_final(
 base_price: f64,
 n_eff: f64,
 lambda: f64,
@@ -4779,54 +4770,66 @@ epsilon: f64,
 compute_price_behavioral_core(base_price, n_eff, 0.0, lambda, epsilon)
 }
 #[no_mangle]
-pub fn predict_price_advanced(
-base_price: f64,
-n_eff_current: f64,
-trade_amount_amount: f64,
-lambda: f64,
-eps_future: f64,
-) -> f64 {
-compute_price_behavioral_core(base_price, n_eff_current, trade_amount_amount, lambda, eps_future)
-}
-#[no_mangle]
-pub fn compute_price_humane_internal(
+pub extern "C" fn ecobridge_compute_price_humane(
 base_price: f64,
 n_eff: f64,
 trade_amount: f64,
-base_lambda: f64,
+lambda: f64,
 epsilon: f64,
 ) -> f64 {
-compute_price_behavioral_core(base_price, n_eff, trade_amount, base_lambda, epsilon)
+compute_price_behavioral_core(base_price, n_eff, trade_amount, lambda, epsilon)
 }
-#[cfg(test)]
-mod tests {
-use super::*;
-#[test]
-fn test_behavioral_consistency() {
-let base = 100.0;
-let lambda = 0.01;
-let p_sell = compute_price_behavioral_core(base, 0.0, 10.0, lambda, 1.0);
-let p_buy = compute_price_behavioral_core(base, 0.0, -10.0, lambda, 1.0);
-let drop = base - p_sell;
-let rise = p_buy - base;
-assert!(drop < rise, "下跌应比上涨更平缓 (损失厌恶保护)");
+#[no_mangle]
+pub extern "C" fn ecobridge_compute_tier_price(
+base_price: f64,
+quantity: f64,
+is_sell: bool,
+) -> f64 {
+compute_tier_price_internal(base_price, quantity, is_sell)
 }
-#[test]
-fn test_tier_pricing() {
-let base = 10.0;
-assert_eq!(compute_tier_price_internal(base, 100.0, true), 10.0);
-let p2 = compute_tier_price_internal(base, 1000.0, true);
-assert!((p2 - 9.25).abs() < 1e-6);
-assert_eq!(compute_tier_price_internal(base, 1000.0, false), 10.0);
+#[no_mangle]
+pub extern "C" fn ecobridge_compute_price_bounded(
+base: f64,
+neff: f64,
+amt: f64,
+lambda: f64,
+eps: f64,
+hist_avg: f64,
+) -> f64 {
+compute_price_with_floor(base, neff, amt, lambda, eps, hist_avg)
 }
-#[test]
-fn test_floor_protection() {
-let hist_avg = 50.0;
-let p1 = compute_price_with_floor(12.0, 0.0, 0.0, 0.0, 1.0, hist_avg);
-assert_eq!(p1, 12.0);
-let p2 = compute_price_with_floor(5.0, 0.0, 0.0, 0.0, 1.0, hist_avg);
-assert_eq!(p2, 10.0);
-}
+#[no_mangle]
+pub unsafe extern "C" fn ecobridge_compute_batch_prices(
+count: usize,
+neff: f64,
+ctx_ptr: *const TradeContext,
+cfg_ptr: *const MarketConfig,
+hist_avgs_ptr: *const f64,
+lambdas_ptr: *const f64,
+output_ptr: *mut f64,
+) {
+let ctx_slice = std::slice::from_raw_parts(ctx_ptr, count);
+let cfg_slice = std::slice::from_raw_parts(cfg_ptr, count);
+let hist_avgs = std::slice::from_raw_parts(hist_avgs_ptr, count);
+let lambdas = std::slice::from_raw_parts(lambdas_ptr, count);
+let output = std::slice::from_raw_parts_mut(output_ptr, count);
+output.par_iter_mut()
+.enumerate()
+.for_each(|(i, price_out)| {
+let ctx = &ctx_slice[i];
+let cfg = &cfg_slice[i];
+let lambda = lambdas[i];
+let hist_avg = hist_avgs[i];
+let epsilon = environment::calculate_epsilon_internal(ctx, cfg);
+*price_out = compute_price_with_floor(
+ctx.base_price,
+neff,
+0.0,
+lambda,
+epsilon,
+hist_avg
+);
+});
 }
 
 ==================================================

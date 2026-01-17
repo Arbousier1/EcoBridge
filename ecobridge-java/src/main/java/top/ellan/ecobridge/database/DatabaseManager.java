@@ -14,12 +14,11 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * 数据库基础设施管理器
- * <p>
- * 职责：
+ * * 职责：
  * 1. 维护 HikariCP 连接池
- * 2. 管理 SQL 任务的虚拟线程池 (Project Loom)
+ * 2. 管理 SQL 任务的平台线程池 (物理隔离以规避虚拟线程 Pinning 风险)
  * 3. 执行建表 DDL
- * 4. 处理数据库资源的初始化与释放
+ * 4. 处理资源的生命周期管理
  */
 public class DatabaseManager {
 
@@ -27,10 +26,10 @@ public class DatabaseManager {
     private static ExecutorService dbExecutor;
 
     /**
-     * 初始化数据库连接池与线程资源
+     * 初始化数据库连接池与专用 IO 线程资源
      */
     public static synchronized void init() {
-        // 如果已存在实例，先关闭以避免资源泄漏（支持重载）
+        // 如果已存在实例，先释放资源以支持热重载
         if (dataSource != null || dbExecutor != null) {
             close();
         }
@@ -38,10 +37,18 @@ public class DatabaseManager {
         var plugin = EcoBridge.getInstance();
         var config = plugin.getConfig();
 
-        // 1. 初始化虚拟线程执行器 (适配 Java 21+ / Java 25)
-        dbExecutor = Executors.newVirtualThreadPerTaskExecutor();
+        // --- 核心修复：线程隔离策略 ---
+        // 为了防止 JDBC 驱动在执行 SQL 时因为内部 synchronized 块锁定虚拟线程的载体线程 (Carrier Thread)，
+        // 我们显式使用平台线程池 (FixedThreadPool) 来隔离数据库 IO。
+        int poolSize = config.getInt("database.pool-size", 15);
+        dbExecutor = Executors.newFixedThreadPool(
+            poolSize,
+            Thread.ofPlatform()
+                  .name("ecobridge-db-worker-", 0)
+                  .factory()
+        );
 
-        // 2. 配置 HikariCP
+        // --- 配置 HikariCP 连接池 ---
         HikariConfig hikari = new HikariConfig();
 
         String host = config.getString("database.host", "localhost");
@@ -50,7 +57,7 @@ public class DatabaseManager {
         String user = config.getString("database.username", "root");
         String pass = config.getString("database.password", "");
 
-        // 优化 URL 参数：禁用 SSL，统一 UTC 时区，开启批处理重写，允许公钥检索
+        // 预设优化参数：开启批处理重写、统一时区并禁用不必要的 SSL 握手
         String jdbcUrl = String.format(
             "jdbc:mysql://%s:%d/%s?useSSL=false&serverTimezone=UTC&rewriteBatchedStatements=true&allowPublicKeyRetrieval=true",
             host, port, dbName
@@ -60,26 +67,26 @@ public class DatabaseManager {
         hikari.setUsername(user);
         hikari.setPassword(pass);
 
-        // 连接池调优参数
-        hikari.setMaximumPoolSize(config.getInt("database.pool-size", 15));
-        hikari.setConnectionTimeout(5000); // 5秒连接超时
-        hikari.setIdleTimeout(600000);     // 10分钟空闲断开
-        hikari.setMaxLifetime(1800000);    // 30分钟最大生命周期
+        // 池深度与 dbExecutor 保持 1:1 映射，确保吞吐量对齐
+        hikari.setMaximumPoolSize(poolSize);
+        hikari.setConnectionTimeout(5000); 
+        hikari.setIdleTimeout(600000);     
+        hikari.setMaxLifetime(1800000);    
 
         try {
             dataSource = new HikariDataSource(hikari);
             createTables();
-            LogUtil.info("<green>SQL 数据源已就绪 (HikariCP + VirtualThreads)。");
+            LogUtil.info("<green>SQL 数据源已就绪 (HikariCP + 隔离型平台线程池)。");
         } catch (Exception e) {
-            LogUtil.error("数据库初始化失败！请检查配置。", e);
+            LogUtil.error("数据库初始化失败！请检查配置及 MySQL 服务状态。", e);
         }
     }
 
     /**
-     * 获取数据库连接
+     * 从连接池获取活跃连接
      *
-     * @return 活跃的 SQL 连接
-     * @throws SQLException 如果连接池未初始化或已耗尽
+     * @return Connection 实例
+     * @throws SQLException 连接失败或池耗尽
      */
     public static Connection getConnection() throws SQLException {
         if (dataSource == null) {
@@ -89,30 +96,30 @@ public class DatabaseManager {
     }
 
     /**
-     * 获取用于异步 IO 的虚拟线程执行器
+     * 获取专用于数据库 IO 的执行器
+     * 注意：不要在此执行器中运行计算密集型任务
      */
     public static ExecutorService getExecutor() {
         return dbExecutor;
     }
 
     /**
-     * 检查连接池是否可用
+     * 检查当前数据库连接状态
      */
     public static boolean isConnected() {
         return dataSource != null && !dataSource.isClosed();
     }
 
     /**
-     * 释放所有数据库资源 (关服/重载时调用)
+     * 安全释放数据库资源 (关服或重载时调用)
      */
     public static synchronized void close() {
-        LogUtil.info("正在释放 SQL 资源...");
+        LogUtil.info("正在安全释放 SQL 资源...");
         
-        // 1. 关闭线程池
+        // 1. 关闭异步执行器
         if (dbExecutor != null) {
             dbExecutor.shutdown();
             try {
-                // 等待 5 秒让任务完成
                 if (!dbExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
                     dbExecutor.shutdownNow();
                 }
@@ -123,7 +130,7 @@ public class DatabaseManager {
             dbExecutor = null;
         }
 
-        // 2. 关闭连接池
+        // 2. 关闭数据源
         if (dataSource != null) {
             if (!dataSource.isClosed()) {
                 dataSource.close();
@@ -133,12 +140,12 @@ public class DatabaseManager {
     }
 
     /**
-     * 自动创建所需的表结构
+     * 执行初始化 DDL 语句
      */
     private static void createTables() {
         if (dataSource == null) return;
 
-        // 交易流水表
+        // 交易历史表：使用 InnoDB 引擎，支持大规模流水索引
         String sqlSales = """
             CREATE TABLE IF NOT EXISTS ecobridge_sales (
                 id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -150,7 +157,7 @@ public class DatabaseManager {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
             """;
 
-        // 玩家资产表 (含 version 乐观锁字段)
+        // 玩家数据表：核心资产表，使用乐观锁 version 字段保障并发安全
         String sqlPlayers = """
             CREATE TABLE IF NOT EXISTS ecobridge_players (
                 uuid CHAR(36) PRIMARY KEY,
@@ -164,7 +171,7 @@ public class DatabaseManager {
             stmt.execute(sqlSales);
             stmt.execute(sqlPlayers);
         } catch (SQLException e) {
-            LogUtil.error("DDL 执行失败，请检查数据库权限或表结构。", e);
+            LogUtil.error("DDL 初始化失败，请检查数据库权限。", e);
         }
     }
 }

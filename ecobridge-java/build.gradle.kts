@@ -14,8 +14,9 @@ buildscript {
 
 plugins {
     `java-library`
-    // 严格保留 Shadow 9.3.1
     id("com.gradleup.shadow") version "9.3.1"
+    // ✅ 建议 1：引入 idea 插件以支持生成的代码在 IDE 中高亮
+    idea
 }
 
 group = "top.ellan"
@@ -30,14 +31,12 @@ fun findJextract(): String {
     val os = org.gradle.internal.os.OperatingSystem.current()
     val binaryName = if (os.isWindows) "jextract.bat" else "jextract"
     
-    // 优先读取环境变量 (针对 GitHub Actions)
     val envHome = System.getenv("JEXTRACT_HOME")
     if (!envHome.isNullOrBlank()) {
         val path = file("$envHome/bin/$binaryName")
         if (path.exists()) return path.absolutePath
     }
 
-    // 其次读取 local.properties (针对本地开发)
     val localPropsFile = file("local.properties")
     if (localPropsFile.exists()) {
         val props = Properties()
@@ -49,7 +48,7 @@ fun findJextract(): String {
         }
     }
     
-    return binaryName // 降级为系统 PATH 中的 jextract
+    return binaryName 
 }
 
 val generateBindings = tasks.register<Exec>("generateBindings") {
@@ -76,6 +75,14 @@ val generateBindings = tasks.register<Exec>("generateBindings") {
     outputs.dir(generatedSourceDir)
 }
 
+// ✅ 建议 1 的落地：让 IntelliJ 明确知道这是源码目录
+idea {
+    module {
+        // 将 jextract 生成的目录标记为生成的源码根目录
+        generatedSourceDirs.add(generatedSourceDir.get().asFile)
+    }
+}
+
 // --- [Java 环境与工具链] ---
 java {
     toolchain { 
@@ -85,19 +92,24 @@ java {
 
 sourceSets {
     main {
-        // ✅ 核心修复：注册 jextract 输出。这不仅解决了包名不存在问题，
-        // 还会自动让 compileJava 任务依赖于 generateBindings。
+        // 注册生成任务作为源码来源
         java.srcDir(generateBindings)
     }
 }
 
+// --- [仓库配置] ---
 repositories {
     mavenCentral()
-    // 🔥 关键：Jackson 3.0 / 2.20 目前主要通过 Sonatype 仓库分发
+    
+    // ✅ 建议 2：仓库按类型分组，并对 Snapshot 保持警惕
+    // 核心库与预发布库
     maven("https://central.sonatype.com/repository/maven-snapshots/")
     maven("https://oss.sonatype.org/content/repositories/releases/")
-    maven("https://oss.sonatype.org/content/repositories/snapshots/")
     
+    // 只有在开发阶段才开启 Sonatype Snapshots，生产环境建议注释掉
+    // maven("https://oss.sonatype.org/content/repositories/snapshots/")
+
+    // 三方插件与 API
     maven("https://jitpack.io")
     maven("https://repo.papermc.io/repository/maven-public/")
     maven("https://repo.nightexpressdev.com/releases")
@@ -107,22 +119,21 @@ repositories {
 }
 
 dependencies {
-    // 严格保留：Paper API
-    compileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
+    // Paper API
+    compileOnly("io.papermc.paper:paper-api:1.21.1-R0.1-SNAPSHOT")
     compileOnly("me.clip:placeholderapi:2.11.6")
     compileOnly("su.nightexpress.nightcore:main:2.13.0")
     compileOnly("su.nightexpress.coinsengine:CoinsEngine:2.6.0")
     compileOnly("cn.superiormc.ultimateshop:plugin:4.2.3")
     compileOnly(fileTree(mapOf("dir" to "libs", "include" to listOf("**/*.jar"))))
 
-    // 🔥 Jackson 3.0 全家桶配置 (严格遵循迁移指南)
+    // Jackson 3.0 BOM (严格遵循迁移指南)
     implementation(platform("tools.jackson:jackson-bom:3.0.0"))
     implementation("tools.jackson.core:jackson-databind")
     implementation("tools.jackson.core:jackson-core")
-    // 注解保持旧坐标，BOM 会自动解析到匹配的 2.20 系列
-    implementation("com.fasterxml.jackson.core:jackson-annotations")
+    implementation("com.fasterxml.jackson.core:jackson-annotations") // 自动映射到 2.20
 
-    // 🔥 2026 最新稳定版数据库/缓存库
+    // 数据库与缓存
     implementation("org.mariadb.jdbc:mariadb-java-client:3.5.7")
     implementation("com.zaxxer:HikariCP:7.0.2")
     implementation("com.github.ben-manes.caffeine:caffeine:3.2.3")
@@ -136,7 +147,6 @@ dependencies {
 }
 
 tasks.withType<JavaCompile> {
-    // 再次显式依赖，确保并行构建时的安全性
     dependsOn(generateBindings)
     
     options.encoding = "UTF-8"
@@ -152,7 +162,7 @@ tasks.named<ShadowJar>("shadowJar") {
     archiveClassifier.set("")
     val prefix = "top.ellan.ecobridge.libs"
     
-    // ✅ 必须重定向依赖，否则会导致插件冲突
+    // 重定向以避免与其他插件版本冲突
     relocate("tools.jackson", "$prefix.jackson")
     relocate("com.fasterxml.jackson.annotation", "$prefix.jackson.annotations")
     relocate("com.zaxxer.hikari", "$prefix.hikari")
@@ -160,13 +170,17 @@ tasks.named<ShadowJar>("shadowJar") {
     relocate("com.github.benmanes.caffeine", "$prefix.caffeine")
     relocate("redis.clients", "$prefix.jedis")
     
-    // 打包资源文件，包括 native 库
     from("src/main/resources") {
         include("*.dll", "*.so", "*.dylib", "natives/**")
     }
     
-    // 合并服务发现文件（对 JDBC 和 Jackson 很重要）
+    // 合并服务发现文件
     mergeServiceFiles()
+    
+    // 最小化打包，减少体积
+    minimize {
+        exclude(dependency("org.mariadb.jdbc:.*")) // JDBC 驱动通常不能被 minimize
+    }
 }
 
 tasks.withType<ProcessResources> {

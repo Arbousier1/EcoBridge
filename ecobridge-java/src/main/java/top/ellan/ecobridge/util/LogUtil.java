@@ -11,17 +11,17 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * 工业级日志工具类 (LogUtil v0.8.9 - Fixed)
+ * 工业级日志工具类 (LogUtil v0.9.0 - Hardened)
  * <p>
  * 更新日志:
- * 1. 新增 warnOnce/errorOnce 频率限制日志，防止控制台刷屏。
+ * 1. 修复编译错误：添加 error(String) 重载方法。
+ * 2. 优化：统一错误日志的视觉风格。
  */
 public final class LogUtil {
 
     private static final MiniMessage MM = MiniMessage.miniMessage();
     private static final AtomicLong TRANSACTION_COUNTER = new AtomicLong(0);
     
-    // [New] 日志去重缓存 (Key: LogID, Value: LastTimeMillis)
     private static final Map<String, Long> RATE_LIMIT_CACHE = new ConcurrentHashMap<>();
     private static final long LOG_COOLDOWN_MS = 5 * 60 * 1000; // 5分钟冷却
 
@@ -34,7 +34,7 @@ public final class LogUtil {
         var config = EcoBridge.getInstance().getConfig();
         debugEnabled = config.getBoolean("system.debug", false);
         sampleRate = Math.max(1, config.getInt("system.log-sample-rate", 100));
-        RATE_LIMIT_CACHE.clear(); // 重载时清空缓存
+        RATE_LIMIT_CACHE.clear(); 
 
         if (debugEnabled) {
             info("<gradient:aqua:blue>系统调试模式已激活</gradient> <dark_gray>| <gray>采样率: <white>1/<rate>",
@@ -60,20 +60,12 @@ public final class LogUtil {
         sendConsole("<yellow>⚠</yellow> <white>" + message);
     }
 
-    /**
-     * [New] 频率限制警告日志 (每 5 分钟最多显示一次)
-     * @param key 唯一标识符 (例如 "EcoBridge_Currency_404")
-     * @param message 日志内容
-     */
     public static void warnOnce(String key, String message) {
         if (shouldLog(key)) {
             sendConsole("<yellow>⚠</yellow> <white>" + message + " <dark_gray>(已折叠同类警告)</dark_gray>");
         }
     }
 
-    /**
-     * [New] 频率限制错误日志
-     */
     public static void errorOnce(String key, String message) {
         if (shouldLog(key)) {
             sendConsole("<red>✘</red> <white>" + message + " <dark_gray>(已折叠同类错误)</dark_gray>");
@@ -109,7 +101,19 @@ public final class LogUtil {
         }
     }
 
+    /**
+     * [修复] 错误日志重载 - 仅描述信息
+     * 解决了 ConfigValidator 中的编译冲突
+     */
+    public static void error(String message) {
+        error(message, null);
+    }
+
+    /**
+     * 错误日志重载 - 描述信息 + 异常堆栈
+     */
     public static void error(String message, Throwable e) {
+        // 使用虚拟线程执行以防止阻塞主线程（堆栈追踪可能耗时）
         EcoBridge.getInstance().getVirtualExecutor().execute(() -> {
             sendConsole("<red>╔══════════════ EcoBridge 异常报告 ══════════════");
             sendConsole("<red>║ <white>描述: <msg>", Placeholder.unparsed("msg", message));
@@ -118,6 +122,8 @@ public final class LogUtil {
                 sendConsole("<red>║ <white>类型: <yellow><type>", Placeholder.unparsed("type", e.getClass().getSimpleName()));
                 sendConsole("<red>║ <white>原因: <gray><reason>", Placeholder.unparsed("reason", String.valueOf(e.getMessage())));
                 sendConsole("<red>╚════════════════════════════════════════════════");
+                
+                // 仅在控制台输出详细堆栈，MiniMessage 不适合渲染长堆栈
                 EcoBridge.getInstance().getLogger().severe("--- 详细堆栈追踪 ---");
                 e.printStackTrace();
             } else {
