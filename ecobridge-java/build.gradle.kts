@@ -77,13 +77,9 @@ java {
 
 sourceSets {
     main {
-<<<<<<< HEAD
         java {
             srcDir(generatedSourceDir)
         }
-=======
-        java.srcDir(generateBindings)
->>>>>>> d554161687b513db1f403b56ca32b929c00068e2
     }
 }
 
@@ -116,17 +112,10 @@ dependencies {
     implementation("com.github.ben-manes.caffeine:caffeine:3.2.3")
     implementation("redis.clients:jedis:5.2.0")
     
-<<<<<<< HEAD
     // 🔥 Jackson 3.0.3 (完整迁移至 tools.jackson 命名空间)
     implementation("tools.jackson.core:jackson-databind:3.0.3")
     implementation("tools.jackson.core:jackson-core:3.0.3")
     implementation("tools.jackson.core:jackson-annotations:3.0.3")
-=======
-    // 🔥 Jackson 2.20.1 (严格遵照您的指令)
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.20.1")
-    implementation("com.fasterxml.jackson.core:jackson-core:2.20.1")
-    implementation("com.fasterxml.jackson.core:jackson-annotations:2.20.1")
->>>>>>> d554161687b513db1f403b56ca32b929c00068e2
     
     // Gson
     compileOnly("com.google.code.gson:gson:2.13.2")
@@ -155,15 +144,11 @@ tasks.named<ShadowJar>("shadowJar") {
     relocate("org.mariadb.jdbc", "$prefix.mariadb")
     relocate("com.github.benmanes.caffeine", "$prefix.caffeine")
     relocate("redis.clients", "$prefix.jedis")
-<<<<<<< HEAD
     relocate("tools.jackson", "$prefix.jackson")
     relocate("tools.jackson.databind", "$prefix.jackson.databind")
     relocate("tools.jackson.core", "$prefix.jackson.core")
     relocate("tools.jackson.annotation", "$prefix.jackson.annotation")
     relocate("com.fasterxml.jackson", "$prefix.fasterxml_jackson") // 保留兼容性
-=======
-    relocate("com.fasterxml.jackson", "$prefix.jackson")
->>>>>>> d554161687b513db1f403b56ca32b929c00068e2
     
     from("src/main/resources") {
         include("*.dll", "*.so", "*.dylib", "natives/**")
@@ -175,8 +160,4 @@ tasks.withType<ProcessResources> {
     val props = mapOf("version" to project.version)
     inputs.properties(props)
     filesMatching("plugin.yml") { expand(props) }
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> d554161687b513db1f403b56ca32b929c00068e2
