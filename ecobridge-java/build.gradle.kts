@@ -6,10 +6,8 @@ on:
   workflow_dispatch:
 
 env:
-  # 🔥 关键修复：在 CI 中禁用增量编译，这是解决 Windows 缓存失效的第一步
+  # 全局禁用增量编译，这对所有 OS 的 CI 缓存稳定性都有好处
   CARGO_INCREMENTAL: 0
-  # 强制 Cargo 使用更快的链接器（可选，但在 Windows 上有助于加速）
-  RUSTFLAGS: "-C link-arg=/DEBUG:NONE" 
 
 jobs:
   build-rust:
@@ -20,10 +18,14 @@ jobs:
         include:
           - os: ubuntu-latest
             artifact_name: libecobridge_rust.so
+            rust_flags: "" # Linux 不需要额外链接参数
           - os: windows-latest
             artifact_name: ecobridge_rust.dll
+            # 🔥 仅为 Windows 分配 MSVC 专用优化参数
+            rust_flags: "-C link-arg=/DEBUG:NONE"
           - os: macos-latest
             artifact_name: libecobridge_rust.dylib
+            rust_flags: "" # macOS 不需要
 
     steps:
       - uses: actions/checkout@v4
@@ -34,23 +36,24 @@ jobs:
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
         with:
-          # 🔥 关键修复：显式指定工作区路径，并添加 OS 前缀防止 Key 冲突
           workspaces: "ecobridge-rust"
-          prefix-key: "v1-rust-${{ matrix.os }}"
+          # 提升前缀版本以清理旧的、错误的缓存数据
+          prefix-key: "v2-rust-${{ matrix.os }}"
 
       - name: Build Rust Library (Release)
-        # 强制使用 bash，防止 Windows 默认的 pwsh 处理路径出错
         shell: bash
         run: |
           cd ecobridge-rust
+          # 动态注入当前 OS 对应的参数
+          export RUSTFLAGS="${{ matrix.rust_flags }}"
           cargo build --release
 
       - name: Prepare Artifact
         shell: bash
         run: |
           mkdir -p dist
+          # 必须带上头文件，否则 Java 端的 jextract 没法生成代码
           cp ecobridge-rust/ecobridge_rust.h dist/
-          # Windows 的产物通常没有 'lib' 前缀，通过逻辑统一处理
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
             cp ecobridge-rust/target/release/ecobridge_rust.dll dist/
           else
@@ -89,13 +92,17 @@ jobs:
 
       - name: Sync Assets to Java Environment
         run: |
+          # 1. 移动二进制库到 resources
           mkdir -p ecobridge-java/src/main/resources/
           cp temp-assets/*.dll temp-assets/*.so temp-assets/*.dylib ecobridge-java/src/main/resources/
+          
+          # 2. 恢复头文件，供 jextract 扫描
           mkdir -p ecobridge-rust/
           cp temp-assets/ecobridge_rust.h ecobridge-rust/
 
       - name: Setup jextract
         run: |
+          # 下载适用于 Linux 的 jextract
           wget https://download.java.net/java/early_access/jextract/22/3/openjdk-22-jextract+3-13_linux-x64_bin.tar.gz
           tar -xzf openjdk-22-jextract+3-13_linux-x64_bin.tar.gz
           echo "$(pwd)/jextract-22/bin" >> $GITHUB_PATH
@@ -105,7 +112,7 @@ jobs:
         run: |
           cd ecobridge-java
           chmod +x gradlew
-          # 之前修复的 generateBindings 逻辑会自动运行
+          # 这里会自动运行之前修复的 generateBindings 任务
           ./gradlew shadowJar
         env:
           ORG_GRADLE_PROJECT_version: ${{ github.ref_name }}
