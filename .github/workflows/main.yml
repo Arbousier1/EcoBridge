@@ -1,211 +1,99 @@
-这一次的报错信息非常清晰，主要暴露了两个核心问题：
- * 缺少第三方库依赖：你的代码中使用了 Jackson (ObjectMapper) 和 PlaceholderAPI (PlaceholderExpansion)，但 build.gradle.kts 中完全没有添加它们的依赖，导致了 20 多个 package does not exist 错误。
- * 生成任务未执行或路径错误：top.ellan.ecobridge.gen 包不存在，说明 generateBindings 任务要么没跑，要么生成的路径没被 Java 编译器识别。
-这里是修复后的完整 build.gradle.kts。
-🛠️ 关键修复点 (Changelog)
- * [新增] 仓库地址：添加了 repo.extendedclip.com 以支持下载 PlaceholderAPI。
- * [新增] 核心依赖：
-   * 添加 jackson-databind (解决 ObjectMapper 找不到的问题)。
-   * 添加 placeholderapi (解决 EcoPlaceholderExpansion 报错)。
- * [强化] 构建顺序：在 compileJava 中显式添加 dependsOn(generateBindings)，并强制将生成的源码目录注册到 sourceSets，确保编译器能找到 jextract 生成的代码。
-✅ 完整替换 ecobridge-java/build.gradle.kts
-请直接复制以下代码覆盖原文件：
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-import java.util.Properties
+name: EcoBridge Core Sync & Build
 
-buildscript {
-    repositories {
-        mavenCentral()
-        gradlePluginPortal()
-    }
-    dependencies {
-        // 针对 Java 25 优化的 ASM 字节码处理工具
-        classpath("org.ow2.asm:asm-commons:9.9.1")
-    }
-}
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
 
-plugins {
-    `java-library`
-    // 2026年 1月最新稳定版 Shadow 插件
-    id("com.gradleup.shadow") version "8.3.6"
-}
+jobs:
+  build-rust:
+    name: Build Rust Core on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact_name: libecobridge_rust.so
+            asset_name: libecobridge_rust.so
+          - os: windows-latest
+            artifact_name: ecobridge_rust.dll
+            asset_name: ecobridge_rust.dll
+          - os: macos-latest
+            artifact_name: libecobridge_rust.dylib
+            asset_name: libecobridge_rust.dylib
 
-group = "top.ellan"
-version = "1.0-SNAPSHOT"
+    steps:
+      - uses: actions/checkout@v4
 
-// --- [jextract 自动化配置逻辑] ---
-// 确保路径指向 artifact 下载后的位置
-val rustHeaderFile = file("${projectDir}/../ecobridge-rust/ecobridge_rust.h")
-val generatedSourceDir = layout.buildDirectory.dir("generated/sources/jextract")
-val targetPackage = "top.ellan.ecobridge.gen"
+      - name: Setup Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
 
-// 🔍 智能查找 jextract 启动脚本
-fun findJextract(): String {
-    val os = org.gradle.internal.os.OperatingSystem.current()
-    val binaryName = if (os.isWindows) "jextract.bat" else "jextract"
-    
-    // 1. 优先读取 local.properties
-    val localPropsFile = file("local.properties")
-    if (localPropsFile.exists()) {
-        val props = Properties()
-        localPropsFile.inputStream().use { props.load(it) }
-        val localHome = props.getProperty("jextract.home")
-        if (localHome != null) {
-            val possiblePaths = listOf(
-                file("$localHome/bin/$binaryName"),
-                file("$localHome/$binaryName")
-            )
-            for (path in possiblePaths) {
-                if (path.exists()) {
-                    println("✅ [Local] 找到 jextract 脚本: ${path.absolutePath}")
-                    return path.absolutePath
-                }
-            }
-        }
-    }
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "ecobridge-rust -> target"
 
-    // 2. 尝试环境变量
-    val envHome = System.getenv("JEXTRACT_HOME")
-    if (envHome != null) {
-        val path = file("$envHome/bin/$binaryName")
-        if (path.exists()) return path.absolutePath
-    }
+      - name: Build Rust Library (Release)
+        run: |
+          cd ecobridge-rust
+          cargo build --release
 
-    // 3. 尝试 JAVA_HOME
-    val javaHome = System.getProperty("java.home")
-    val jdkPath = file("$javaHome/bin/$binaryName")
-    if (jdkPath.exists()) return jdkPath.absolutePath
+      - name: Prepare Artifact
+        shell: bash
+        run: |
+          # 统一将编译出的二进制文件移动到暂存目录 
+          mkdir -p dist
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            cp ecobridge-rust/target/release/ecobridge_rust.dll dist/
+          else
+            cp ecobridge-rust/target/release/${{ matrix.artifact_name }} dist/
+          fi
 
-    return binaryName
-}
+      - name: Upload Native Binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os }}-binary
+          path: dist/
 
-// 核心任务：自动化生成 Java 绑定
-val generateBindings = tasks.register<Exec>("generateBindings") {
-    group = "build"
-    description = "使用 jextract 自动从 Rust 头文件生成 Java FFM 绑定。"
+  build-java:
+    name: Build Java Plugin (Java 25)
+    needs: build-rust
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-    // 确保目录存在
-    doFirst {
-        if (!rustHeaderFile.exists()) {
-            // 在 CI 环境下，打印当前目录结构帮助调试
-            println("❌ 错误：未找到头文件: ${rustHeaderFile.absolutePath}")
-            println("当前目录文件列表:")
-            projectDir.parentFile.listFiles()?.forEach { println(" - ${it.name}") }
-            throw GradleException("Rust 头文件缺失，请检查 build-rust 阶段是否成功上传了 artifact。")
-        }
-        generatedSourceDir.get().asFile.mkdirs()
-    }
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'oracle' 
 
-    commandLine(
-        findJextract(),
-        "--output", generatedSourceDir.get().asFile.absolutePath,
-        "--target-package", targetPackage,
-        // 🔥 强制指定 header class name，确保 Java 代码能引用到 ecobridge_rust_h
-        "--header-class-name", "ecobridge_rust_h",
-        "--library", "ecobridge_rust",
-        rustHeaderFile.absolutePath
-    )
+      - name: Download All Native Binaries
+        uses: actions/download-artifact@v4
+        with:
+          path: native-libs
+          merge-multiple: true
 
-    inputs.file(rustHeaderFile)
-    outputs.dir(generatedSourceDir)
-}
+      - name: Sync Binaries to Java Resources
+        run: |
+          # 确保 Java 源码集的 resources 目录存在 
+          mkdir -p ecobridge-java/src/main/resources/
+          cp native-libs/ecobridge_rust.dll ecobridge-java/src/main/resources/
+          cp native-libs/libecobridge_rust.so ecobridge-java/src/main/resources/
+          cp native-libs/libecobridge_rust.dylib ecobridge-java/src/main/resources/
+          ls -R ecobridge-java/src/main/resources/
 
-// --- [Java 编译与工具链配置] ---
-java {
-    toolchain { languageVersion.set(JavaLanguageVersion.of(25)) }
-}
+      - name: Build with Gradle
+        run: |
+          cd ecobridge-java
+          chmod +x gradlew
+          # 禁用 jextract 自动化，因为我们是在 CI 环境构建成品，且 native 库已手动置入 
+          ./gradlew shadowJar -x generateBindings 
+        env:
+          ORG_GRADLE_PROJECT_version: ${{ github.ref_name }}
 
-// 将生成的代码加入源代码集
-sourceSets {
-    main {
-        // ✅ 关键：将任务输出注册为源码目录
-        // 这会自动建立 compileJava -> generateBindings 的依赖关系
-        java.srcDir(generateBindings)
-    }
-}
-
-repositories {
-    mavenCentral()
-    maven("https://jitpack.io")
-    maven("https://repo.papermc.io/repository/maven-public/")
-    maven("https://repo.nightexpressdev.com/releases")
-    maven("https://repo.lanink.cn/repository/maven-public/")
-    // ✅ 新增：PlaceholderAPI 仓库
-    maven("https://repo.extendedclip.com/content/repositories/placeholderapi/")
-    flatDir { dirs("libs") }
-}
-
-dependencies {
-    // Spigot/Paper API
-    compileOnly("io.papermc.paper:paper-api:1.21.1-R0.1-SNAPSHOT")
-    
-    // ✅ 新增：PlaceholderAPI 依赖 (解决 EcoPlaceholderExpansion 报错)
-    compileOnly("me.clip:placeholderapi:2.11.6")
-
-    // 其他插件依赖
-    compileOnly(fileTree(mapOf("dir" to "libs", "include" to listOf("**/*.jar"))))
-    compileOnly("su.nightexpress.nightcore:main:2.13.0")
-    compileOnly("su.nightexpress.coinsengine:CoinsEngine:2.6.0")
-    compileOnly("cn.superiormc.ultimateshop:plugin:4.2.3")
-    
-    // 数据库与工具库
-    implementation("org.mariadb.jdbc:mariadb-java-client:3.3.2")
-    implementation("com.zaxxer:HikariCP:5.1.0")
-    implementation("com.github.ben-manes.caffeine:caffeine:3.1.8")
-    implementation("redis.clients:jedis:5.1.0")
-    
-    // ✅ 新增：Jackson 依赖 (解决 ObjectMapper/JsonProcessingException 报错)
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.16.1")
-    implementation("com.fasterxml.jackson.core:jackson-core:2.16.1")
-    implementation("com.fasterxml.jackson.core:jackson-annotations:2.16.1")
-    
-    compileOnly("com.google.code.gson:gson:2.10.1")
-
-    // 测试依赖
-    testImplementation(platform("org.junit:junit-bom:5.10.2"))
-    testImplementation("org.junit.jupiter:junit-jupiter")
-}
-
-tasks.test {
-    useJUnitPlatform()
-}
-
-tasks.withType<JavaCompile> {
-    // 🔒 双重保险：强制编译任务依赖于绑定生成
-    dependsOn(generateBindings)
-    
-    options.encoding = "UTF-8"
-    options.release.set(25)
-    options.compilerArgs.addAll(listOf(
-        "--enable-preview",
-        "-Xlint:unchecked",
-        "-Xlint:-preview"
-    ))
-}
-
-tasks.named<ShadowJar>("shadowJar") {
-    archiveClassifier.set("")
-    val prefix = "top.ellan.ecobridge.libs"
-    
-    // 重定位依赖，防止冲突
-    relocate("com.zaxxer.hikari", "$prefix.hikari")
-    relocate("org.mariadb.jdbc", "$prefix.mariadb")
-    relocate("com.github.benmanes.caffeine", "$prefix.caffeine")
-    relocate("redis.clients", "$prefix.jedis")
-    relocate("com.fasterxml.jackson", "$prefix.jackson") // ✅ 重定位 Jackson
-    
-    from("src/main/resources") {
-        include("*.dll", "*.so", "*.dylib", "natives/**")
-    }
-    
-    mergeServiceFiles()
-}
-
-tasks.withType<ProcessResources> {
-    val props = mapOf("version" to project.version)
-    inputs.properties(props)
-    filesMatching("plugin.yml") {
-        expand(props)
-    }
-}
-
+      - name: Upload Plugin JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: EcoBridge-Plugin
+          path: ecobridge-java/build/libs/*.jar
