@@ -7,14 +7,13 @@ buildscript {
         gradlePluginPortal()
     }
     dependencies {
-        // ASM 9.9.1: 完美支持 Java 25 字节码
         classpath("org.ow2.asm:asm-commons:9.9.1")
     }
 }
 
 plugins {
     `java-library`
-    // 严格遵照您的要求：使用 Shadow 9.3.1
+    // 严格遵照您的要求：Shadow 9.3.1
     id("com.gradleup.shadow") version "9.3.1"
 }
 
@@ -93,7 +92,7 @@ repositories {
 }
 
 dependencies {
-    // ⚠️ 严格保留：Paper 1.21.11-R0.1-SNAPSHOT
+    // 严格保留：Paper 1.21.11
     compileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
     
     // PlaceholderAPI
@@ -105,21 +104,21 @@ dependencies {
     compileOnly("su.nightexpress.coinsengine:CoinsEngine:2.6.0")
     compileOnly("cn.superiormc.ultimateshop:plugin:4.2.3")
     
-    // 🔥 高性能组件库 (全面升级至 2026 最新版)
+    // 数据库与缓存 (最新版)
     implementation("org.mariadb.jdbc:mariadb-java-client:3.5.7")
     implementation("com.zaxxer:HikariCP:6.2.1")
     implementation("com.github.ben-manes.caffeine:caffeine:3.2.3")
     implementation("redis.clients:jedis:5.2.0")
     
-    // 🔥 Jackson (2.20.1)
+    // 🔥 Jackson 2.20.1 (严格遵照您的指令)
     implementation("com.fasterxml.jackson.core:jackson-databind:2.20.1")
     implementation("com.fasterxml.jackson.core:jackson-core:2.20.1")
     implementation("com.fasterxml.jackson.core:jackson-annotations:2.20.1")
     
-    // Gson (升级至 2.13.2)
+    // Gson
     compileOnly("com.google.code.gson:gson:2.13.2")
 
-    // JUnit 5 (升级至 5.14.1)
+    // JUnit 5
     testImplementation(platform("org.junit:junit-bom:5.14.1"))
     testImplementation("org.junit.jupiter:junit-jupiter")
 }
@@ -139,7 +138,6 @@ tasks.named<ShadowJar>("shadowJar") {
     archiveClassifier.set("")
     val prefix = "top.ellan.ecobridge.libs"
     
-    // 依赖重定位防止冲突
     relocate("com.zaxxer.hikari", "$prefix.hikari")
     relocate("org.mariadb.jdbc", "$prefix.mariadb")
     relocate("com.github.benmanes.caffeine", "$prefix.caffeine")
