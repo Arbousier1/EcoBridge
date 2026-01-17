@@ -13,7 +13,7 @@ crate-type = ["cdylib"]
 # 系统底层接口
 libc = "0.2.180"
 
-duckdb = { version = "1.4.3", features = ["bundled", "chrono", "arrow"] }
+duckdb = { version = "1.4.3", features = ["bundled", "chrono"] }
 
 # 高性能 MPSC 通道
 crossbeam-channel = "0.5.15"
