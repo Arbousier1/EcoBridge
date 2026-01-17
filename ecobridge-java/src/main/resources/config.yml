@@ -1,25 +1,38 @@
 # ============================================================
-# EcoBridge Configuration v0.9.1 (Macro Adaptive Edition)
-# Kernel: Java 25 (FFM/Loom) + Rust (SIMD/Rayon) + Redis
+# EcoBridge - 高级宏观自适应经济内核
+# 驱动引擎: Java 25 (FFM/Loom) + Rust (SIMD 加速)
 # ============================================================
 
-# [系统内核设置]
+# [系统基础设置]
 system:
+  # 调试模式：开启后会在后台显示详细的演算逻辑和 Native 交互日志。
+  # 生产环境建议保持 false。
   debug: false
-  # 经济日志采样率 (0-100)
-  log-sample-rate: 100
-  # 交易节流：防止短时间内高频点击 UI 冲击内核演算 (ms)
-  trade-throttle-ms: 100
-  # 是否记录每笔交易到 DuckDB (Native 存储)
-  log-transactions: true
-  # 拦截并实施审计的命令
-  intercept-commands:
-    - "pay"
-    - "transfer"
-    - "epay"
-    - "auditpay"
 
-# [分布式同步 (Redis)]
+  # 经济日志采样率 (1-100)：
+  # 1 表示每笔交易都记录；100 表示每 100 笔交易抽样记录 1 次。用于减轻高频交易时的后台压力。 [cite: 1308]
+  log-sample-rate: 100
+
+  # 交易节流 (毫秒)：
+  # 玩家点击 UI 触发交易的最小间隔。防止连点器或网络抖动造成的重复扣款。 [cite: 1091]
+  trade-throttle-ms: 100
+
+  # 交易持久化：是否将每一笔交易的详细流水记录到 DuckDB (Native 数据库) 中。 [cite: 1099]
+  log-transactions: true
+
+# [数据库连接 (MariaDB/MySQL)]
+# 本系统使用 HikariCP 连接池与虚拟线程技术，支持极高并发。
+database:
+  host: "localhost"
+  port: 3306
+  database: "ecobridge"
+  username: "root"
+  password: "your_password"
+  # 连接池大小：建议设为 (CPU核心数 * 2)。 [cite: 929]
+  pool-size: 15
+
+# [跨服同步 (Redis)]
+# 开启后，不同子服之间的商品交易记录会实时同步，形成全服统一物价。
 redis:
   enabled: true
   host: "127.0.0.1"
@@ -27,108 +40,120 @@ redis:
   user: ""
   password: ""
   ssl: false
-  # 多服同步标识，建议每个子服唯一
+  # 服务器唯一识别码：用于区分不同服务器的交易来源。 [cite: 1218]
   server-id: "survival-01"
   channels:
     trade: "ecobridge:global_trade"
 
-# [数据库 (HikariCP + Virtual Threads)]
-database:
-  host: "localhost"
-  port: 3306
-  database: "ecobridge"
-  username: "root"
-  password: "your_strong_password"
-  pool-size: 15
-
-# [经济核心模型]
+# [经济核心参数]
 economy:
+  # 核心货币 ID (必须对应 CoinsEngine 中的配置)。 [cite: 1067, 1180]
   currency-id: "coins"
-  
-  # --- 1. 宏观调控中心 (Macro Control) ---
+
+  # --- 1. 宏观调控 (Macro Control) ---
   macro:
-    # 目标全服流速 (V): 每秒每人平均交易额。基于费雪方程式 (MV=PQ)
-    # 0.04 表示 100 个人在线时，全服每秒产生 4.0 的交易流量为平衡态
+    # 目标全服流速 (V)：理想状态下，全服每秒钟产生的平均交易额。
+    # 内核会根据此值自动调节物价敏感度。 [cite: 1149]
     target-velocity: 0.04
-    # 单用户容量：计算生态饱和度 (Saturation) 的基准值
+    # 用户容量：每个在线玩家能承载的资金“蓄水池”大小。
+    # 用于计算市场是否处于“饱和”或“溢出”状态。 [cite: 1127]
     capacity-per-user: 5000.0
-    # 财富流速感应灵敏度：值越高，物价对大户抛售的反应越剧烈
+    # 热度感应：物价对大宗交易的反应速度。值越高，价格波动越灵敏。
     heat-sensitivity: 0.5
-    # 恐慌抑制阈值：价格加速度超过此值将强制触发 Rust 阻尼器 (Panic Suppression)
+    # 恐慌抑制：当价格变动过快时触发 Rust 阻尼器的阈值，防止物价瞬间崩盘。 [cite: 1380]
     panic-threshold: 50.0
 
-  # --- 2. 物理控制器参数 (PID State) ---
-  # 这些参数直接注入 Rust 的 PidState 结构体
+  # --- 2. 物理控制器 (PID State) ---
+  # 基于工业 PID 算法控制物价稳定性。
   pid:
-    kp: 0.4   # 比例增益：决定价格随供需变化的“弹性”
-    ki: 0.08   # 积分增益：消除长期物价偏差（防通缩/死水）
-    kd: 0.15  # 微分增益：预测趋势，平抑瞬间跳变
-    lambda: 0.01 # 漏损系数：模拟货币在流通中的自然损耗
+    kp: 0.4   # 弹性增益：决定价格随供需变化的即时“拉力”。
+    ki: 0.08  # 稳定性增益：长期缓慢消除物价偏离基准值的倾向。
+    kd: 0.15  # 预测增益：平抑投机行为带来的瞬间剧烈跳变。 [cite: 1381]
+    lambda: 0.01 # 模拟损耗：货币在流通中自然流失的比例。
 
-  # --- 3. 基础市场参数 ---
-  # 货币供应量 M1 基准
+  # --- 3. 基础市场模型 ---
+  # 预计的全服总货币供应量基准。 [cite: 1126]
   m1-supply: 10000000.0
-  # 波动触发阈值 (单笔交易)
+  # 波动触发值：单笔交易超过此金额时，会被判定为“重大波动”。 [cite: 1126]
   volatility-threshold: 50000.0
-  # 每日热度自然衰减率
-  decay-rate: 0.05
-  # 默认流动性系数 (微观价格斜率)
+  # 每日热度自然冷却速度：市场热度在无交易时的自然衰减比例。 [cite: 1126]
+  daily-decay-rate: 0.05
+  # 默认物价斜率：决定了买卖多少个商品后价格会产生明显变动。 [cite: 1146]
   default-lambda: 0.002
-  # 时间衰减常数 (历史权重半衰期)
+  # 时间权重常数 (Tau)：决定了历史交易对当前物价影响的“半衰期”(天)。 [cite: 1146]
   tau: 7.0
-  # 全局出售折扣率
+  # 出售折扣：玩家向商店出售商品时的基础价格系数。 [cite: 1146]
   sell-ratio: 0.5
 
-  # --- 4. 环境扰动因子 (MarketConfig) ---
+  # --- 4. 环境扰动因子 ---
+  # 节假日与周期性波动参数。
   environment:
+    # 季节性波动幅度：模拟市场周期性的小幅涨跌。 [cite: 997]
     seasonal-amplitude: 0.15
+    # 周末倍率：周末期间物价的浮动系数。 [cite: 997]
     weekend-multiplier: 1.2
+    # 新手保护：新手玩家在交易时获得的额外物价优待比例。 [cite: 1199]
     newbie-protection: 0.2
+    # 强制节庆模式：开启后将永久触发节假日增益。
     force-festival-mode: false
 
-  # --- 5. 批处理与历史 ---
+  # --- 5. 存储与快照 ---
   history:
-    # 演算快照保留天数
+    # 商品历史数据保留天数。 [cite: 1147]
     days-limit: 30
-    # 内存中活跃缓存的最大条数
+    # 内存中单个物品缓存的最大记录条数。 [cite: 1147]
     max-records: 3000
 
-  # --- 6. 金融风控审计 (RegulatorConfig) ---
+  # --- 6. 金融风险审计 (Audit) ---
+  # 转账系统专用风控参数。
   audit-settings:
-    # 所有转账的基础税率
+    # 转账基础税率：每笔转账收取的固定手续费比例。 [cite: 1477]
     base-tax-rate: 0.05
-    # 单笔转账金额超过此阈值时，开始征收豪华税
+    # 豪华税阈值：单笔转账超过此数额将额外计税。 [cite: 1478]
     luxury-threshold: 100000.0
-    # 豪华税的税率
     luxury-tax-rate: 0.10
-    # 财富差距税的税率，对从富人流向穷人的资金征税
+    # 贫富差距税：富人向穷人转账时的额外税率。 [cite: 1479]
     wealth-gap-tax-rate: 0.20
-    # 被认定为“穷人”的资产阈值
     poor-threshold: 10000.0
-    # 被认定为“富人”的资产阈值
     rich-threshold: 1000000.0
-    # [校准] 新手玩家单次接收转账的最大限额 (对应 TransferManager.java)
-    # 已修正为 'newbie-limit' (原 newbie-receive-limit)
+    # 新手转账限额：新手玩家单次可接收的最大金额。 
     newbie-limit: 50000.0
-    # [Rust 硬编码] 警告比率目前在 Rust 内核中固定为 0.9，此处配置暂不生效
-    # warning-ratio: 0.9 
-    # 触发高风险警告的最低金额
+    # 警告最低金额：达到此数额后，系统会向管理员发送高风险警告。 [cite: 1196]
     warning-min-amount: 50000.0
-    # 频率审计阈值：玩家每秒转账频率超过此值将被拦截
+    # 转账频率限制：玩家每秒最多可发起的转账次数。 [cite: 1197]
     velocity-threshold: 20.0
+    # 身份判定时间 (小时)：低于此时间为新手，高于此时间为老手。 [cite: 1196]
     newbie-hours: 10.0
-    # 被认定为“老手”的游玩小时数下限
     veteran-hours: 100.0
 
+# [第三方插件集成]
+integrations:
+  # UltimateShop 接管逻辑
+  ultimateshop:
+    enabled: true
+    # 开启后，商店价格将由 EcoBridge 动态计算。 [cite: 1034]
+    price-takeover: true
+    # 开启后，商店限额将受内核 Panic 状态控制。 [cite: 1035]
+    limit-takeover: true
+
+# [外部 API 设置]
+holiday-api:
+  # 节假日数据获取接口。{year} 会被自动替换。 
+  url-template: "https://holiday.ailcc.com/api/holiday/year/{year}"
+  # 节假日物价倍率：法定节假日期间的物价激励指数。 
+  holiday-multiplier: 1.2
+
 # [物品特定覆盖配置]
+# 您可以为特定商品设置不同的敏感度。
 item-settings:
   miner_shop:
     diamond:
-      lambda: 0.0001
+      base-price: 500.0
+      lambda: 0.0001   # 钻石价格极度坚挺
       weights:
-        seasonal: 0.0
-        inflation: 0.5
+        seasonal: 0.0  # 不受季节波动影响
+        inflation: 0.5 # 对通货膨胀更敏感
 
-# [内部状态 - 请勿手动修改]
+# [内部状态 - 请勿修改]
 internal:
   economy-heat: 0.0

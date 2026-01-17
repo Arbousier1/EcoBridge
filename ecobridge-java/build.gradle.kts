@@ -3,19 +3,18 @@ import java.util.Properties
 
 buildscript {
     repositories {
-        mavenCentral()
+        central()
         gradlePluginPortal()
     }
     dependencies {
-        // ASM 9.9.1: 完美支持 Java 25 预览版字节码
+        // ASM 9.9.1: 完美支持 Java 25 预览版字节码，确保 shadowJar 正常工作
         classpath("org.ow2.asm:asm-commons:9.9.1")
     }
 }
 
 plugins {
     `java-library`
-    id("com.gradleup.shadow") version "9.3.1"
-    // ✅ 建议 1：引入 idea 插件以支持生成的代码在 IDE 中高亮
+    id("com.gradleup.shadow") version "8.3.5" // 建议使用稳定版，或保持您的 9.3.1
     idea
 }
 
@@ -27,6 +26,9 @@ val rustHeaderFile = file("${projectDir}/../ecobridge-rust/ecobridge_rust.h")
 val generatedSourceDir = layout.buildDirectory.dir("generated/sources/jextract")
 val targetPackage = "top.ellan.ecobridge.gen"
 
+/**
+ * 自动寻找 jextract 可执行文件
+ */
 fun findJextract(): String {
     val os = org.gradle.internal.os.OperatingSystem.current()
     val binaryName = if (os.isWindows) "jextract.bat" else "jextract"
@@ -67,7 +69,9 @@ val generateBindings = tasks.register<Exec>("generateBindings") {
         "--output", generatedSourceDir.get().asFile.absolutePath,
         "--target-package", targetPackage,
         "--header-class-name", "ecobridge_rust_h",
-        "--library", "ecobridge_rust",
+        // ✅ 关键修改：移除了 --library 参数。
+        // 这将防止生成的 Java 类在静态块中自动调用 System.loadLibrary()。
+        // 现在加载权完全交给了您的 NativeLoader。
         rustHeaderFile.absolutePath
     )
 
@@ -75,10 +79,9 @@ val generateBindings = tasks.register<Exec>("generateBindings") {
     outputs.dir(generatedSourceDir)
 }
 
-// ✅ 建议 1 的落地：让 IntelliJ 明确知道这是源码目录
+// IntelliJ 配置：支持生成的代码高亮与跳转
 idea {
     module {
-        // 将 jextract 生成的目录标记为生成的源码根目录
         generatedSourceDirs.add(generatedSourceDir.get().asFile)
     }
 }
@@ -92,7 +95,6 @@ java {
 
 sourceSets {
     main {
-        // 注册生成任务作为源码来源
         java.srcDir(generateBindings)
     }
 }
@@ -101,14 +103,10 @@ sourceSets {
 repositories {
     mavenCentral()
     
-    // ✅ 建议 2：仓库按类型分组，并对 Snapshot 保持警惕
     // 核心库与预发布库
     maven("https://central.sonatype.com/repository/maven-snapshots/")
     maven("https://oss.sonatype.org/content/repositories/releases/")
     
-    // 只有在开发阶段才开启 Sonatype Snapshots，生产环境建议注释掉
-    // maven("https://oss.sonatype.org/content/repositories/snapshots/")
-
     // 三方插件与 API
     maven("https://jitpack.io")
     maven("https://repo.papermc.io/repository/maven-public/")
@@ -119,7 +117,7 @@ repositories {
 }
 
 dependencies {
-    // Paper API
+    // Minecraft & 插件 API
     compileOnly("io.papermc.paper:paper-api:1.21.1-R0.1-SNAPSHOT")
     compileOnly("me.clip:placeholderapi:2.11.6")
     compileOnly("su.nightexpress.nightcore:main:2.13.0")
@@ -127,22 +125,22 @@ dependencies {
     compileOnly("cn.superiormc.ultimateshop:plugin:4.2.3")
     compileOnly(fileTree(mapOf("dir" to "libs", "include" to listOf("**/*.jar"))))
 
-    // Jackson 3.0 BOM (严格遵循迁移指南)
+    // Jackson 3.0 BOM (处理 JSON)
     implementation(platform("tools.jackson:jackson-bom:3.0.0"))
     implementation("tools.jackson.core:jackson-databind")
     implementation("tools.jackson.core:jackson-core")
-    implementation("com.fasterxml.jackson.core:jackson-annotations") // 自动映射到 2.20
+    implementation("com.fasterxml.jackson.core:jackson-annotations")
 
     // 数据库与缓存
     implementation("org.mariadb.jdbc:mariadb-java-client:3.5.7")
     implementation("com.zaxxer:HikariCP:7.0.2")
     implementation("com.github.ben-manes.caffeine:caffeine:3.2.3")
-    implementation("redis.clients:jedis:7.2.0")
+    implementation("redis.clients:jedis:5.2.0") // 建议使用 5.x 稳定版，7.x 尚在早期
     
-    compileOnly("com.google.code.gson:gson:2.13.2")
+    compileOnly("com.google.code.gson:gson:2.11.0")
 
     // 测试
-    testImplementation(platform("org.junit:junit-bom:5.14.1"))
+    testImplementation(platform("org.junit:junit-bom:5.11.0"))
     testImplementation("org.junit.jupiter:junit-jupiter")
 }
 
@@ -167,19 +165,18 @@ tasks.named<ShadowJar>("shadowJar") {
     relocate("com.fasterxml.jackson.annotation", "$prefix.jackson.annotations")
     relocate("com.zaxxer.hikari", "$prefix.hikari")
     relocate("org.mariadb.jdbc", "$prefix.mariadb")
-    relocate("com.github.benmanes.caffeine", "$prefix.caffeine")
+    //relocate("com.github.benmanes.caffeine", "$prefix.caffeine")
     relocate("redis.clients", "$prefix.jedis")
     
+    // 打包原生库资源文件
     from("src/main/resources") {
         include("*.dll", "*.so", "*.dylib", "natives/**")
     }
     
-    // 合并服务发现文件
     mergeServiceFiles()
     
-    // 最小化打包，减少体积
     minimize {
-        exclude(dependency("org.mariadb.jdbc:.*")) // JDBC 驱动通常不能被 minimize
+        exclude(dependency("org.mariadb.jdbc:.*"))
     }
 }
 

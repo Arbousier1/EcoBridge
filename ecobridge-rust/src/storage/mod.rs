@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{OnceLock, RwLock};
 use std::thread;
 use libc::c_int;
-use lazy_static::lazy_static; // 确保 Cargo.toml 添加了 lazy_static = "1.4"
+use lazy_static::lazy_static;
 use crate::models::HistoryRecord;
 
 // -----------------------------------------------------------------------------
@@ -83,7 +83,7 @@ pub fn shutdown_db_internal() -> c_int {
 }
 
 // -----------------------------------------------------------------------------
-// 业务逻辑实现
+// 核心初始化逻辑
 // -----------------------------------------------------------------------------
 
 pub fn init_economy_db(path_str: &str) -> c_int {
@@ -102,11 +102,9 @@ pub fn init_economy_db(path_str: &str) -> c_int {
         }
     };
 
-    // DDL
+    // ✅ 修复点：移除 SQLite 特有的 PRAGMA 指令，改用 DuckDB 兼容配置
     let ddl_res = write_conn.execute_batch(
-        "PRAGMA journal_mode=WAL;
-         PRAGMA synchronous=NORMAL;
-         PRAGMA busy_timeout=5000; 
+        "SET memory_limit='512MB';
          CREATE TABLE IF NOT EXISTS economy_log (
              ts BIGINT,
              player_uuid VARCHAR,
@@ -122,12 +120,11 @@ pub fn init_economy_db(path_str: &str) -> c_int {
         return -5;
     }
 
-    // [集成点 A] 启动预热：将最近 90 天的数据加载到 GLOBAL_HISTORY
-    // 这是 SIMD 计算能工作的关键
+    // 启动预热：将最近 90 天的数据加载到 GLOBAL_HISTORY
     load_recent_history_to_memory(&write_conn);
 
     // 初始化连接池
-    let pool_size = 4; // NEff 走内存了，连接池可以小一点
+    let pool_size = 4;
     let (pool_tx, pool_rx) = bounded(pool_size);
     for _i in 0..pool_size {
         if let Ok(c) = write_conn.try_clone() {
@@ -153,14 +150,13 @@ pub fn init_economy_db(path_str: &str) -> c_int {
     }
 }
 
-/// [新增] 从 DuckDB 加载历史数据到内存
+/// 从 DuckDB 加载历史数据到内存以供 SIMD 使用
 fn load_recent_history_to_memory(conn: &Connection) {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis() as i64;
     
-    // 90天回溯，覆盖 tau=7 的有效计算范围
     let cutoff = now - (90i64 * 86_400_000);
     println!("[EcoBridge-Storage] 正在预热内存数据 (Cutoff: {})...", cutoff);
 
@@ -194,23 +190,20 @@ fn load_recent_history_to_memory(conn: &Connection) {
     }
 }
 
-/// [对外接口] 获取内存历史的读锁引用
-/// 供 summation.rs 模块计算 NEff 使用
 pub fn get_history_read() -> std::sync::RwLockReadGuard<'static, Vec<HistoryRecord>> {
     GLOBAL_HISTORY.read().unwrap()
 }
 
-/// [集成点 B] 核心双写：同时写内存(主)和 DB队列(副)
+/// 核心双写：同时更新内存（瞬时计算）和异步持久化队列
 pub fn log_economy_event(ts: i64, uuid: String, delta: f64, balance: f64, meta: String) {
     TOTAL_LOGS.fetch_add(1, Ordering::Relaxed);
     
-    // 1. 同步写内存 (确保计算即时性)
+    // 1. 同步写内存
     {
         if let Ok(mut hist) = GLOBAL_HISTORY.write() {
              hist.push(HistoryRecord { timestamp: ts, amount: delta });
              
-             // 简单修剪防止 OOM (长度保护)
-             // 生产环境可优化为基于时间的修剪
+             // 长度保护，防止 OOM
              if hist.len() > 500_000 {
                  let keep = 400_000;
                  let remove_count = hist.len() - keep;
@@ -219,7 +212,7 @@ pub fn log_economy_event(ts: i64, uuid: String, delta: f64, balance: f64, meta: 
         }
     }
 
-    // 2. 异步写 DB (持久化)
+    // 2. 异步入库
     if let Some(sender) = LOG_SENDER.get() {
         if let Err(_) = sender.try_send(LogEvent { ts, uuid, delta, balance, meta }) {
             DROPPED_LOGS.fetch_add(1, Ordering::Relaxed);
@@ -266,6 +259,7 @@ fn writer_loop(conn: Connection, rx: Receiver<LogEvent>) {
 
 fn flush_buffer_to_db(conn: &Connection, buffer: &mut Vec<LogEvent>) {
     if buffer.is_empty() { return; }
+    // 使用 DuckDB Appender API 进行高性能批量插入
     match conn.appender("economy_log") {
         Ok(mut appender) => {
             for ev in buffer.drain(..) {
@@ -282,7 +276,6 @@ fn flush_buffer_to_db(conn: &Connection, buffer: &mut Vec<LogEvent>) {
     }
 }
 
-// 传统的 SQL 查询 (保留作为备份或审计用途)
 pub fn query_neff_from_db(current_ts: i64, tau: f64) -> f64 {
     let pool = match READ_POOL.get() {
         Some(p) => p,
@@ -296,7 +289,7 @@ pub fn query_neff_from_db(current_ts: i64, tau: f64) -> f64 {
         conn: Some(raw_conn),
         pool_sender: pool.recycle.clone(),
     };
-    // ... 原有 SQL 查询逻辑 ...
+
     let query = "SELECT SUM(ABS(delta) * EXP( -1.0 * (?1 - ts) / (?2 * 86400000.0) )) FROM economy_log WHERE ts > ?3";
     let ms_per_day = 86_400_000.0;
     let safe_lookback_ms = (tau * ms_per_day * 3.0) as i64;
@@ -307,6 +300,7 @@ pub fn query_neff_from_db(current_ts: i64, tau: f64) -> f64 {
 
 pub fn get_total_logs() -> u64 { TOTAL_LOGS.load(Ordering::Relaxed) }
 pub fn get_dropped_logs() -> u64 { DROPPED_LOGS.load(Ordering::Relaxed) }
+
 pub fn load_recent_history(days: i64) -> Vec<crate::models::HistoryRecord> {
     let pool = match READ_POOL.get() {
         Some(p) => p,
@@ -317,8 +311,6 @@ pub fn load_recent_history(days: i64) -> Vec<crate::models::HistoryRecord> {
         Err(_) => return Vec::new(),
     };
     
-    // 我们只需要 timestamp 和 delta (即 amount)
-    // 注意：这里我们取 delta 的绝对值，因为 nEff 关注的是流动性规模
     let ms_lookback = days * 86_400_000;
     let cutoff = chrono::Utc::now().timestamp_millis() - ms_lookback;
 
@@ -333,7 +325,7 @@ pub fn load_recent_history(days: i64) -> Vec<crate::models::HistoryRecord> {
     let record_iter = stmt.query_map(params![cutoff], |row| {
         Ok(crate::models::HistoryRecord {
             timestamp: row.get(0)?,
-            amount: row.get::<_, f64>(1)?.abs(), // 取绝对值，对应流动性
+            amount: row.get::<_, f64>(1)?.abs(),
         })
     }).unwrap();
 
@@ -344,8 +336,6 @@ pub fn load_recent_history(days: i64) -> Vec<crate::models::HistoryRecord> {
         }
     }
     
-    // 归还连接
     let _ = pool.recycle.send(raw_conn);
-    
     history
 }
