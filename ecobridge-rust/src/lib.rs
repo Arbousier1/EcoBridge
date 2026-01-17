@@ -5,8 +5,8 @@
 use libc::{c_char, c_double, c_int, c_longlong, c_ulonglong};
 use std::ffi::CStr;
 use std::panic::{self, AssertUnwindSafe};
-// ✅ [Fix] 引入缺失的原子操作库
-use std::sync::atomic::{AtomicU64, Ordering}; 
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::ptr;
 
 // -----------------------------------------------------------------------------
 // 模块声明 (Internal Modules)
@@ -17,7 +17,7 @@ pub mod economy {
     pub mod summation;
     pub mod environment;
     pub mod control;
-    pub mod macro_eco; // [New] 宏观经济模块
+    pub mod macro_eco;
 }
 pub mod security;
 pub mod storage;
@@ -62,13 +62,14 @@ macro_rules! ffi_guard {
 
 #[no_mangle]
 pub extern "C" fn ecobridge_abi_version() -> u32 {
-    0x0008_0700
+    // 同步更新 ABI 版本至 0x0009_0000 (SSoT v0.9.1)
+    0x0009_0000
 }
 
 #[no_mangle]
 pub extern "C" fn ecobridge_version() -> *const c_char {
     ffi_guard!(std::ptr::null(), {
-        static VERSION: &[u8] = b"EcoBridge Native Core v0.8.5-Production (Behavioral Enhanced)\0";
+        static VERSION: &[u8] = b"EcoBridge Native Core v0.9.1-Macro (SIMD & Adaptive PID Enabled)\0";
         VERSION.as_ptr() as *const c_char
     })
 }
@@ -146,6 +147,29 @@ pub unsafe extern "C" fn ecobridge_query_neff_vectorized(
     })
 }
 
+/// 批量演算价格快照 (SIMD 批处理模式)
+#[no_mangle]
+pub unsafe extern "C" fn ecobridge_compute_batch_prices(
+    count: c_ulonglong,
+    neff: c_double,
+    ctx_ptr: *const TradeContext,
+    cfg_ptr: *const MarketConfig,
+    hist_avgs_ptr: *const c_double,
+    lambdas_ptr: *const c_double,
+    results_ptr: *mut c_double,
+) {
+    // 直接转发给 pricing 模块中定义的 extern 函数
+    economy::pricing::ecobridge_compute_batch_prices(
+        count as usize,
+        neff,
+        ctx_ptr,
+        cfg_ptr,
+        hist_avgs_ptr,
+        lambdas_ptr,
+        results_ptr
+    );
+}
+
 #[no_mangle]
 pub extern "C" fn ecobridge_compute_price_final(
     base: c_double,
@@ -153,9 +177,8 @@ pub extern "C" fn ecobridge_compute_price_final(
     lambda: c_double,
     epsilon: c_double,
 ) -> c_double {
-    ffi_guard!(base, { 
-        economy::pricing::compute_price_final_internal(base, n_eff, lambda, epsilon)
-    })
+    // 修复命名冲突，调用 pricing 模块的对应实现
+    economy::pricing::ecobridge_compute_price_final(base, n_eff, lambda, epsilon)
 }
 
 #[no_mangle]
@@ -166,23 +189,19 @@ pub extern "C" fn ecobridge_compute_price_humane(
     lambda: c_double,
     epsilon: c_double,
 ) -> c_double {
-    ffi_guard!(base, {
-        economy::pricing::compute_price_humane_internal(base, n_eff, trade_amount, lambda, epsilon)
-    })
+    // 修复调用路径
+    economy::pricing::ecobridge_compute_price_humane(base, n_eff, trade_amount, lambda, epsilon)
 }
 
-/// [New] 带地板价保护的定价入口
 #[no_mangle]
 pub extern "C" fn ecobridge_compute_price_bounded(
     base: c_double, n_eff: c_double, amt: c_double, lambda: c_double, eps: c_double, 
     hist_avg: c_double
 ) -> c_double {
-    ffi_guard!(base, {
-        economy::pricing::compute_price_with_floor(base, n_eff, amt, lambda, eps, hist_avg)
-    })
+    // 修复调用路径
+    economy::pricing::ecobridge_compute_price_bounded(base, n_eff, amt, lambda, eps, hist_avg)
 }
 
-/// [New] 阶梯定价入口
 #[no_mangle]
 pub extern "C" fn ecobridge_compute_tier_price(base: c_double, qty: c_double, is_sell: bool) -> c_double {
     ffi_guard!(base, {
@@ -205,6 +224,7 @@ pub unsafe extern "C" fn ecobridge_calculate_epsilon(
     })
 }
 
+/// 演进为自适应宏观调控的 PID 步进接口
 #[no_mangle]
 pub unsafe extern "C" fn ecobridge_compute_pid_adjustment(
     pid_ptr: *mut PidState,
@@ -212,11 +232,13 @@ pub unsafe extern "C" fn ecobridge_compute_pid_adjustment(
     current: c_double,
     dt: c_double,
     inflation: c_double,
+    market_heat: c_double, 
 ) -> c_double {
     ffi_guard!(0.0, {
         match pid_ptr.as_mut() {
             Some(pid) => {
-                economy::control::compute_pid_adjustment_internal(pid, target, current, dt, inflation)
+                // 透传财富流速至底层逻辑
+                economy::control::compute_pid_adjustment_internal(pid, target, current, dt, inflation, market_heat)
             }
             None => 0.0,
         }
@@ -246,7 +268,6 @@ pub extern "C" fn ecobridge_calc_inflation(current_heat: c_double, m1: c_double)
 #[no_mangle]
 pub extern "C" fn ecobridge_calc_stability(last_ts: c_longlong, curr_ts: c_longlong) -> c_double {
     ffi_guard!(1.0, {
-        // 默认恢复窗口 15分钟 (900000ms)
         economy::macro_eco::calculate_stability(last_ts, curr_ts, 900000.0)
     })
 }
@@ -264,10 +285,18 @@ pub extern "C" fn ecobridge_calc_decay(heat: c_double, rate: c_double) -> c_doub
 
 #[no_mangle]
 pub unsafe extern "C" fn ecobridge_compute_transfer_check(
+    out_result: *mut TransferResult,
     ctx_ptr: *const TransferContext,
     cfg_ptr: *const RegulatorConfig,
-) -> TransferResult {
-    ffi_guard!(TransferResult::error(-999), {
+) {
+    if out_result.is_null() {
+        eprintln!("[EcoBridge-Native] CRITICAL ERROR: out_result pointer is null");
+        return;
+    }
+    
+    let default_result = TransferResult::error(-999);
+    
+    let result = ffi_guard!(default_result, {
         match (ctx_ptr.as_ref(), cfg_ptr.as_ref()) {
             (Some(ctx), Some(cfg)) => {
                 security::regulator::compute_transfer_check_internal(ctx, cfg)
@@ -275,6 +304,10 @@ pub unsafe extern "C" fn ecobridge_compute_transfer_check(
             (None, _) => TransferResult::error(671),
             (_, None) => TransferResult::error(672),
         }
+    });
+    
+    ffi_guard!((), {
+        ptr::write(out_result, result);
     })
 }
 

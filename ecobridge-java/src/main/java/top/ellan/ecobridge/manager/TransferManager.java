@@ -9,7 +9,8 @@ import su.nightexpress.coinsengine.api.currency.Currency;
 import top.ellan.ecobridge.EcoBridge;
 import top.ellan.ecobridge.bridge.NativeBridge;
 import top.ellan.ecobridge.bridge.NativeBridge.TransferResult;
-import top.ellan.ecobridge.network.RedisManager; // [新增] 引入同步管理器
+import top.ellan.ecobridge.network.RedisManager;
+import top.ellan.ecobridge.storage.ActivityCollector;
 import top.ellan.ecobridge.storage.AsyncLogger;
 import top.ellan.ecobridge.util.LogUtil;
 
@@ -24,9 +25,8 @@ import java.util.concurrent.TimeUnit;
 import static java.lang.foreign.ValueLayout.*;
 
 /**
- * 智能转账管理器 (TransferManager v0.8.5 - Cross-Server Edition)
- * 职责：编排转账审计流，实施主线程原子化结算，并同步全球经济热度。
- * @ThreadSafe
+ * 智能转账管理器 (TransferManager v0.9.5 - Macro Integrated)
+ * 职责：编排转账审计流，将宏观流速、通胀率与玩家行为信用结合，执行全自动风控。
  */
 public class TransferManager {
 
@@ -47,6 +47,9 @@ public class TransferManager {
     private static final VarHandle VH_TR_LIMIT;
     private static final VarHandle VH_TR_S_TIME;
     private static final VarHandle VH_TR_R_TIME;
+    private static final VarHandle VH_TCTX_SCORE;
+    private static final VarHandle VH_TCTX_VELOCITY;
+    private static final VarHandle VH_RCFG_V_THRESHOLD;
 
     static {
         var layout = NativeBridge.Layouts.TRANSFER_CONTEXT;
@@ -57,6 +60,11 @@ public class TransferManager {
         VH_TR_LIMIT = layout.varHandle(MemoryLayout.PathElement.groupElement("newbie_limit"));
         VH_TR_S_TIME = layout.varHandle(MemoryLayout.PathElement.groupElement("sender_play_time"));
         VH_TR_R_TIME = layout.varHandle(MemoryLayout.PathElement.groupElement("receiver_play_time"));
+        VH_TCTX_SCORE = layout.varHandle(MemoryLayout.PathElement.groupElement("sender_activity_score"));
+        VH_TCTX_VELOCITY = layout.varHandle(MemoryLayout.PathElement.groupElement("sender_velocity"));
+
+        var regLayout = NativeBridge.Layouts.REGULATOR_CONFIG;
+        VH_RCFG_V_THRESHOLD = regLayout.varHandle(MemoryLayout.PathElement.groupElement("velocity_threshold"));
     }
 
     private TransferManager(EcoBridge plugin) {
@@ -85,39 +93,53 @@ public class TransferManager {
     }
 
     private void captureAndAudit(Player sender, Player receiver, Currency currency, double amount, double senderBal) {
-        long sPlayTime = (long) sender.getStatistic(org.bukkit.Statistic.PLAY_ONE_MINUTE) / 20;
-        long rPlayTime = (long) receiver.getStatistic(org.bukkit.Statistic.PLAY_ONE_MINUTE) / 20;
+        // 采集参与者行为快照
+        var sSnapshot = ActivityCollector.getSafeSnapshot(sender.getUniqueId());
+        var rSnapshot = ActivityCollector.getSafeSnapshot(receiver.getUniqueId());
+        
         double receiverBal = CoinsEngineAPI.getBalance(receiver, currency);
 
         if (!sender.hasPermission(BYPASS_BLOCK_PERMISSION)) {
-            sender.sendMessage(EcoBridge.getMiniMessage().deserialize("<gray><italic>EcoKernel 正在进行实时金融合规性审计..."));
+            sender.sendMessage(EcoBridge.getMiniMessage().deserialize("<gray><italic>EcoKernel 正在注入宏观流速并进行行为审计..."));
         }
 
+        // 使用虚拟线程执行 Native 审计，防止阻塞主线程
         vExecutor.submit(() -> {
             try (Arena arena = Arena.ofConfined()) {
-                double inflation = EconomyManager.getInstance().getInflationRate();
+                // 1. 获取最新宏观数据
+                EconomyManager macro = EconomyManager.getInstance();
+                double inflation = macro.getInflationRate();
+                int currentMarketHeat = (int) macro.getMarketHeat();
 
+                // 2. 分配并填充 TransferContext
                 MemorySegment ctx = arena.allocate(NativeBridge.Layouts.TRANSFER_CONTEXT);
                 VH_TR_AMOUNT.set(ctx, 0L, amount);
                 VH_TR_S_BAL.set(ctx, 0L, senderBal);
                 VH_TR_R_BAL.set(ctx, 0L, receiverBal);
                 VH_TR_INF.set(ctx, 0L, inflation);
                 VH_TR_LIMIT.set(ctx, 0L, plugin.getConfig().getDouble("economy.audit-settings.newbie-limit", 50000.0));
-                VH_TR_S_TIME.set(ctx, 0L, sPlayTime);
-                VH_TR_R_TIME.set(ctx, 0L, rPlayTime);
+                VH_TR_S_TIME.set(ctx, 0L, sSnapshot.playTimeSeconds());
+                VH_TR_R_TIME.set(ctx, 0L, rSnapshot.playTimeSeconds());
+                
+                // [核心集成] 写入信用分与宏观流速
+                VH_TCTX_SCORE.set(ctx, 0L, sSnapshot.activityScore());
+                VH_TCTX_VELOCITY.set(ctx, 0L, currentMarketHeat);
 
+                // 3. 填充配置
                 MemorySegment cfg = arena.allocate(NativeBridge.Layouts.REGULATOR_CONFIG);
                 populateRegulatorConfig(cfg);
 
+                // 4. 调用 Rust 审计核心
                 TransferResult result = NativeBridge.checkTransfer(ctx, cfg);
 
+                // 5. 回到主线程执行结算
                 Bukkit.getScheduler().runTask(plugin, () ->
-                executeSettlement(sender, receiver, currency, amount, result));
+                        executeSettlement(sender, receiver, currency, amount, result));
 
             } catch (Throwable e) {
-                LogUtil.error("审计内核崩溃 (Memory Access Violation)", e);
+                LogUtil.error("审计内核响应超时或崩溃 (Macro Violation)", e);
                 Bukkit.getScheduler().runTask(plugin, () ->
-                sender.sendMessage(Component.text("内核异常，转账已拦截。")));
+                        sender.sendMessage(Component.text("内核安全屏障异常，转账已拦截。")));
             }
         });
     }
@@ -129,9 +151,10 @@ public class TransferManager {
             return;
         }
 
+        // 资金原子性二次校验
         double currentSenderBal = CoinsEngineAPI.getBalance(sender, currency);
         if (currentSenderBal < amount) {
-            sender.sendMessage(EcoBridge.getMiniMessage().deserialize("<red>转账失败：账户资金在审计期间已变动。"));
+            sender.sendMessage(EcoBridge.getMiniMessage().deserialize("<red>转账失败：审计期间账户资金发生异常变动。"));
             return;
         }
 
@@ -141,27 +164,27 @@ public class TransferManager {
 
         try {
             if (!CoinsEngineAPI.removeBalance(sender.getUniqueId(), currency, amount)) {
-                throw new IllegalStateException("底层经济接口拒绝操作");
+                throw new IllegalStateException("底层经济接口 CoinsEngine 拒绝扣款");
             }
             CoinsEngineAPI.addBalance(receiver, currency, netAmount);
 
-            // 1. 记录本地审计流水 (异步)
+            // [闭环] 将此笔转账金额记入宏观热度累加器
+            EconomyManager.getInstance().recordTradeVolume(amount);
+
             long ts = System.currentTimeMillis();
-            String meta = canBypassTax ? "BYPASS_TAX" : "NORMAL";
+            String meta = "TAX:" + tax + "|SCORE:" + ActivityCollector.getScore(sender.getUniqueId());
             AsyncLogger.log(sender.getUniqueId(), -amount, currentSenderBal - amount, ts, meta);
 
-            // 2. [跨服同步集成]: 广播资金流动热度至全局 Redis 频道
             if (RedisManager.getInstance() != null) {
-                // 使用 "SYSTEM_TRANSFER" 作为虚拟 ID，使全服 EconomyManager 同步通胀感知
                 RedisManager.getInstance().publishTrade("SYSTEM_TRANSFER", amount);
             }
 
             notifySuccess(sender, receiver, currency, amount, netAmount, tax, canBypassTax);
 
         } catch (Exception e) {
-            LogUtil.severe("结算链路致命异常！触发紧急回滚: " + sender.getName());
+            LogUtil.severe("结算链路断裂！正在回滚玩家资产: " + sender.getName());
             CoinsEngineAPI.addBalance(sender, currency, amount);
-            sender.sendMessage(Component.text("系统结算超时，资金已安全回滚。"));
+            sender.sendMessage(Component.text("§c[系统] 结算冲突，资金已安全原路回滚。"));
         }
     }
 
@@ -180,30 +203,36 @@ public class TransferManager {
         cfg.set(JAVA_DOUBLE, 64, section.getDouble("warning-min-amount", 50000.0));
         cfg.set(JAVA_DOUBLE, 72, section.getDouble("newbie-hours", 10.0));
         cfg.set(JAVA_DOUBLE, 80, section.getDouble("veteran-hours", 100.0));
+        
+        // [New] 动态频率审计阈值
+        VH_RCFG_V_THRESHOLD.set(cfg, 0L, section.getDouble("velocity-threshold", 20.0));
     }
 
     private void handleBlocked(Player sender, int code) {
         String reason = switch (code) {
-        case 1 -> "涉嫌非正常资金归集 (洗币防御)";
-            case 2 -> "大额流动性异常 (RMT 拦截)";
-                    default -> "违反服务器金融合规协议 (Code: " + code + ")";
-                };
-                sender.sendMessage(EcoBridge.getMiniMessage().deserialize("<red>⚠ 审计拒绝: <yellow>" + reason));
-            }
+            case 1 -> "涉嫌非正常资金归集 (风险评级过高)";
+            case 2 -> "拦截逆向流转 (新手向老手异常输送)";
+            case 3 -> "拦截非正常注资 (老手向新手违规注资)";
+            case 4 -> "账户余额不足 (结算冲突)";
+            case 5 -> "财富流速异常 (疑似洗钱/拆分转账)";
+            default -> "违反服务器金融合规协议 (Audit Code: " + code + ")";
+        };
+        sender.sendMessage(EcoBridge.getMiniMessage().deserialize("<red>⚠ 审计拒绝: <yellow>" + reason));
+    }
 
-            private void notifySuccess(Player s, Player r, Currency cur, double total, double net, double tax, boolean isTaxFree) {
-                String suffix = isTaxFree ? " <dark_gray>[免税特权]</dark_gray>" : "";
-                s.sendMessage(EcoBridge.getMiniMessage().deserialize("<green>✔ 成功转出 <gold><amt><gray> (税费: <tax>)" + suffix,
+    private void notifySuccess(Player s, Player r, Currency cur, double total, double net, double tax, boolean isTaxFree) {
+        String suffix = isTaxFree ? " <dark_gray>[免税特权]</dark_gray>" : "";
+        s.sendMessage(EcoBridge.getMiniMessage().deserialize("<green>✔ 成功转出 <gold><amt><gray> (税费: <tax>)" + suffix,
                 Placeholder.unparsed("amt", cur.format(total)),
                 Placeholder.unparsed("tax", cur.format(tax))));
-                r.sendMessage(EcoBridge.getMiniMessage().deserialize("<green>➕ 收到 <gold><amt><gray> 来自 <p>",
+        r.sendMessage(EcoBridge.getMiniMessage().deserialize("<green>➕ 收到 <gold><amt><gray> 来自 <p>",
                 Placeholder.unparsed("amt", cur.format(net)),
                 Placeholder.unparsed("p", s.getName())));
-            }
+    }
 
-            public void shutdown() {
-                vExecutor.shutdown();
-                try { if (!vExecutor.awaitTermination(5, TimeUnit.SECONDS)) vExecutor.shutdownNow(); }
-                catch (InterruptedException e) { vExecutor.shutdownNow(); }
-            }
-        }
+    public void shutdown() {
+        vExecutor.shutdown();
+        try { if (!vExecutor.awaitTermination(5, TimeUnit.SECONDS)) vExecutor.shutdownNow(); }
+        catch (InterruptedException e) { vExecutor.shutdownNow(); }
+    }
+}

@@ -11,14 +11,29 @@ import java.lang.invoke.VarHandle;
 import static java.lang.foreign.ValueLayout.*;
 
 /**
- * NativeBridge (API Layer)
+ * NativeBridge (API Layer v0.9.2 - Batch SIMD Edition)
  * 负责 Java 方法 <-> Rust 符号的映射，以及内存布局定义。
+ * 
+ * 更新日志：
+ * 1. 升级 ABI 版本至 0x0009_0000（保持兼容）。
+ * 2. 对齐自适应 PID 接口，增加财富流速 (market_heat) 参数。
+ * 3. 映射宏观调控上下文因子。
+ * 4. 【新增】支持 SIMD 批量价格计算：ecobridge_compute_batch_prices
  */
 public class NativeBridge {
 
-    private static final int EXPECTED_ABI_VERSION = 0x0008_0700;
+    // ABI 版本（v0.9.x 兼容）
+    private static final int EXPECTED_ABI_VERSION = 0x0009_0000;
 
-    // --- Method Handles (基础与原有) ---
+    // --- 风控状态码 ---
+    public static final int CODE_NORMAL = 0;
+    public static final int CODE_WARNING_HIGH_RISK = 1;
+    public static final int CODE_BLOCK_REVERSE_FLOW = 2;
+    public static final int CODE_BLOCK_INJECTION = 3;
+    public static final int CODE_BLOCK_INSUFFICIENT_FUNDS = 4;
+    public static final int CODE_BLOCK_VELOCITY_LIMIT = 5;
+
+    // --- Method Handles ---
     private static MethodHandle getAbiVersionMH;
     private static MethodHandle initDBMH;
     private static MethodHandle getVersionMH;
@@ -26,20 +41,22 @@ public class NativeBridge {
     private static MethodHandle shutdownDBMH;
     private static MethodHandle pushToDuckDBMH;
     private static MethodHandle queryNeffVectorizedMH;
-    private static MethodHandle computePriceMH; // 对应 ecobridge_compute_price_humane
+    private static MethodHandle computePriceMH; 
     private static MethodHandle calculateEpsilonMH;
     private static MethodHandle checkTransferMH;
     private static MethodHandle computePidMH;
     private static MethodHandle resetPidMH;
 
-    // --- Method Handles (新增：宏观经济与高级定价) ---
     private static MethodHandle calcInflationMH;
     private static MethodHandle calcStabilityMH;
     private static MethodHandle calcDecayMH;
     private static MethodHandle computeTierPriceMH;
     private static MethodHandle computePriceBoundedMH;
 
-    // --- VarHandles (Static Final) ---
+    // 【新增】批处理接口
+    private static MethodHandle computeBatchPricesMH;
+
+    // --- VarHandles (TradeContext) ---
     public static final VarHandle VH_CTX_BASE_PRICE;
     public static final VarHandle VH_CTX_CURR_AMT;
     public static final VarHandle VH_CTX_INF_RATE;
@@ -47,7 +64,10 @@ public class NativeBridge {
     public static final VarHandle VH_CTX_PLAY_TIME;
     public static final VarHandle VH_CTX_TIMEZONE_OFFSET;
     public static final VarHandle VH_CTX_NEWBIE_MASK;
+    public static final VarHandle VH_CTX_MARKET_HEAT;
+    public static final VarHandle VH_CTX_ECO_SAT;
 
+    // --- VarHandles (MarketConfig) ---
     public static final VarHandle VH_CFG_LAMBDA;
     public static final VarHandle VH_CFG_VOLATILITY;
     public static final VarHandle VH_CFG_S_AMP;
@@ -58,13 +78,21 @@ public class NativeBridge {
     public static final VarHandle VH_CFG_W_NEWBIE;
     public static final VarHandle VH_CFG_W_INFLATION;
 
+    // --- VarHandles (TransferContext) ---
+    public static final VarHandle VH_TCTX_ACTIVITY_SCORE;
+    public static final VarHandle VH_TCTX_VELOCITY;
+
+    // --- VarHandles (RegulatorConfig) ---
+    public static final VarHandle VH_RCFG_V_THRESHOLD;
+
+    // --- VarHandles (TransferResult) ---
     private static final VarHandle VH_RES_TAX;
     private static final VarHandle VH_RES_BLOCKED;
     private static final VarHandle VH_RES_CODE;
 
     static {
         try {
-            // 1. TradeContext 初始化
+            // 1. TradeContext 初始化 (对齐 Rust v0.9.1+)
             GroupLayout ctxLayout = TradeContext.layout();
             VH_CTX_BASE_PRICE = ctxLayout.varHandle(MemoryLayout.PathElement.groupElement("base_price"));
             VH_CTX_CURR_AMT = ctxLayout.varHandle(MemoryLayout.PathElement.groupElement("current_amount"));
@@ -73,6 +101,8 @@ public class NativeBridge {
             VH_CTX_PLAY_TIME = ctxLayout.varHandle(MemoryLayout.PathElement.groupElement("play_time_seconds"));
             VH_CTX_TIMEZONE_OFFSET = ctxLayout.varHandle(MemoryLayout.PathElement.groupElement("timezone_offset"));
             VH_CTX_NEWBIE_MASK = ctxLayout.varHandle(MemoryLayout.PathElement.groupElement("newbie_mask"));
+            VH_CTX_MARKET_HEAT = ctxLayout.varHandle(MemoryLayout.PathElement.groupElement("market_heat"));
+            VH_CTX_ECO_SAT = ctxLayout.varHandle(MemoryLayout.PathElement.groupElement("eco_saturation"));
 
             // 2. MarketConfig 初始化
             GroupLayout cfgLayout = MarketConfig.layout();
@@ -86,7 +116,15 @@ public class NativeBridge {
             VH_CFG_W_NEWBIE = cfgLayout.varHandle(MemoryLayout.PathElement.groupElement("newbie_weight"));
             VH_CFG_W_INFLATION = cfgLayout.varHandle(MemoryLayout.PathElement.groupElement("inflation_weight"));
 
-            // 3. TransferResult 初始化
+            // 3. TransferContext & RegulatorConfig 初始化
+            GroupLayout tCtxLayout = TransferContext.layout();
+            VH_TCTX_ACTIVITY_SCORE = tCtxLayout.varHandle(MemoryLayout.PathElement.groupElement("sender_activity_score"));
+            VH_TCTX_VELOCITY = tCtxLayout.varHandle(MemoryLayout.PathElement.groupElement("sender_velocity"));
+
+            GroupLayout rCfgLayout = RegulatorConfig.layout();
+            VH_RCFG_V_THRESHOLD = rCfgLayout.varHandle(MemoryLayout.PathElement.groupElement("velocity_threshold"));
+
+            // 4. TransferResult 初始化
             GroupLayout resLayout = top.ellan.ecobridge.gen.TransferResult.layout();
             VH_RES_TAX = resLayout.varHandle(MemoryLayout.PathElement.groupElement("final_tax"));
             VH_RES_BLOCKED = resLayout.varHandle(MemoryLayout.PathElement.groupElement("is_blocked"));
@@ -96,19 +134,14 @@ public class NativeBridge {
         }
     }
 
-    // =================================================================
-    // 初始化逻辑
-    // =================================================================
-
     public static void init(EcoBridge plugin) {
         if (NativeLoader.isReady()) return;
 
         try {
-            // 1. 委托 Loader 加载库并创建 Arena
             NativeLoader.load(plugin);
             Linker linker = Linker.nativeLinker();
 
-            // 2. 绑定 ABI 版本检查 (Fail Fast)
+            // 1. ABI 版本检查
             getAbiVersionMH = linker.downcallHandle(
                 findOrThrow("ecobridge_abi_version"),
                 FunctionDescriptor.of(JAVA_INT)
@@ -119,7 +152,7 @@ public class NativeBridge {
                 throw new IllegalStateException(String.format("ABI Mismatch: Java=0x%08X, Native=0x%08X", EXPECTED_ABI_VERSION, nativeVersion));
             }
 
-            // 3. 绑定原有核心函数
+            // 2. 核心函数绑定
             initDBMH = linker.downcallHandle(findOrThrow("ecobridge_init_db"), FunctionDescriptor.of(JAVA_INT, ADDRESS));
             getVersionMH = linker.downcallHandle(findOrThrow("ecobridge_version"), FunctionDescriptor.of(ADDRESS));
             getHealthStatsMH = linker.downcallHandle(findOrThrow("ecobridge_get_health_stats"), FunctionDescriptor.ofVoid(ADDRESS, ADDRESS));
@@ -128,21 +161,41 @@ public class NativeBridge {
             queryNeffVectorizedMH = linker.downcallHandle(findOrThrow("ecobridge_query_neff_vectorized"), FunctionDescriptor.of(JAVA_DOUBLE, JAVA_LONG, JAVA_DOUBLE));
             computePriceMH = linker.downcallHandle(findOrThrow("ecobridge_compute_price_humane"), FunctionDescriptor.of(JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE));
             calculateEpsilonMH = linker.downcallHandle(findOrThrow("ecobridge_calculate_epsilon"), FunctionDescriptor.of(JAVA_DOUBLE, ADDRESS, ADDRESS));
-            checkTransferMH = linker.downcallHandle(findOrThrow("ecobridge_compute_transfer_check"), FunctionDescriptor.of(Layouts.TRANSFER_RESULT, ADDRESS, ADDRESS));
-            computePidMH = linker.downcallHandle(findOrThrow("ecobridge_compute_pid_adjustment"), FunctionDescriptor.of(JAVA_DOUBLE, ADDRESS, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE));
+            
+            checkTransferMH = linker.downcallHandle(
+                findOrThrow("ecobridge_compute_transfer_check"),
+                FunctionDescriptor.ofVoid(ADDRESS, ADDRESS, ADDRESS)
+            );
+            
+            computePidMH = linker.downcallHandle(
+                findOrThrow("ecobridge_compute_pid_adjustment"), 
+                FunctionDescriptor.of(JAVA_DOUBLE, ADDRESS, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE)
+            );
+            
             resetPidMH = linker.downcallHandle(findOrThrow("ecobridge_reset_pid_state"), FunctionDescriptor.ofVoid(ADDRESS));
 
-            // 4. 绑定新增的数学下沉函数 (修复报错的关键)
+            // 3. 数学下沉函数
             calcInflationMH = linker.downcallHandle(findOrThrow("ecobridge_calc_inflation"), FunctionDescriptor.of(JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE));
             calcStabilityMH = linker.downcallHandle(findOrThrow("ecobridge_calc_stability"), FunctionDescriptor.of(JAVA_DOUBLE, JAVA_LONG, JAVA_LONG));
             calcDecayMH = linker.downcallHandle(findOrThrow("ecobridge_calc_decay"), FunctionDescriptor.of(JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE));
-            
             computeTierPriceMH = linker.downcallHandle(findOrThrow("ecobridge_compute_tier_price"), FunctionDescriptor.of(JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_BOOLEAN));
-            
-            // base, neff, amt, lambda, eps, histAvg
             computePriceBoundedMH = linker.downcallHandle(findOrThrow("ecobridge_compute_price_bounded"), FunctionDescriptor.of(JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE));
 
-            // 5. 初始化 Rust 侧数据库
+            // 【新增】批量价格计算接口
+            computeBatchPricesMH = linker.downcallHandle(
+                findOrThrow("ecobridge_compute_batch_prices"),
+                FunctionDescriptor.ofVoid(
+                    JAVA_LONG,    // count
+                    JAVA_DOUBLE,  // neff
+                    ADDRESS,      // TradeContext array
+                    ADDRESS,      // MarketConfig array
+                    ADDRESS,      // histAvgs double array
+                    ADDRESS,      // lambdas double array
+                    ADDRESS       // output prices double array
+                )
+            );
+
+            // 4. 初始化数据库
             try (Arena arena = Arena.ofConfined()) {
                 String dataPath = plugin.getDataFolder().getAbsolutePath();
                 int result = (int) initDBMH.invokeExact(arena.allocateFrom(dataPath));
@@ -182,8 +235,6 @@ public class NativeBridge {
     // API Wrappers
     // =================================================================
 
-    // --- 新增修复方法 ---
-
     public static double calcInflation(double heat, double m1) {
         if (!isLoaded()) return 0.0;
         try { return (double) calcInflationMH.invokeExact(heat, m1); } catch (Throwable t) { return 0.0; }
@@ -208,8 +259,6 @@ public class NativeBridge {
         if (!isLoaded()) return base;
         try { return (double) computePriceBoundedMH.invokeExact(base, neff, amt, lambda, eps, histAvg); } catch (Throwable t) { return base; }
     }
-
-    // --- 原有方法 ---
 
     public static void getHealthStats(MemorySegment outTotal, MemorySegment outDropped) {
         if (!isLoaded()) return;
@@ -245,18 +294,56 @@ public class NativeBridge {
 
     public static TransferResult checkTransfer(MemorySegment ctxSeg, MemorySegment cfgSeg) {
         if (!isLoaded()) return new TransferResult(0.0, true, -1);
-        try (Arena localArena = Arena.ofConfined()) {
-            MemorySegment res = (MemorySegment) checkTransferMH.invokeExact(localArena, ctxSeg, cfgSeg);
-            double tax = (double) VH_RES_TAX.get(res);
-            boolean isBlocked = ((int) VH_RES_BLOCKED.get(res)) != 0;
-            int warningCode = (int) VH_RES_CODE.get(res);
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment resultSeg = arena.allocate(Layouts.TRANSFER_RESULT);
+            checkTransferMH.invokeExact(resultSeg, ctxSeg, cfgSeg);
+            
+            double tax = (double) VH_RES_TAX.get(resultSeg);
+            boolean isBlocked = ((int) VH_RES_BLOCKED.get(resultSeg)) != 0;
+            int warningCode = (int) VH_RES_CODE.get(resultSeg);
+            
             return new TransferResult(tax, isBlocked, warningCode);
-        } catch (Throwable t) { return new TransferResult(0.0, true, -2); }
+        } catch (Throwable t) {
+            LogUtil.error("checkTransfer FFI 调用异常", t);
+            return new TransferResult(0.0, true, -2);
+        }
     }
 
-    public static double computePidAdjustment(MemorySegment pidPtr, double target, double current, double dt, double inflation) {
+    public static double computePidAdjustment(MemorySegment pidPtr, double target, double current, double dt, double inflation, double heat) {
         if (!isLoaded()) return 0.0;
-        try { return (double) computePidMH.invokeExact(pidPtr, target, current, dt, inflation); } catch (Throwable t) { return 0.0; }
+        try { 
+            return (double) computePidMH.invokeExact(pidPtr, target, current, dt, inflation, heat); 
+        } catch (Throwable t) { 
+            return 0.0; 
+        }
+    }
+
+    /**
+     * 【新增】SIMD 批量价格计算接口
+     * 
+     * @param count     商品数量
+     * @param neff      当前有效玩家数（全局）
+     * @param ctxArr    TradeContext 结构体数组（C 风格连续内存）
+     * @param cfgArr    MarketConfig 结构体数组
+     * @param histAvgs  每个商品的历史均价数组（double[]）
+     * @param lambdas   每个商品的 lambda 调节系数数组（double[]）
+     * @param results   输出价格数组（double[]），长度必须 >= count
+     */
+    public static void computeBatchPrices(
+        long count,
+        double neff,
+        MemorySegment ctxArr,
+        MemorySegment cfgArr,
+        MemorySegment histAvgs,
+        MemorySegment lambdas,
+        MemorySegment results
+    ) {
+        if (!isLoaded()) return;
+        try {
+            computeBatchPricesMH.invokeExact(count, neff, ctxArr, cfgArr, histAvgs, lambdas, results);
+        } catch (Throwable t) {
+            LogUtil.error("SIMD 批量计算失败", t);
+        }
     }
 
     public static class Layouts {

@@ -1,19 +1,18 @@
 # ============================================================
-# EcoBridge Configuration v0.8.8 (Hardened Edition)
-# Kernel: Java 25 (FFM/Loom) + Rust (SIMD) + Redis (Pub/Sub)
+# EcoBridge Configuration v0.9.1 (Macro Adaptive Edition)
+# Kernel: Java 25 (FFM/Loom) + Rust (SIMD/Rayon) + Redis
 # ============================================================
 
 # [系统内核设置]
 system:
-  # 是否开启调试模式，输出更多详细日志
   debug: false
-  # 经济日志的采样率，100 表示记录所有交易，较低的值表示按百分比采样
+  # 经济日志采样率 (0-100)
   log-sample-rate: 100
-  # 交易操作的冷却时间（毫秒），防止过于频繁的交易请求冲击内核
-  trade-throttle-ms: 150
-  # [校准] 是否记录交易日志到数据库 (对应 TradeListener.java 逻辑)
+  # 交易节流：防止短时间内高频点击 UI 冲击内核演算 (ms)
+  trade-throttle-ms: 100
+  # 是否记录每笔交易到 DuckDB (Native 存储)
   log-transactions: true
-  # 需要被插件拦截并进行审计的转账命令列表
+  # 拦截并实施审计的命令
   intercept-commands:
     - "pay"
     - "transfer"
@@ -22,82 +21,79 @@ system:
 
 # [分布式同步 (Redis)]
 redis:
-  # 是否启用 Redis 进行分布式数据同步
   enabled: true
-  # Redis 服务器地址
   host: "127.0.0.1"
-  # Redis 服务器端口
   port: 6379
-  # Redis 用户名 (留空表示不使用 ACL)
   user: ""
-  # Redis 密码 (留空表示无密码)
   password: ""
-  # 是否使用 SSL/TLS 加密连接
   ssl: false
-  # 当前服务器实例的唯一标识符，用于区分不同服务器的数据流
+  # 多服同步标识，建议每个子服唯一
   server-id: "survival-01"
-  # 用于不同服务器间同步经济事件的 Redis 通道
   channels:
     trade: "ecobridge:global_trade"
 
 # [数据库 (HikariCP + Virtual Threads)]
 database:
-  # MariaDB/MySQL 服务器地址
   host: "localhost"
-  # MariaDB/MySQL 服务器端口
   port: 3306
-  # 数据库名称
   database: "ecobridge"
-  # 数据库用户名
   username: "root"
-  # 数据库密码 - **强烈建议修改为强密码**
   password: "your_strong_password"
-  # 数据库连接池大小
-  pool-size: 10
+  pool-size: 15
 
 # [经济核心模型]
 economy:
-  # [校准] 主要使用的货币ID，必须与 CoinsEngine 等经济插件中的货币ID一致 (对应 TransferManager.java 逻辑)
   currency-id: "coins"
+  
+  # --- 1. 宏观调控中心 (Macro Control) ---
+  macro:
+    # 目标全服流速 (V): 每秒每人平均交易额。基于费雪方程式 (MV=PQ)
+    # 0.05 表示 100 个人在线时，全服每秒产生 5.0 的交易流量为平衡态
+    target-velocity: 0.05
+    # 单用户容量：计算生态饱和度 (Saturation) 的基准值
+    capacity-per-user: 5000.0
+    # 财富流速感应灵敏度：值越高，物价对大户抛售的反应越剧烈
+    heat-sensitivity: 0.5
+    # 恐慌抑制阈值：价格加速度超过此值将强制触发 Rust 阻尼器 (Panic Suppression)
+    panic-threshold: 50.0
 
-  # [宏观] 设定的长期目标货币供应量 M1 (流通中的现金 + 活期存款)
+  # --- 2. 物理控制器参数 (PID State) ---
+  # 这些参数直接注入 Rust 的 PidState 结构体
+  pid:
+    kp: 0.5   # 比例增益：决定价格随供需变化的“弹性”
+    ki: 0.1   # 积分增益：消除长期物价偏差（防通缩/死水）
+    kd: 0.05  # 微分增益：预测趋势，平抑瞬间跳变
+    lambda: 0.01 # 漏损系数：模拟货币在流通中的自然损耗
+
+  # --- 3. 基础市场参数 ---
+  # 货币供应量 M1 基准
   m1-supply: 10000000.0
-
-  # [宏观] 价格波动幅度超过此阈值时，会触发 PID 控制器进行宏观调控
+  # 波动触发阈值 (单笔交易)
   volatility-threshold: 50000.0
-
-  # [校准] 经济热度的每日自然衰减率 (对应 EconomyManager.java)
-  # 已修正为 'decay-rate' (原 daily-decay-rate)
-  decay-rate: 0.05 # 0.05 意味着每天衰减 5%
-
-  # [微观] 动态定价模型的核心参数，影响价格随供需变化的陡峭程度
-  # [校准] 键名对齐 UShopProvider.java 逻辑，同时也对应 PricingManager 的 default-lambda
+  # 每日热度自然衰减率
+  decay-rate: 0.05
+  # 默认流动性系数 (微观价格斜率)
   default-lambda: 0.002
-  
-  # [微观] 动态定价模型的时间衰减常数，影响历史交易数据的权重随时间下降的速度
+  # 时间衰减常数 (历史权重半衰期)
   tau: 7.0
-  
-  # [微观] 全局出售折扣率 (PricingManager.java 使用)
+  # 全局出售折扣率
   sell-ratio: 0.5
 
-  # [环境因子] Rust 核心权重参数 (MarketConfig SSoT)
-  # 季节性活动对价格影响的幅度
-  seasonal-amplitude: 0.15
-  # 周末时段的价格乘数
-  weekend-multiplier: 1.2
-  # [校准] 新手保护对价格影响的力度 (对应 UShopProvider.java)
-  # 已修正为 'newbie-protection' (原 newbie-protection-rate)
-  newbie-protection: 0.2
-  # 强制开启节日模式，忽略外部API结果
-  force-festival-mode: false
+  # --- 4. 环境扰动因子 (MarketConfig) ---
+  environment:
+    seasonal-amplitude: 0.15
+    weekend-multiplier: 1.2
+    newbie-protection: 0.2
+    force-festival-mode: false
 
-  # [数据回溯]
-  # 保留历史交易记录的天数上限
-  history-days-limit: 30
-  # 保留的历史交易记录总条数上限
-  max-history-records: 3000
+  # --- 5. 批处理与历史 ---
+  history:
+    # 演算快照保留天数
+    days-limit: 30
+    # 内存中活跃缓存的最大条数
+    max-records: 3000
 
-  # [金融风控审计] (RegulatorConfig SSoT)
+  # --- 6. 金融风控审计 (RegulatorConfig) ---
   audit-settings:
     # 所有转账的基础税率
     base-tax-rate: 0.05
@@ -118,32 +114,21 @@ economy:
     # warning-ratio: 0.9 
     # 触发高风险警告的最低金额
     warning-min-amount: 50000.0
-    # 被认定为“新手”的游玩小时数上限
+    # 频率审计阈值：玩家每秒转账频率超过此值将被拦截
+    velocity-threshold: 20.0
     newbie-hours: 10.0
     # 被认定为“老手”的游玩小时数下限
     veteran-hours: 100.0
 
-# [节假日 API]
-holiday-api:
-  # 查询节假日信息的 API 地址模板，{year} 会被替换为年份
-  url-template: "https://holiday.ailcc.com/api/holiday/year/{year}"
-  # 当 API 请求失败时，默认是否视为节假日
-  fallback-is-holiday: false
-
 # [物品特定覆盖配置]
-# 为特定商店或物品组设置独立的定价参数
 item-settings:
-  miner_shop: # 商店组名称
-    diamond: # 物品名称
-      # 该物品的专属 lambda 参数
+  miner_shop:
+    diamond:
       lambda: 0.0001
-      # 该物品在计算价格时，各环境因子的权重
       weights:
-        seasonal: 0.0 # 季节性权重
-        inflation: 0.5 # 通胀权重
+        seasonal: 0.0
+        inflation: 0.5
 
 # [内部状态 - 请勿手动修改]
-# 由插件运行时维护的状态数据
 internal:
-  # 当前全局经济热度值
   economy-heat: 0.0

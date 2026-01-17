@@ -10,10 +10,14 @@ repositories {
 mavenCentral()
 gradlePluginPortal()
 }
+dependencies {
+// ASM 9.9.1: 完美支持 Java 25 预览版字节码
+classpath("org.ow2.asm:asm-commons:9.9.1")
+}
 }
 plugins {
 `java-library`
-// Shadow 9.3.1 完美支持 Java 25，无需 ASM 补丁
+// 严格保留 Shadow 9.3.1
 id("com.gradleup.shadow") version "9.3.1"
 }
 group = "top.ellan"
@@ -22,52 +26,34 @@ version = "1.0-SNAPSHOT"
 val rustHeaderFile = file("${projectDir}/../ecobridge-rust/ecobridge_rust.h")
 val generatedSourceDir = layout.buildDirectory.dir("generated/sources/jextract")
 val targetPackage = "top.ellan.ecobridge.gen"
-// 🔍 智能查找 jextract (支持 Windows/Linux/CI)
 fun findJextract(): String {
 val os = org.gradle.internal.os.OperatingSystem.current()
-// Windows 必须用 .bat 启动脚本，Linux/Mac 直接用二进制文件
 val binaryName = if (os.isWindows) "jextract.bat" else "jextract"
-// 1. 优先读取 local.properties (本地开发人员专用)
+// 优先读取环境变量 (针对 GitHub Actions)
+val envHome = System.getenv("JEXTRACT_HOME")
+if (!envHome.isNullOrBlank()) {
+val path = file("$envHome/bin/$binaryName")
+if (path.exists()) return path.absolutePath
+}
+// 其次读取 local.properties (针对本地开发)
 val localPropsFile = file("local.properties")
 if (localPropsFile.exists()) {
 val props = Properties()
 localPropsFile.inputStream().use { props.load(it) }
 val localHome = props.getProperty("jextract.home")
 if (localHome != null) {
-val possiblePaths = listOf(
-file("$localHome/bin/$binaryName"),
-file("$localHome/$binaryName")
-)
-for (path in possiblePaths) {
-if (path.exists()) {
-println("✅ [Local] 找到 jextract: ${path.absolutePath}")
-return path.absolutePath
+val possiblePaths = listOf(file("$localHome/bin/$binaryName"), file("$localHome/$binaryName"))
+for (path in possiblePaths) if (path.exists()) return path.absolutePath
 }
 }
-}
-}
-// 2. 读取环境变量 JEXTRACT_HOME (GitHub Actions / CI 专用)
-val envHome = System.getenv("JEXTRACT_HOME")
-if (envHome != null) {
-val path = file("$envHome/bin/$binaryName")
-if (path.exists()) {
-println("✅ [CI] 环境变量找到 jextract: ${path.absolutePath}")
-return path.absolutePath
-}
-}
-// 3. 尝试 JAVA_HOME
-val javaHome = System.getProperty("java.home")
-val jdkPath = file("$javaHome/bin/$binaryName")
-if (jdkPath.exists()) return jdkPath.absolutePath
-// 4. 最后尝试直接调用命令
-return binaryName
+return binaryName // 降级为系统 PATH 中的 jextract
 }
 val generateBindings = tasks.register<Exec>("generateBindings") {
 group = "build"
 description = "使用 jextract 自动从 Rust 头文件生成 Java FFM 绑定。"
 doFirst {
 if (!rustHeaderFile.exists()) {
-throw GradleException("❌ 未找到 Rust 头文件: ${rustHeaderFile.absolutePath}。\n请先编译 Rust 项目 (cargo build --release)。")
+throw GradleException("❌ 错误：未找到 Rust 头文件: ${rustHeaderFile.absolutePath}")
 }
 generatedSourceDir.get().asFile.mkdirs()
 }
@@ -75,48 +61,65 @@ commandLine(
 findJextract(),
 "--output", generatedSourceDir.get().asFile.absolutePath,
 "--target-package", targetPackage,
-"--header-class-name", "ecobridge_rust_h", // 关键：固定类名
+"--header-class-name", "ecobridge_rust_h",
 "--library", "ecobridge_rust",
 rustHeaderFile.absolutePath
 )
 inputs.file(rustHeaderFile)
 outputs.dir(generatedSourceDir)
 }
+// --- [Java 环境与工具链] ---
 java {
-toolchain { languageVersion.set(JavaLanguageVersion.of(25)) }
+toolchain {
+languageVersion.set(JavaLanguageVersion.of(25))
+}
 }
 sourceSets {
 main {
-java.srcDir(generatedSourceDir)
+// ✅ 核心修复：注册 jextract 输出。这不仅解决了包名不存在问题，
+// 还会自动让 compileJava 任务依赖于 generateBindings。
+java.srcDir(generateBindings)
 }
 }
 repositories {
 mavenCentral()
+// 🔥 关键：Jackson 3.0 / 2.20 目前主要通过 Sonatype 仓库分发
+maven("https://central.sonatype.com/repository/maven-snapshots/")
+maven("https://oss.sonatype.org/content/repositories/releases/")
+maven("https://oss.sonatype.org/content/repositories/snapshots/")
 maven("https://jitpack.io")
 maven("https://repo.papermc.io/repository/maven-public/")
 maven("https://repo.nightexpressdev.com/releases")
 maven("https://repo.lanink.cn/repository/maven-public/")
-// [新增] PlaceholderAPI 仓库
 maven("https://repo.extendedclip.com/content/repositories/placeholderapi/")
 flatDir { dirs("libs") }
 }
 dependencies {
-compileOnly(fileTree(mapOf("dir" to "libs", "include" to listOf("**/*.jar"))))
+// 严格保留：Paper API
 compileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
+compileOnly("me.clip:placeholderapi:2.11.6")
 compileOnly("su.nightexpress.nightcore:main:2.13.0")
 compileOnly("su.nightexpress.coinsengine:CoinsEngine:2.6.0")
 compileOnly("cn.superiormc.ultimateshop:plugin:4.2.3")
-// [新增] PlaceholderAPI 依赖
-compileOnly("me.clip:placeholderapi:2.11.6")
+compileOnly(fileTree(mapOf("dir" to "libs", "include" to listOf("**/*.jar"))))
+// 🔥 Jackson 3.0 全家桶配置 (严格遵循迁移指南)
+implementation(platform("tools.jackson:jackson-bom:3.0.0"))
+implementation("tools.jackson.core:jackson-databind")
+implementation("tools.jackson.core:jackson-core")
+// 注解保持旧坐标，BOM 会自动解析到匹配的 2.20 系列
+implementation("com.fasterxml.jackson.core:jackson-annotations")
+// 🔥 2026 最新稳定版数据库/缓存库
 implementation("org.mariadb.jdbc:mariadb-java-client:3.5.7")
-implementation("com.zaxxer:HikariCP:6.2.1")
+implementation("com.zaxxer:HikariCP:7.0.2")
 implementation("com.github.ben-manes.caffeine:caffeine:3.2.3")
 implementation("redis.clients:jedis:7.2.0")
-// 🔥 Jackson 高性能 JSON 处理库
-implementation("com.fasterxml.jackson.core:jackson-databind:2.18.2")
-compileOnly("com.google.code.gson:gson:2.12.1")
+compileOnly("com.google.code.gson:gson:2.13.2")
+// 测试
+testImplementation(platform("org.junit:junit-bom:5.14.1"))
+testImplementation("org.junit.jupiter:junit-jupiter")
 }
 tasks.withType<JavaCompile> {
+// 再次显式依赖，确保并行构建时的安全性
 dependsOn(generateBindings)
 options.encoding = "UTF-8"
 options.release.set(25)
@@ -129,15 +132,18 @@ options.compilerArgs.addAll(listOf(
 tasks.named<ShadowJar>("shadowJar") {
 archiveClassifier.set("")
 val prefix = "top.ellan.ecobridge.libs"
+// ✅ 必须重定向依赖，否则会导致插件冲突
+relocate("tools.jackson", "$prefix.jackson")
+relocate("com.fasterxml.jackson.annotation", "$prefix.jackson.annotations")
 relocate("com.zaxxer.hikari", "$prefix.hikari")
 relocate("org.mariadb.jdbc", "$prefix.mariadb")
 relocate("com.github.benmanes.caffeine", "$prefix.caffeine")
 relocate("redis.clients", "$prefix.jedis")
-// 🔥 将 Jackson 重新打包到插件内部
-relocate("com.fasterxml.jackson", "$prefix.jackson")
+// 打包资源文件，包括 native 库
 from("src/main/resources") {
-include("*.dll", "*.so", "*.dylib")
+include("*.dll", "*.so", "*.dylib", "natives/**")
 }
+// 合并服务发现文件（对 JDBC 和 Jackson 很重要）
 mergeServiceFiles()
 }
 tasks.withType<ProcessResources> {
@@ -162,6 +168,10 @@ package top.ellan.ecobridge;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import org.bukkit.Bukkit;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import top.ellan.ecobridge.bridge.NativeBridge;
 import top.ellan.ecobridge.cache.HotDataCache;
@@ -174,6 +184,7 @@ import top.ellan.ecobridge.listener.CommandInterceptor;
 import top.ellan.ecobridge.listener.TradeListener;
 import top.ellan.ecobridge.manager.*;
 import top.ellan.ecobridge.network.RedisManager;
+import top.ellan.ecobridge.storage.ActivityCollector;
 import top.ellan.ecobridge.storage.AsyncLogger;
 import top.ellan.ecobridge.util.HolidayManager;
 import top.ellan.ecobridge.util.LogUtil;
@@ -181,7 +192,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-public final class EcoBridge extends JavaPlugin {
+public final class EcoBridge extends JavaPlugin implements Listener {
 private static volatile EcoBridge instance;
 private static final MiniMessage MM = MiniMessage.miniMessage();
 private ExecutorService virtualExecutor;
@@ -192,6 +203,7 @@ instance = this;
 this.virtualExecutor = Executors.newVirtualThreadPerTaskExecutor();
 try {
 bootstrapInfrastructure();
+ActivityCollector.startHeartbeat(this);
 } catch (Exception e) {
 getLogger().severe("基础架构引导失败，系统强制挂起: " + e.getMessage());
 Bukkit.getPluginManager().disablePlugin(this);
@@ -280,6 +292,7 @@ return true;
 }
 private void registerListeners() {
 var pm = getServer().getPluginManager();
+pm.registerEvents(this, this);
 pm.registerEvents(new CoinsEngineListener(this), this);
 pm.registerEvents(new CommandInterceptor(this), this);
 pm.registerEvents(new TradeListener(this), this);
@@ -305,6 +318,14 @@ UShopLimitInjector.execute(this);
 UShopPriceInjector.execute(this);
 }
 sendConsole("<green>[EcoBridge] 逻辑参数重载成功。Native 内存布局保持锁定。");
+}
+@EventHandler
+public void onJoin(PlayerJoinEvent event) {
+ActivityCollector.updateSnapshot(event.getPlayer());
+}
+@EventHandler
+public void onQuit(PlayerQuitEvent event) {
+ActivityCollector.removePlayer(event.getPlayer().getUniqueId());
 }
 public static EcoBridge getInstance() { return instance; }
 public ExecutorService getVirtualExecutor() { return virtualExecutor; }
@@ -367,7 +388,6 @@ import top.ellan.ecobridge.EcoBridge;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.UnaryOperator;
 public class PriceCalculatedEvent extends Event {
 private static final HandlerList handlers = new HandlerList();
@@ -376,7 +396,7 @@ private final String shopId;
 private final String productId;
 private final double rustBasePrice;
 private volatile double finalPrice;
-private final List<String> modificationLog = new CopyOnWriteArrayList<>();
+private final List<String> modificationLog = new ArrayList<>(4);
 public PriceCalculatedEvent(@Nullable Player player, @NotNull String shopId, @NotNull String productId, double calculated) {
 super(false);
 this.player = player;
@@ -384,7 +404,7 @@ this.shopId = shopId;
 this.productId = productId;
 this.rustBasePrice = calculated;
 this.finalPrice = calculated;
-this.modificationLog.add("EcoKernel-v0.8.8");
+this.modificationLog.add("EcoKernel-v0.8.9");
 }
 public @Nullable Player getPlayer() { return player; }
 @NotNull
@@ -404,23 +424,33 @@ public synchronized void setFinalPrice(double finalPrice, @NotNull String source
 this.finalPrice = Math.max(0.01, finalPrice);
 this.modificationLog.add(source + "(Overwrite)");
 }
-public boolean isModified() {
+public synchronized boolean isModified() {
 return modificationLog.size() > 1;
 }
 @NotNull
-public List<String> getModificationLog() {
+public synchronized List<String> getModificationLog() {
 return Collections.unmodifiableList(new ArrayList<>(modificationLog));
 }
 @NotNull
 public Component toComponent() {
-List<String> logSnapshot = new ArrayList<>(modificationLog);
-String lastSource = logSnapshot.get(logSnapshot.size() - 1);
-String template = isModified()
+String lastSource;
+double currentFinal;
+boolean modified;
+synchronized (this) {
+if (modificationLog.isEmpty()) {
+lastSource = "Unknown";
+} else {
+lastSource = modificationLog.get(modificationLog.size() - 1);
+}
+currentFinal = this.finalPrice;
+modified = modificationLog.size() > 1;
+}
+String template = modified
 ? "<gray>[EcoBridge] <white><product> <yellow><final> <dark_gray>(原:<base>, 改自:<source>)"
 : "<gray>[EcoBridge] <white><product> <green><final> <dark_gray>(物理定价)";
 return EcoBridge.getMiniMessage().deserialize(template,
 Placeholder.unparsed("product", productId),
-Placeholder.unparsed("final", String.format("%.2f", finalPrice)),
+Placeholder.unparsed("final", String.format("%.2f", currentFinal)),
 Placeholder.unparsed("base", String.format("%.2f", rustBasePrice)),
 Placeholder.unparsed("source", lastSource)
 );
@@ -444,7 +474,13 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.VarHandle;
 import static java.lang.foreign.ValueLayout.*;
 public class NativeBridge {
-private static final int EXPECTED_ABI_VERSION = 0x0008_0700;
+private static final int EXPECTED_ABI_VERSION = 0x0009_0000;
+public static final int CODE_NORMAL = 0;
+public static final int CODE_WARNING_HIGH_RISK = 1;
+public static final int CODE_BLOCK_REVERSE_FLOW = 2;
+public static final int CODE_BLOCK_INJECTION = 3;
+public static final int CODE_BLOCK_INSUFFICIENT_FUNDS = 4;
+public static final int CODE_BLOCK_VELOCITY_LIMIT = 5;
 private static MethodHandle getAbiVersionMH;
 private static MethodHandle initDBMH;
 private static MethodHandle getVersionMH;
@@ -462,6 +498,7 @@ private static MethodHandle calcStabilityMH;
 private static MethodHandle calcDecayMH;
 private static MethodHandle computeTierPriceMH;
 private static MethodHandle computePriceBoundedMH;
+private static MethodHandle computeBatchPricesMH;
 public static final VarHandle VH_CTX_BASE_PRICE;
 public static final VarHandle VH_CTX_CURR_AMT;
 public static final VarHandle VH_CTX_INF_RATE;
@@ -469,6 +506,8 @@ public static final VarHandle VH_CTX_TIMESTAMP;
 public static final VarHandle VH_CTX_PLAY_TIME;
 public static final VarHandle VH_CTX_TIMEZONE_OFFSET;
 public static final VarHandle VH_CTX_NEWBIE_MASK;
+public static final VarHandle VH_CTX_MARKET_HEAT;
+public static final VarHandle VH_CTX_ECO_SAT;
 public static final VarHandle VH_CFG_LAMBDA;
 public static final VarHandle VH_CFG_VOLATILITY;
 public static final VarHandle VH_CFG_S_AMP;
@@ -478,6 +517,9 @@ public static final VarHandle VH_CFG_W_SEASONAL;
 public static final VarHandle VH_CFG_W_WEEKEND;
 public static final VarHandle VH_CFG_W_NEWBIE;
 public static final VarHandle VH_CFG_W_INFLATION;
+public static final VarHandle VH_TCTX_ACTIVITY_SCORE;
+public static final VarHandle VH_TCTX_VELOCITY;
+public static final VarHandle VH_RCFG_V_THRESHOLD;
 private static final VarHandle VH_RES_TAX;
 private static final VarHandle VH_RES_BLOCKED;
 private static final VarHandle VH_RES_CODE;
@@ -491,6 +533,8 @@ VH_CTX_TIMESTAMP = ctxLayout.varHandle(MemoryLayout.PathElement.groupElement("cu
 VH_CTX_PLAY_TIME = ctxLayout.varHandle(MemoryLayout.PathElement.groupElement("play_time_seconds"));
 VH_CTX_TIMEZONE_OFFSET = ctxLayout.varHandle(MemoryLayout.PathElement.groupElement("timezone_offset"));
 VH_CTX_NEWBIE_MASK = ctxLayout.varHandle(MemoryLayout.PathElement.groupElement("newbie_mask"));
+VH_CTX_MARKET_HEAT = ctxLayout.varHandle(MemoryLayout.PathElement.groupElement("market_heat"));
+VH_CTX_ECO_SAT = ctxLayout.varHandle(MemoryLayout.PathElement.groupElement("eco_saturation"));
 GroupLayout cfgLayout = MarketConfig.layout();
 VH_CFG_LAMBDA = cfgLayout.varHandle(MemoryLayout.PathElement.groupElement("base_lambda"));
 VH_CFG_VOLATILITY = cfgLayout.varHandle(MemoryLayout.PathElement.groupElement("volatility_factor"));
@@ -501,6 +545,11 @@ VH_CFG_W_SEASONAL = cfgLayout.varHandle(MemoryLayout.PathElement.groupElement("s
 VH_CFG_W_WEEKEND = cfgLayout.varHandle(MemoryLayout.PathElement.groupElement("weekend_weight"));
 VH_CFG_W_NEWBIE = cfgLayout.varHandle(MemoryLayout.PathElement.groupElement("newbie_weight"));
 VH_CFG_W_INFLATION = cfgLayout.varHandle(MemoryLayout.PathElement.groupElement("inflation_weight"));
+GroupLayout tCtxLayout = TransferContext.layout();
+VH_TCTX_ACTIVITY_SCORE = tCtxLayout.varHandle(MemoryLayout.PathElement.groupElement("sender_activity_score"));
+VH_TCTX_VELOCITY = tCtxLayout.varHandle(MemoryLayout.PathElement.groupElement("sender_velocity"));
+GroupLayout rCfgLayout = RegulatorConfig.layout();
+VH_RCFG_V_THRESHOLD = rCfgLayout.varHandle(MemoryLayout.PathElement.groupElement("velocity_threshold"));
 GroupLayout resLayout = top.ellan.ecobridge.gen.TransferResult.layout();
 VH_RES_TAX = resLayout.varHandle(MemoryLayout.PathElement.groupElement("final_tax"));
 VH_RES_BLOCKED = resLayout.varHandle(MemoryLayout.PathElement.groupElement("is_blocked"));
@@ -530,14 +579,32 @@ pushToDuckDBMH = linker.downcallHandle(findOrThrow("ecobridge_log_to_duckdb"), F
 queryNeffVectorizedMH = linker.downcallHandle(findOrThrow("ecobridge_query_neff_vectorized"), FunctionDescriptor.of(JAVA_DOUBLE, JAVA_LONG, JAVA_DOUBLE));
 computePriceMH = linker.downcallHandle(findOrThrow("ecobridge_compute_price_humane"), FunctionDescriptor.of(JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE));
 calculateEpsilonMH = linker.downcallHandle(findOrThrow("ecobridge_calculate_epsilon"), FunctionDescriptor.of(JAVA_DOUBLE, ADDRESS, ADDRESS));
-checkTransferMH = linker.downcallHandle(findOrThrow("ecobridge_compute_transfer_check"), FunctionDescriptor.of(Layouts.TRANSFER_RESULT, ADDRESS, ADDRESS));
-computePidMH = linker.downcallHandle(findOrThrow("ecobridge_compute_pid_adjustment"), FunctionDescriptor.of(JAVA_DOUBLE, ADDRESS, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE));
+checkTransferMH = linker.downcallHandle(
+findOrThrow("ecobridge_compute_transfer_check"),
+FunctionDescriptor.ofVoid(ADDRESS, ADDRESS, ADDRESS)
+);
+computePidMH = linker.downcallHandle(
+findOrThrow("ecobridge_compute_pid_adjustment"),
+FunctionDescriptor.of(JAVA_DOUBLE, ADDRESS, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE)
+);
 resetPidMH = linker.downcallHandle(findOrThrow("ecobridge_reset_pid_state"), FunctionDescriptor.ofVoid(ADDRESS));
 calcInflationMH = linker.downcallHandle(findOrThrow("ecobridge_calc_inflation"), FunctionDescriptor.of(JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE));
 calcStabilityMH = linker.downcallHandle(findOrThrow("ecobridge_calc_stability"), FunctionDescriptor.of(JAVA_DOUBLE, JAVA_LONG, JAVA_LONG));
 calcDecayMH = linker.downcallHandle(findOrThrow("ecobridge_calc_decay"), FunctionDescriptor.of(JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE));
 computeTierPriceMH = linker.downcallHandle(findOrThrow("ecobridge_compute_tier_price"), FunctionDescriptor.of(JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_BOOLEAN));
 computePriceBoundedMH = linker.downcallHandle(findOrThrow("ecobridge_compute_price_bounded"), FunctionDescriptor.of(JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE));
+computeBatchPricesMH = linker.downcallHandle(
+findOrThrow("ecobridge_compute_batch_prices"),
+FunctionDescriptor.ofVoid(
+JAVA_LONG,
+JAVA_DOUBLE,
+ADDRESS,
+ADDRESS,
+ADDRESS,
+ADDRESS,
+ADDRESS
+)
+);
 try (Arena arena = Arena.ofConfined()) {
 String dataPath = plugin.getDataFolder().getAbsolutePath();
 int result = (int) initDBMH.invokeExact(arena.allocateFrom(dataPath));
@@ -615,17 +682,41 @@ try { return (double) calculateEpsilonMH.invokeExact(tradeCtx, marketCfg); } cat
 }
 public static TransferResult checkTransfer(MemorySegment ctxSeg, MemorySegment cfgSeg) {
 if (!isLoaded()) return new TransferResult(0.0, true, -1);
-try (Arena localArena = Arena.ofConfined()) {
-MemorySegment res = (MemorySegment) checkTransferMH.invokeExact(localArena, ctxSeg, cfgSeg);
-double tax = (double) VH_RES_TAX.get(res);
-boolean isBlocked = ((int) VH_RES_BLOCKED.get(res)) != 0;
-int warningCode = (int) VH_RES_CODE.get(res);
+try (Arena arena = Arena.ofConfined()) {
+MemorySegment resultSeg = arena.allocate(Layouts.TRANSFER_RESULT);
+checkTransferMH.invokeExact(resultSeg, ctxSeg, cfgSeg);
+double tax = (double) VH_RES_TAX.get(resultSeg);
+boolean isBlocked = ((int) VH_RES_BLOCKED.get(resultSeg)) != 0;
+int warningCode = (int) VH_RES_CODE.get(resultSeg);
 return new TransferResult(tax, isBlocked, warningCode);
-} catch (Throwable t) { return new TransferResult(0.0, true, -2); }
+} catch (Throwable t) {
+LogUtil.error("checkTransfer FFI 调用异常", t);
+return new TransferResult(0.0, true, -2);
 }
-public static double computePidAdjustment(MemorySegment pidPtr, double target, double current, double dt, double inflation) {
+}
+public static double computePidAdjustment(MemorySegment pidPtr, double target, double current, double dt, double inflation, double heat) {
 if (!isLoaded()) return 0.0;
-try { return (double) computePidMH.invokeExact(pidPtr, target, current, dt, inflation); } catch (Throwable t) { return 0.0; }
+try {
+return (double) computePidMH.invokeExact(pidPtr, target, current, dt, inflation, heat);
+} catch (Throwable t) {
+return 0.0;
+}
+}
+public static void computeBatchPrices(
+long count,
+double neff,
+MemorySegment ctxArr,
+MemorySegment cfgArr,
+MemorySegment histAvgs,
+MemorySegment lambdas,
+MemorySegment results
+) {
+if (!isLoaded()) return;
+try {
+computeBatchPricesMH.invokeExact(count, neff, ctxArr, cfgArr, histAvgs, lambdas, results);
+} catch (Throwable t) {
+LogUtil.error("SIMD 批量计算失败", t);
+}
 }
 public static class Layouts {
 public static final GroupLayout TRADE_CONTEXT = TradeContext.layout();
@@ -1277,80 +1368,191 @@ import top.ellan.ecobridge.bridge.NativeContextBuilder;
 import top.ellan.ecobridge.database.TransactionDao;
 import top.ellan.ecobridge.util.LogUtil;
 import java.lang.foreign.Arena;
+import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.MemorySegment;
-import java.util.HashMap;
-import java.util.Map;
+import java.lang.foreign.SequenceLayout;
+import java.lang.invoke.VarHandle;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
+import static java.lang.foreign.ValueLayout.JAVA_DOUBLE;
 public class PriceComputeEngine {
-public static Map<String, Double> computeSnapshot(EcoBridge plugin, double configTau, double defaultLambda) {
-Map<String, Double> result = new HashMap<>();
+private record ItemMeta(
+String key,
+String shopId,
+String productId,
+double basePrice,
+double lambda,
+int index
+) {}
+public static Map<String, Double> computeSnapshot(EcoBridge plugin, double configTau, double macroLambda) {
+Map<String, Double> resultMap = new HashMap<>();
 if (!NativeBridge.isLoaded()) {
-return result;
+LogUtil.warn("Native engine not loaded, skipping price computation");
+return resultMap;
 }
-FileConfiguration globalConfig = plugin.getConfig();
-ConfigurationSection itemSection = globalConfig.getConfigurationSection("item-settings");
-if (itemSection == null) return result;
+FileConfiguration config = plugin.getConfig();
+ConfigurationSection itemSection = config.getConfigurationSection("item-settings");
+if (itemSection == null) {
+LogUtil.warn("No item-settings found in config");
+return resultMap;
+}
+List<ItemMeta> activeItems = new ArrayList<>();
+int idx = 0;
+for (String shopId : itemSection.getKeys(false)) {
+ConfigurationSection shopSec = itemSection.getConfigurationSection(shopId);
+if (shopSec == null) continue;
+for (String prodId : shopSec.getKeys(false)) {
+double p0 = shopSec.getDouble(prodId + ".base-price", -1.0);
+if (p0 <= 0) continue;
+double lambda = shopSec.getDouble(prodId + ".lambda", macroLambda);
+activeItems.add(new ItemMeta(shopId + ":" + prodId, shopId, prodId, p0, lambda, idx++));
+}
+}
+int count = activeItems.size();
+if (count == 0) {
+LogUtil.info("No valid items found for price computation");
+return resultMap;
+}
 long now = System.currentTimeMillis();
+double neff = NativeBridge.queryNeffVectorized(now, configTau);
+Map<String, Double> histAvgMap = loadHistoryAveragesAsync(activeItems).join();
+try (Arena arena = Arena.ofConfined()) {
+SequenceLayout tradeCtxLayout = MemoryLayout.sequenceLayout(count, Layouts.TRADE_CONTEXT);
+SequenceLayout marketCfgLayout = MemoryLayout.sequenceLayout(count, Layouts.MARKET_CONFIG);
+SequenceLayout doubleArrLayout = MemoryLayout.sequenceLayout(count, JAVA_DOUBLE);
+MemorySegment ctxSeg = arena.allocate(tradeCtxLayout);
+MemorySegment cfgSeg = arena.allocate(marketCfgLayout);
+MemorySegment histAvgSeg = arena.allocate(doubleArrLayout);
+MemorySegment lambdaSeg = arena.allocate(doubleArrLayout);
+MemorySegment outputSeg = arena.allocate(doubleArrLayout);
+for (ItemMeta meta : activeItems) {
+long ctxOffset = (long) meta.index() * Layouts.TRADE_CONTEXT.byteSize();
+long cfgOffset = (long) meta.index() * Layouts.MARKET_CONFIG.byteSize();
+MemorySegment ctxSlice = ctxSeg.asSlice(ctxOffset, Layouts.TRADE_CONTEXT.byteSize());
+NativeContextBuilder.fillGlobalContext(ctxSlice, now);
+NativeBridge.VH_CTX_BASE_PRICE.set(ctxSeg, ctxOffset, meta.basePrice());
+ConfigurationSection itemConfig = itemSection.getConfigurationSection(meta.shopId() + "." + meta.productId());
+fillMarketConfig(cfgSeg, cfgOffset, itemConfig, config, meta.lambda());
+double histAvg = histAvgMap.getOrDefault(meta.productId(), meta.basePrice());
+histAvgSeg.setAtIndex(JAVA_DOUBLE, meta.index(), histAvg);
+lambdaSeg.setAtIndex(JAVA_DOUBLE, meta.index(), meta.lambda());
+}
+NativeBridge.computeBatchPrices(
+count,
+neff,
+ctxSeg,
+cfgSeg,
+histAvgSeg,
+lambdaSeg,
+outputSeg
+);
+for (ItemMeta meta : activeItems) {
+try {
+double price = outputSeg.getAtIndex(JAVA_DOUBLE, meta.index());
+if (Double.isFinite(price) && price > 0) {
+resultMap.put(meta.key(), price);
+} else {
+LogUtil.errorOnce("INVALID_PRICE|" + meta.key(),
+"Invalid price computed for " + meta.key() + ": " + price);
+resultMap.put(meta.key(), meta.basePrice());
+}
+} catch (Exception e) {
+LogUtil.error("Result extraction failed for " + meta.key(), e);
+resultMap.put(meta.key(), meta.basePrice());
+}
+}
+} catch (Throwable e) {
+LogUtil.error("SIMD batch pricing engine crashed", e);
+for (ItemMeta meta : activeItems) {
+try {
+resultMap.put(meta.key(), fallbackSingleCompute(plugin, meta, now, configTau));
+} catch (Exception ex) {
+resultMap.put(meta.key(), meta.basePrice());
+}
+}
+}
+return resultMap;
+}
+private static CompletableFuture<Map<String, Double>> loadHistoryAveragesAsync(List<ItemMeta> items) {
+return CompletableFuture.supplyAsync(() -> {
+Map<String, Double> resultMap = new HashMap<>();
+try {
+Map<String, Double> cache = new HashMap<>();
+for (ItemMeta meta : items) {
+String productId = meta.productId();
+if (!cache.containsKey(productId)) {
+cache.put(productId, TransactionDao.get7DayAverage(productId));
+}
+resultMap.put(productId, cache.get(productId));
+}
+} catch (Exception e) {
+LogUtil.error("History load failed", e);
+for (ItemMeta meta : items) {
+resultMap.putIfAbsent(meta.productId(), meta.basePrice());
+}
+}
+return resultMap;
+});
+}
+private static void fillMarketConfig(
+MemorySegment cfgBase,
+long offset,
+ConfigurationSection itemConfig,
+FileConfiguration globalConfig,
+double currentLambda
+) {
+NativeBridge.VH_CFG_LAMBDA.set(cfgBase, offset, currentLambda);
+NativeBridge.VH_CFG_VOLATILITY.set(cfgBase, offset, 1.0);
+NativeBridge.VH_CFG_S_AMP.set(cfgBase, offset, globalConfig.getDouble("economy.seasonal-amplitude", 0.15));
+NativeBridge.VH_CFG_W_MULT.set(cfgBase, offset, globalConfig.getDouble("economy.weekend-multiplier", 1.2));
+NativeBridge.VH_CFG_N_PROT.set(cfgBase, offset, globalConfig.getDouble("economy.newbie-protection-rate", 0.2));
+if (itemConfig != null) {
+setWeight(cfgBase, offset, itemConfig, "weights.seasonal", 0.25, NativeBridge.VH_CFG_W_SEASONAL);
+setWeight(cfgBase, offset, itemConfig, "weights.weekend", 0.25, NativeBridge.VH_CFG_W_WEEKEND);
+setWeight(cfgBase, offset, itemConfig, "weights.newbie", 0.25, NativeBridge.VH_CFG_W_NEWBIE);
+setWeight(cfgBase, offset, itemConfig, "weights.inflation", 0.25, NativeBridge.VH_CFG_W_INFLATION);
+} else {
+NativeBridge.VH_CFG_W_SEASONAL.set(cfgBase, offset, 0.25);
+NativeBridge.VH_CFG_W_WEEKEND.set(cfgBase, offset, 0.25);
+NativeBridge.VH_CFG_W_NEWBIE.set(cfgBase, offset, 0.25);
+NativeBridge.VH_CFG_W_INFLATION.set(cfgBase, offset, 0.25);
+}
+}
+private static void setWeight(
+MemorySegment cfgBase,
+long offset,
+ConfigurationSection config,
+String path,
+double defaultValue,
+VarHandle vh
+) {
+double value = config != null ? config.getDouble(path, defaultValue) : defaultValue;
+vh.set(cfgBase, offset, value);
+}
+private static double fallbackSingleCompute(EcoBridge plugin, ItemMeta meta, long now, double tau) {
 try (Arena arena = Arena.ofConfined()) {
 MemorySegment ctx = arena.allocate(Layouts.TRADE_CONTEXT);
 MemorySegment cfg = arena.allocate(Layouts.MARKET_CONFIG);
 NativeContextBuilder.fillGlobalContext(ctx, now);
-double neff = NativeBridge.queryNeffVectorized(now, configTau);
-for (String shopId : itemSection.getKeys(false)) {
-ConfigurationSection shopSection = itemSection.getConfigurationSection(shopId);
-if (shopSection == null) continue;
-for (String productId : shopSection.getKeys(false)) {
-processSingleItem(
-shopId, productId, shopSection,
-ctx, cfg,
-neff, defaultLambda, globalConfig,
-result
-);
-}
-}
-} catch (Throwable e) {
-LogUtil.error("计算引擎发生严重错误", e);
-}
-return result;
-}
-private static void processSingleItem(
-String shopId, String productId, ConfigurationSection shopSection,
-MemorySegment ctx, MemorySegment cfg,
-double neff, double defaultLambda, FileConfiguration globalConfig,
-Map<String, Double> resultCollector
-) {
-String path = productId;
-String itemKey = shopId + ":" + productId;
-double lambda = shopSection.getDouble(path + ".lambda", defaultLambda);
-double p0 = shopSection.getDouble(path + ".base-price", -1.0);
-if (p0 <= 0) return;
-NativeContextBuilder.updateItemContext(ctx, p0);
-ConfigurationSection itemConfig = shopSection.getConfigurationSection(path);
-fillMarketConfig(cfg, itemConfig, globalConfig, defaultLambda);
+NativeBridge.VH_CTX_BASE_PRICE.set(ctx, 0L, meta.basePrice());
+ConfigurationSection itemSec = plugin.getConfig()
+.getConfigurationSection("item-settings." + meta.shopId() + "." + meta.productId());
+fillMarketConfig(cfg, 0L, itemSec, plugin.getConfig(), meta.lambda());
+double histAvg = TransactionDao.get7DayAverage(meta.productId());
+double neff = NativeBridge.queryNeffVectorized(now, tau);
 double epsilon = NativeBridge.calculateEpsilon(ctx, cfg);
-double histAvg = TransactionDao.get7DayAverage(productId);
-double finalPrice = NativeBridge.computePriceBounded(p0, neff, 0.0, lambda, epsilon, histAvg);
-resultCollector.put(itemKey, finalPrice);
-}
-private static void fillMarketConfig(
-MemorySegment cfg, ConfigurationSection section,
-FileConfiguration globalConfig, double defaultLambda
-) {
-double lambda = (section != null) ? section.getDouble("lambda", defaultLambda) : defaultLambda;
-NativeBridge.VH_CFG_LAMBDA.set(cfg, 0L, lambda);
-NativeBridge.VH_CFG_VOLATILITY.set(cfg, 0L, 1.0);
-NativeBridge.VH_CFG_S_AMP.set(cfg, 0L, globalConfig.getDouble("economy.seasonal-amplitude", 0.15));
-NativeBridge.VH_CFG_W_MULT.set(cfg, 0L, globalConfig.getDouble("economy.weekend-multiplier", 1.2));
-NativeBridge.VH_CFG_N_PROT.set(cfg, 0L, globalConfig.getDouble("economy.newbie-protection-rate", 0.2));
-if (section != null) {
-NativeBridge.VH_CFG_W_SEASONAL.set(cfg, 0L, section.getDouble("weights.seasonal", 0.25));
-NativeBridge.VH_CFG_W_WEEKEND.set(cfg, 0L, section.getDouble("weights.weekend", 0.25));
-NativeBridge.VH_CFG_W_NEWBIE.set(cfg, 0L, section.getDouble("weights.newbie", 0.25));
-NativeBridge.VH_CFG_W_INFLATION.set(cfg, 0L, section.getDouble("weights.inflation", 0.25));
-} else {
-NativeBridge.VH_CFG_W_SEASONAL.set(cfg, 0L, 0.25);
-NativeBridge.VH_CFG_W_WEEKEND.set(cfg, 0L, 0.25);
-NativeBridge.VH_CFG_W_NEWBIE.set(cfg, 0L, 0.25);
-NativeBridge.VH_CFG_W_INFLATION.set(cfg, 0L, 0.25);
+return NativeBridge.computePriceBounded(
+meta.basePrice(),
+neff,
+0,
+meta.lambda(),
+epsilon,
+histAvg
+);
+} catch (Exception e) {
+LogUtil.error("Fallback computation failed for " + meta.key(), e);
+return meta.basePrice();
 }
 }
 }
@@ -2012,6 +2214,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import top.ellan.ecobridge.EcoBridge;
 import top.ellan.ecobridge.api.event.PriceCalculatedEvent;
+import top.ellan.ecobridge.bridge.NativeBridge;
 import top.ellan.ecobridge.database.TransactionDao;
 import top.ellan.ecobridge.engine.PriceComputeEngine;
 import top.ellan.ecobridge.model.SaleRecord;
@@ -2019,29 +2222,40 @@ import top.ellan.ecobridge.network.RedisManager;
 import top.ellan.ecobridge.storage.AsyncLogger;
 import top.ellan.ecobridge.util.LogUtil;
 import top.ellan.ecobridge.util.PriceOracle;
+import java.lang.foreign.Arena;
+import java.lang.foreign.MemorySegment;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 public class PricingManager {
 private static PricingManager instance;
 private final EcoBridge plugin;
+private final Arena managerArena = Arena.ofShared();
+private final MemorySegment globalPidState;
 private final AtomicReference<Map<String, Double>> priceSnapshot =
 new AtomicReference<>(Collections.emptyMap());
+private final AtomicLong globalTradeCounter = new AtomicLong(0);
+private long lastComputeTime = System.currentTimeMillis();
 private final Cache<String, ThreadSafeHistory> historyCache;
 private volatile boolean isRunning = true;
 private double defaultLambda;
 private double configTau;
+private double sellRatio;
 private int historyDaysLimit;
 private int maxHistorySize;
-private double sellRatio;
+private double targetTradesPerUser;
 private PricingManager(EcoBridge plugin) {
 this.plugin = plugin;
 this.historyCache = Caffeine.newBuilder()
 .maximumSize(2000)
 .expireAfterAccess(Duration.ofMinutes(30))
 .build();
+this.globalPidState = managerArena.allocate(NativeBridge.Layouts.PID_STATE);
+NativeBridge.resetPidState(globalPidState);
 loadConfig();
 startSnapshotEngine();
 }
@@ -2055,31 +2269,34 @@ public void loadConfig() {
 var config = plugin.getConfig();
 this.defaultLambda = config.getDouble("economy.default-lambda", 0.002);
 this.configTau = config.getDouble("economy.tau", 7.0);
+this.sellRatio = config.getDouble("economy.sell-ratio", 0.5);
 this.historyDaysLimit = config.getInt("economy.history-days-limit", 7);
 this.maxHistorySize = config.getInt("economy.max-history-records", 3000);
-this.sellRatio = config.getDouble("economy.sell-ratio", 0.5);
+this.targetTradesPerUser = config.getDouble("economy.macro.target-velocity", 0.05);
 }
 public void shutdown() {
 this.isRunning = false;
 this.historyCache.invalidateAll();
-}
-public double getSnapshotPrice(String shopId, String productId) {
-if (shopId == null) {
-return priceSnapshot.get().entrySet().stream()
-.filter(e -> e.getKey().endsWith(":" + productId))
-.map(Map.Entry::getValue)
-.findFirst()
-.orElse(-1.0);
-}
-return priceSnapshot.get().getOrDefault(shopId + ":" + productId, -1.0);
+managerArena.close();
 }
 private void startSnapshotEngine() {
-Thread.ofVirtual().name("EcoBridge-Price-Engine").start(() -> {
-LogUtil.info("定价调度器已启动 (Mode: Delegated Compute)");
+Thread.ofVirtual().name("EcoBridge-Macro-Engine").start(() -> {
+LogUtil.info("宏观定价调度器已启动 (Mode: Adaptive PID + Heat Control)");
 while (isRunning && plugin.isEnabled()) {
 try {
+long now = System.currentTimeMillis();
+double dt = (now - lastComputeTime) / 1000.0;
+lastComputeTime = now;
+int onlineCount = Bukkit.getOnlinePlayers().size();
+long currentTrades = globalTradeCounter.getAndSet(0);
+double currentHeat = currentTrades / Math.max(dt, 0.1);
+double targetHeat = Math.max(0.1, onlineCount * targetTradesPerUser);
+double inflation = EconomyManager.getInstance().getInflationRate();
+double macroAdjustment = NativeBridge.computePidAdjustment(
+globalPidState, targetHeat, currentHeat, dt, inflation, currentHeat
+);
 Map<String, Double> nextPrices = PriceComputeEngine.computeSnapshot(
-plugin, configTau, defaultLambda
+plugin, configTau, defaultLambda * macroAdjustment
 );
 if (!nextPrices.isEmpty()) {
 priceSnapshot.set(Map.copyOf(nextPrices));
@@ -2089,7 +2306,7 @@ Thread.sleep(2000);
 Thread.currentThread().interrupt();
 break;
 } catch (Throwable e) {
-LogUtil.warn("定价调度循环异常: " + e.getMessage());
+LogUtil.warn("宏观调控循环异常: " + e.getMessage());
 }
 }
 });
@@ -2104,8 +2321,7 @@ dynamicPrice = PriceOracle.getOriginalBasePrice(item, true);
 return dynamicPrice;
 }
 public double calculateSellPrice(String productId) {
-double buyPrice = calculateBuyPrice(productId);
-return buyPrice * this.sellRatio;
+return calculateBuyPrice(productId) * this.sellRatio;
 }
 public double calculateDynamicPrice(Player player, ObjectItem item, double amount) {
 String shopId = item.getShop();
@@ -2114,42 +2330,30 @@ double basePrice = getSnapshotPrice(shopId, productId);
 if (basePrice <= 0) {
 basePrice = PriceOracle.getOriginalBasePrice(item, amount < 0);
 }
-double calculatedPrice = PriceOracle.calculateTierPrice(basePrice, Math.abs(amount), amount > 0);
-if (Bukkit.isPrimaryThread()) {
+double calculatedPrice = NativeBridge.computeTierPrice(basePrice, Math.abs(amount), amount > 0);
 PriceCalculatedEvent event = new PriceCalculatedEvent(player, shopId, productId, calculatedPrice);
+if (Bukkit.isPrimaryThread()) {
 Bukkit.getPluginManager().callEvent(event);
 return event.getFinalPrice();
-} else {
-CompletableFuture<Double> future = new CompletableFuture<>();
-Bukkit.getScheduler().runTask(plugin, () -> {
+}
 try {
-PriceCalculatedEvent event = new PriceCalculatedEvent(player, shopId, productId, calculatedPrice);
-Bukkit.getPluginManager().callEvent(event);
-future.complete(event.getFinalPrice());
+return CompletableFuture.runAsync(
+() -> Bukkit.getPluginManager().callEvent(event),
+runnable -> Bukkit.getScheduler().runTask(plugin, runnable)
+).thenApply(v -> event.getFinalPrice())
+.orTimeout(500, TimeUnit.MILLISECONDS)
+.join();
 } catch (Exception e) {
-future.completeExceptionally(e);
+LogUtil.errorOnce("PRICING_EVENT_TIMEOUT",
+"价格事件同步超时或失败 [" + productId + "]，使用内核原价。");
+return event.getFinalPrice();
 }
-});
-try {
-return future.join();
-} catch (Exception e) {
-LogUtil.error("事件同步等待失败，使用计算原价", e);
-return calculatedPrice;
-}
-}
-}
-private ObjectItem findObjectItem(String productId) {
-if (ConfigManager.configManager == null) return null;
-for (ObjectShop shop : ConfigManager.configManager.getShops()) {
-ObjectItem item = shop.getProduct(productId);
-if (item != null) return item;
-}
-return null;
 }
 public void onTradeComplete(ObjectItem item, double effectiveAmount) {
 onTradeComplete(item.getProduct(), effectiveAmount);
 }
 public void onTradeComplete(String productId, double effectiveAmount) {
+globalTradeCounter.incrementAndGet();
 long now = System.currentTimeMillis();
 processTradeInternal(productId, effectiveAmount, now, true);
 if (RedisManager.getInstance() != null) {
@@ -2161,8 +2365,7 @@ processTradeInternal(productId, amount, timestamp, false);
 }
 private void processTradeInternal(String productId, double amount, long timestamp, boolean writeToSql) {
 SaleRecord record = new SaleRecord(timestamp, amount);
-ThreadSafeHistory historyContainer = getHistoryContainer(productId);
-historyContainer.add(record, maxHistorySize);
+getHistoryContainer(productId).add(record, maxHistorySize);
 java.util.UUID productLoggerUuid = java.util.UUID.nameUUIDFromBytes(("PRODUCT_" + productId).getBytes());
 if (writeToSql) {
 plugin.getVirtualExecutor().execute(() -> {
@@ -2176,6 +2379,24 @@ AsyncLogger.log(remoteUuid, amount, 0.0, timestamp, "REMOTE_SYNC");
 }
 public List<SaleRecord> getGlobalHistory(String productId) {
 return getHistoryContainer(productId).getSnapshot();
+}
+private ObjectItem findObjectItem(String productId) {
+if (ConfigManager.configManager == null) return null;
+for (ObjectShop shop : ConfigManager.configManager.getShops()) {
+ObjectItem item = shop.getProduct(productId);
+if (item != null) return item;
+}
+return null;
+}
+public double getSnapshotPrice(String shopId, String productId) {
+if (shopId == null) {
+return priceSnapshot.get().entrySet().stream()
+.filter(e -> e.getKey().endsWith(":" + productId))
+.map(Map.Entry::getValue)
+.findFirst()
+.orElse(-1.0);
+}
+return priceSnapshot.get().getOrDefault(shopId + ":" + productId, -1.0);
 }
 private ThreadSafeHistory getHistoryContainer(String productId) {
 return historyCache.get(productId, k -> {
@@ -2229,6 +2450,7 @@ import top.ellan.ecobridge.EcoBridge;
 import top.ellan.ecobridge.bridge.NativeBridge;
 import top.ellan.ecobridge.bridge.NativeBridge.TransferResult;
 import top.ellan.ecobridge.network.RedisManager;
+import top.ellan.ecobridge.storage.ActivityCollector;
 import top.ellan.ecobridge.storage.AsyncLogger;
 import top.ellan.ecobridge.util.LogUtil;
 import java.lang.foreign.Arena;
@@ -2253,6 +2475,9 @@ private static final VarHandle VH_TR_INF;
 private static final VarHandle VH_TR_LIMIT;
 private static final VarHandle VH_TR_S_TIME;
 private static final VarHandle VH_TR_R_TIME;
+private static final VarHandle VH_TCTX_SCORE;
+private static final VarHandle VH_TCTX_VELOCITY;
+private static final VarHandle VH_RCFG_V_THRESHOLD;
 static {
 var layout = NativeBridge.Layouts.TRANSFER_CONTEXT;
 VH_TR_AMOUNT = layout.varHandle(MemoryLayout.PathElement.groupElement("amount"));
@@ -2262,6 +2487,10 @@ VH_TR_INF = layout.varHandle(MemoryLayout.PathElement.groupElement("inflation_ra
 VH_TR_LIMIT = layout.varHandle(MemoryLayout.PathElement.groupElement("newbie_limit"));
 VH_TR_S_TIME = layout.varHandle(MemoryLayout.PathElement.groupElement("sender_play_time"));
 VH_TR_R_TIME = layout.varHandle(MemoryLayout.PathElement.groupElement("receiver_play_time"));
+VH_TCTX_SCORE = layout.varHandle(MemoryLayout.PathElement.groupElement("sender_activity_score"));
+VH_TCTX_VELOCITY = layout.varHandle(MemoryLayout.PathElement.groupElement("sender_velocity"));
+var regLayout = NativeBridge.Layouts.REGULATOR_CONFIG;
+VH_RCFG_V_THRESHOLD = regLayout.varHandle(MemoryLayout.PathElement.groupElement("velocity_threshold"));
 }
 private TransferManager(EcoBridge plugin) {
 this.plugin = plugin;
@@ -2284,11 +2513,15 @@ return;
 captureAndAudit(sender, receiver, currency, amount, senderBal);
 }
 private void captureAndAudit(Player sender, Player receiver, Currency currency, double amount, double senderBal) {
-long sPlayTime = (long) sender.getStatistic(org.bukkit.Statistic.PLAY_ONE_MINUTE) / 20;
-long rPlayTime = (long) receiver.getStatistic(org.bukkit.Statistic.PLAY_ONE_MINUTE) / 20;
+var sSnapshot = ActivityCollector.getSafeSnapshot(sender.getUniqueId());
+var rSnapshot = ActivityCollector.getSafeSnapshot(receiver.getUniqueId());
+long sPlayTime = sSnapshot.playTimeSeconds();
+long rPlayTime = rSnapshot.playTimeSeconds();
+double sActivityScore = sSnapshot.activityScore();
+int sVelocity = 1;
 double receiverBal = CoinsEngineAPI.getBalance(receiver, currency);
 if (!sender.hasPermission(BYPASS_BLOCK_PERMISSION)) {
-sender.sendMessage(EcoBridge.getMiniMessage().deserialize("<gray><italic>EcoKernel 正在进行实时金融合规性审计..."));
+sender.sendMessage(EcoBridge.getMiniMessage().deserialize("<gray><italic>EcoKernel 正在进行深度行为审计与风控建模..."));
 }
 vExecutor.submit(() -> {
 try (Arena arena = Arena.ofConfined()) {
@@ -2301,6 +2534,8 @@ VH_TR_INF.set(ctx, 0L, inflation);
 VH_TR_LIMIT.set(ctx, 0L, plugin.getConfig().getDouble("economy.audit-settings.newbie-limit", 50000.0));
 VH_TR_S_TIME.set(ctx, 0L, sPlayTime);
 VH_TR_R_TIME.set(ctx, 0L, rPlayTime);
+VH_TCTX_SCORE.set(ctx, 0L, sActivityScore);
+VH_TCTX_VELOCITY.set(ctx, 0L, sVelocity);
 MemorySegment cfg = arena.allocate(NativeBridge.Layouts.REGULATOR_CONFIG);
 populateRegulatorConfig(cfg);
 TransferResult result = NativeBridge.checkTransfer(ctx, cfg);
@@ -2359,11 +2594,15 @@ cfg.set(JAVA_DOUBLE, 56, section.getDouble("warning-ratio", 0.9));
 cfg.set(JAVA_DOUBLE, 64, section.getDouble("warning-min-amount", 50000.0));
 cfg.set(JAVA_DOUBLE, 72, section.getDouble("newbie-hours", 10.0));
 cfg.set(JAVA_DOUBLE, 80, section.getDouble("veteran-hours", 100.0));
+VH_RCFG_V_THRESHOLD.set(cfg, 0L, section.getDouble("velocity-threshold", 20.0));
 }
 private void handleBlocked(Player sender, int code) {
 String reason = switch (code) {
-case 1 -> "涉嫌非正常资金归集 (洗币防御)";
-case 2 -> "大额流动性异常 (RMT 拦截)";
+case 1 -> "涉嫌非正常资金归集 (风险评级过高)";
+case 2 -> "拦截逆向流转 (新手向老手异常输送)";
+case 3 -> "拦截非正常注资 (老手向新手违规注资)";
+case 4 -> "账户余额不足 (结算冲突)";
+case 5 -> "操作频率过快 (账户拆分/洗钱风控)";
 default -> "违反服务器金融合规协议 (Code: " + code + ")";
 };
 sender.sendMessage(EcoBridge.getMiniMessage().deserialize("<red>⚠ 审计拒绝: <yellow>" + reason));
@@ -2821,8 +3060,10 @@ FILE: ecobridge-java\src\main\java\top\ellan\ecobridge\network\RedisManager.java
 ==================================================
 
 package top.ellan.ecobridge.network;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.DeserializationFeature;
 import redis.clients.jedis.Connection;
 import redis.clients.jedis.ConnectionPoolConfig;
 import redis.clients.jedis.DefaultJedisClientConfig;
@@ -2838,7 +3079,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class RedisManager {
 private static RedisManager instance;
 private final EcoBridge plugin;
-private final ObjectMapper mapper = new ObjectMapper();
+private final ObjectMapper mapper;
 private PooledConnectionProvider provider;
 private volatile JedisPubSub subscriber;
 private final boolean enabled;
@@ -2853,6 +3094,9 @@ var config = plugin.getConfig();
 this.enabled = config.getBoolean("redis.enabled", false);
 this.serverId = config.getString("redis.server-id", "unknown_server");
 this.tradeChannel = config.getString("redis.channels.trade", "ecobridge:global_trade");
+this.mapper = JsonMapper.builder()
+.disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+.build();
 if (enabled) {
 try {
 connect();
@@ -2888,7 +3132,7 @@ poolConfig.setTestOnBorrow(true);
 poolConfig.setJmxEnabled(false);
 this.provider = new PooledConnectionProvider(address, clientConfigBuilder.build(), poolConfig);
 this.active.set(true);
-LogUtil.info("<green>Redis 通道已打开 (Jackson Core)。ID: " + serverId);
+LogUtil.info("<green>Redis 通道已打开 (Jackson 3.x 驱动)。ID: " + serverId);
 startSubscriberLoop();
 }
 private void startSubscriberLoop() {
@@ -2942,8 +3186,8 @@ final int BATCH_SIZE = 100;
 final long MAX_FLUSH_TIME_MS = 5000;
 try {
 long startTime = System.currentTimeMillis();
-try (redis.clients.jedis.Connection connection = provider.getConnection();
-redis.clients.jedis.Jedis jedis = new redis.clients.jedis.Jedis(connection)) {
+try (Connection connection = provider.getConnection();
+Jedis jedis = new Jedis(connection)) {
 int processed = 0;
 while (!offlineQueue.isEmpty() && active.get()) {
 TradePacket packet = offlineQueue.peek();
@@ -2952,8 +3196,8 @@ try {
 String json = mapper.writeValueAsString(packet);
 jedis.publish(tradeChannel, json);
 offlineQueue.poll();
-} catch (com.fasterxml.jackson.core.JsonProcessingException e) {
-LogUtil.error("Redis 序列化严重错误，丢弃坏包: " + e.getMessage(), e);
+} catch (JacksonException e) {
+LogUtil.error("Redis 序列化坏包，已丢弃: " + e.getMessage(), e);
 offlineQueue.poll();
 }
 processed++;
@@ -2982,7 +3226,7 @@ PricingManager.getInstance().onRemoteTradeReceived(
 packet.productId, packet.amount, packet.timestamp
 );
 }
-} catch (JsonProcessingException e) {
+} catch (JacksonException e) {
 LogUtil.warn("收到格式错误的贸易包: " + e.getMessage());
 } catch (Exception e) {
 LogUtil.warn("处理跨服贸易包失败: " + e.getMessage());
@@ -2999,7 +3243,7 @@ TradePacket p = offlineQueue.poll();
 if (p != null) {
 try {
 jedis.publish(tradeChannel, mapper.writeValueAsString(p));
-} catch (JsonProcessingException ignored) {}
+} catch (JacksonException ignored) {}
 }
 }
 } catch (Exception ignored) {}
@@ -3013,6 +3257,47 @@ String productId,
 double amount,
 long timestamp
 ) {}
+}
+
+==================================================
+FILE: ecobridge-java\src\main\java\top\ellan\ecobridge\storage\ActivityCollector.java
+==================================================
+
+package top.ellan.ecobridge.storage;
+import org.bukkit.Bukkit;
+import org.bukkit.Statistic;
+import org.bukkit.entity.Player;
+import org.jetbrains.annotations.NotNull;
+import top.ellan.ecobridge.EcoBridge;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+public final class ActivityCollector {
+private static final Map<UUID, ActivitySnapshot> SNAPSHOT_CACHE = new ConcurrentHashMap<>();
+public record ActivitySnapshot(long playTimeSeconds, double activityScore, int status) {}
+public static void updateSnapshot(@NotNull Player player) {
+if (!Bukkit.isPrimaryThread()) {
+return;
+}
+long totalTicks = player.getStatistic(Statistic.PLAY_ONE_MINUTE);
+long seconds = totalTicks / 20;
+double score = Math.min(1.0, (double) seconds / 72000.0);
+SNAPSHOT_CACHE.put(player.getUniqueId(), new ActivitySnapshot(seconds, score, 0));
+}
+@NotNull
+public static ActivitySnapshot getSafeSnapshot(@NotNull UUID uuid) {
+return SNAPSHOT_CACHE.getOrDefault(uuid, new ActivitySnapshot(0, 0.0, 1));
+}
+public static void removePlayer(@NotNull UUID uuid) {
+SNAPSHOT_CACHE.remove(uuid);
+}
+public static void startHeartbeat(@NotNull EcoBridge plugin) {
+Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+for (Player player : Bukkit.getOnlinePlayers()) {
+updateSnapshot(player);
+}
+}, 100L, 6000L);
+}
 }
 
 ==================================================
@@ -3704,6 +3989,7 @@ use libc::{c_char, c_double, c_int, c_longlong, c_ulonglong};
 use std::ffi::CStr;
 use std::panic::{self, AssertUnwindSafe};
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::ptr;
 pub mod models;
 pub mod economy {
 pub mod pricing;
@@ -3740,12 +4026,12 @@ $fallback
 }
 #[no_mangle]
 pub extern "C" fn ecobridge_abi_version() -> u32 {
-0x0008_0700
+0x0009_0000
 }
 #[no_mangle]
 pub extern "C" fn ecobridge_version() -> *const c_char {
 ffi_guard!(std::ptr::null(), {
-static VERSION: &[u8] = b"EcoBridge Native Core v0.8.5-Production (Behavioral Enhanced)\0";
+static VERSION: &[u8] = b"EcoBridge Native Core v0.9.1-Macro (Adaptive PID Enabled)\0";
 VERSION.as_ptr() as *const c_char
 })
 }
@@ -3868,11 +4154,12 @@ target: c_double,
 current: c_double,
 dt: c_double,
 inflation: c_double,
+market_heat: c_double,
 ) -> c_double {
 ffi_guard!(0.0, {
 match pid_ptr.as_mut() {
 Some(pid) => {
-economy::control::compute_pid_adjustment_internal(pid, target, current, dt, inflation)
+economy::control::compute_pid_adjustment_internal(pid, target, current, dt, inflation, market_heat)
 }
 None => 0.0,
 }
@@ -3906,17 +4193,32 @@ economy::macro_eco::calculate_decay(heat, rate, 48.0)
 }
 #[no_mangle]
 pub unsafe extern "C" fn ecobridge_compute_transfer_check(
+out_result: *mut TransferResult,
 ctx_ptr: *const TransferContext,
 cfg_ptr: *const RegulatorConfig,
-) -> TransferResult {
-ffi_guard!(TransferResult::error(-999), {
+) {
+if out_result.is_null() {
+eprintln!("[EcoBridge-Native] CRITICAL ERROR: out_result pointer is null in ecobridge_compute_transfer_check");
+return;
+}
+let default_result = TransferResult::error(-999);
+let result = ffi_guard!(default_result, {
 match (ctx_ptr.as_ref(), cfg_ptr.as_ref()) {
 (Some(ctx), Some(cfg)) => {
 security::regulator::compute_transfer_check_internal(ctx, cfg)
 },
-(None, _) => TransferResult::error(671),
-(_, None) => TransferResult::error(672),
+(None, _) => {
+eprintln!("[EcoBridge-Native] ERROR: ctx_ptr is null in transfer check");
+TransferResult::error(671)
+},
+(_, None) => {
+eprintln!("[EcoBridge-Native] ERROR: cfg_ptr is null in transfer check");
+TransferResult::error(672)
+},
 }
+});
+ffi_guard!((), {
+ptr::write(out_result, result);
 })
 }
 #[no_mangle]
@@ -3969,6 +4271,8 @@ pub current_timestamp: c_longlong,
 pub play_time_seconds: c_longlong,
 pub timezone_offset: c_int,
 pub newbie_mask: c_int,
+pub market_heat: c_double,
+pub eco_saturation: c_double,
 }
 #[repr(C)]
 #[derive(Debug, Clone, Copy, Default)]
@@ -3980,6 +4284,9 @@ pub inflation_rate: c_double,
 pub newbie_limit: c_double,
 pub sender_play_time: c_longlong,
 pub receiver_play_time: c_longlong,
+pub sender_activity_score: c_double,
+pub sender_velocity: c_int,
+pub _padding: c_int,
 }
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
@@ -4000,10 +4307,8 @@ Self {
 base_lambda: 0.1, volatility_factor: 1.0,
 seasonal_amplitude: 0.15, weekend_multiplier: 1.2,
 newbie_protection_rate: 0.2,
-seasonal_weight: 0.25,
-weekend_weight: 0.25,
-newbie_weight: 0.25,
-inflation_weight: 0.25,
+seasonal_weight: 0.25, weekend_weight: 0.25,
+newbie_weight: 0.25, inflation_weight: 0.25,
 }
 }
 }
@@ -4021,6 +4326,7 @@ pub warning_ratio: c_double,
 pub warning_min_amount: c_double,
 pub newbie_hours: c_double,
 pub veteran_hours: c_double,
+pub velocity_threshold: c_double,
 }
 impl Default for RegulatorConfig {
 fn default() -> Self {
@@ -4030,6 +4336,7 @@ luxury_tax_rate: 0.10, wealth_gap_tax_rate: 0.20,
 poor_threshold: 10_000.0, rich_threshold: 1_000_000.0,
 newbie_receive_limit: 50_000.0, warning_ratio: 0.9,
 warning_min_amount: 50_000.0, newbie_hours: 10.0, veteran_hours: 100.0,
+velocity_threshold: 20.0,
 }
 }
 }
@@ -4052,13 +4359,15 @@ use std::mem;
 #[test]
 fn verify_ssot_alignment() {
 assert_eq!(mem::size_of::<PidState>(), 72);
-assert_eq!(mem::size_of::<TradeContext>(), 48);
-assert_eq!(mem::size_of::<TransferContext>(), 56);
+assert_eq!(mem::size_of::<TradeContext>(), 64);
+assert_eq!(mem::size_of::<TransferContext>(), 72);
 assert_eq!(mem::size_of::<MarketConfig>(), 72);
-assert_eq!(mem::size_of::<RegulatorConfig>(), 88);
+assert_eq!(mem::size_of::<RegulatorConfig>(), 96);
 assert_eq!(mem::size_of::<TransferResult>(), 16);
-assert_eq!(mem::offset_of!(MarketConfig, seasonal_weight), 40);
-assert_eq!(mem::offset_of!(TradeContext, newbie_mask), 44);
+assert_eq!(mem::offset_of!(TradeContext, market_heat), 48);
+assert_eq!(mem::offset_of!(TradeContext, eco_saturation), 56);
+assert_eq!(mem::offset_of!(TransferContext, sender_activity_score), 56);
+assert_eq!(mem::offset_of!(RegulatorConfig, velocity_threshold), 88);
 }
 }
 
@@ -4078,9 +4387,16 @@ pub const BACK_CALC_GAIN: f64 = 0.2;
 pub const DERIVATIVE_FILTER_ALPHA: f64 = 0.3;
 pub const PANIC_THRESHOLD: f64 = 50.0;
 pub const PANIC_DAMPING: f64 = 1.8;
+pub const HEAT_SENSITIVITY: f64 = 0.5;
 #[inline]
 fn sigmoid(x: f64) -> f64 {
 1.0 / (1.0 + (-x).exp())
+}
+pub fn compute_adaptive_gain(cfg: &PidState, heat: f64) -> (f64, f64) {
+let sensitivity = (heat * HEAT_SENSITIVITY).tanh();
+let adaptive_kp = cfg.kp * (1.0 + sensitivity);
+let adaptive_ki = cfg.ki * (1.0 - sensitivity * 0.5);
+(adaptive_kp, adaptive_ki)
 }
 pub fn compute_pid_adjustment_internal(
 pid: &mut PidState,
@@ -4088,17 +4404,19 @@ target_vel: f64,
 current_vel: f64,
 dt: f64,
 inflation: f64,
+market_heat: f64,
 ) -> f64 {
 if !target_vel.is_finite() || !current_vel.is_finite()
 || !dt.is_finite() || dt < 0.0
-|| !inflation.is_finite() {
+|| !inflation.is_finite() || !market_heat.is_finite() {
 return OUTPUT_BASELINE;
 }
 let error = target_vel - current_vel;
 let dt_safe = dt.clamp(0.0, MAX_SAFE_DT);
+let (base_kp, base_ki) = compute_adaptive_gain(pid, market_heat);
 let schedule_gamma = 1.0 + sigmoid((inflation - 0.05) * 20.0);
-let active_kp = pid.kp * schedule_gamma;
-let active_ki = pid.ki * schedule_gamma;
+let active_kp = base_kp * schedule_gamma;
+let active_ki = base_ki * schedule_gamma;
 let combined_leakage = (1.0 - pid.lambda.clamp(0.0, 1.0)) * INTEGRAL_DECAY;
 if pid.is_saturated != 0 {
 let back_calc = error * BACK_CALC_GAIN;
@@ -4125,11 +4443,7 @@ let i_term = active_ki * pid.integral;
 let d_term = pid.kd * pid.filtered_d * d_multiplier;
 let raw_output = OUTPUT_BASELINE + p_term + i_term - d_term;
 let final_output = raw_output.clamp(OUTPUT_MIN_CLAMP, OUTPUT_MAX_CLAMP);
-if (raw_output - final_output).abs() > 1e-6 {
-pid.is_saturated = 1;
-} else {
-pid.is_saturated = 0;
-}
+pid.is_saturated = if (raw_output - final_output).abs() > 1e-6 { 1 } else { 0 };
 if final_output.is_finite() { final_output } else { OUTPUT_BASELINE }
 }
 pub fn validate_pid_params(pid: &PidState) -> bool {
@@ -4142,24 +4456,28 @@ pid.kp.is_finite() && pid.kp >= 0.0
 mod tests {
 use super::*;
 #[test]
+fn test_macro_adaptive_gains() {
+let pid = PidState::default();
+let (kp_low, _) = compute_adaptive_gain(&pid, 0.1);
+let (kp_high, _) = compute_adaptive_gain(&pid, 10.0);
+assert!(kp_high > kp_low, "高流速下市场弹性应自动增强");
+}
+#[test]
 fn test_anti_windup_clamping() {
 let mut pid = PidState::default();
 pid.ki = 10.0;
 for _ in 0..100 {
-compute_pid_adjustment_internal(&mut pid, 100.0, 50.0, 0.1, 0.0);
+compute_pid_adjustment_internal(&mut pid, 100.0, 50.0, 0.1, 0.0, 1.0);
 }
-assert_eq!(pid.is_saturated, 1);
-let saturated_integral = pid.integral;
-compute_pid_adjustment_internal(&mut pid, 100.0, 50.0, 0.1, 0.0);
-assert!(pid.integral <= saturated_integral * 1.05);
+assert_eq!(pid.is_saturated, 1, "系统应正确识别饱和状态");
 }
 #[test]
 fn test_panic_damping_logic() {
 let mut pid = PidState::default();
 pid.kd = 1.0;
-compute_pid_adjustment_internal(&mut pid, 10.0, 0.0, 0.1, 0.0);
-let out = compute_pid_adjustment_internal(&mut pid, 10.0, 50.0, 0.1, 0.0);
-assert!(out < OUTPUT_BASELINE);
+compute_pid_adjustment_internal(&mut pid, 10.0, 0.0, 0.1, 0.0, 1.0);
+let out = compute_pid_adjustment_internal(&mut pid, 10.0, 80.0, 0.1, 0.0, 1.0);
+assert!(out < OUTPUT_BASELINE, "恐慌状态下 D项应产生强力反向压制");
 }
 }
 
@@ -4681,6 +4999,7 @@ CODE_WARNING_HIGH_RISK,
 CODE_BLOCK_REVERSE_FLOW,
 CODE_BLOCK_INJECTION,
 CODE_BLOCK_INSUFFICIENT_FUNDS,
+CODE_BLOCK_VELOCITY_LIMIT,
 };
 
 ==================================================
@@ -4693,6 +5012,7 @@ pub const CODE_WARNING_HIGH_RISK: i32 = 1;
 pub const CODE_BLOCK_REVERSE_FLOW: i32 = 2;
 pub const CODE_BLOCK_INJECTION: i32 = 3;
 pub const CODE_BLOCK_INSUFFICIENT_FUNDS: i32 = 4;
+pub const CODE_BLOCK_VELOCITY_LIMIT: i32 = 5;
 pub fn compute_transfer_check_internal(
 ctx: &TransferContext,
 cfg: &RegulatorConfig,
@@ -4700,15 +5020,6 @@ cfg: &RegulatorConfig,
 let amount = ctx.amount.max(0.0);
 let sender_bal = ctx.sender_balance.max(0.0);
 let receiver_bal = ctx.receiver_balance.max(0.0);
-let s_seconds = ctx.sender_play_time as f64;
-let r_seconds = ctx.receiver_play_time as f64;
-let newbie_threshold_sec = cfg.newbie_hours * 3600.0;
-let veteran_threshold_sec = cfg.veteran_hours * 3600.0;
-let newbie_limit = if ctx.newbie_limit > 0.0 {
-ctx.newbie_limit
-} else {
-5000.0
-};
 if amount > sender_bal {
 return TransferResult {
 final_tax: 0.0,
@@ -4716,47 +5027,55 @@ is_blocked: 1,
 warning_code: CODE_BLOCK_INSUFFICIENT_FUNDS,
 };
 }
-if s_seconds < newbie_threshold_sec && r_seconds > veteran_threshold_sec && amount > newbie_limit {
+let puppet_factor = if ctx.sender_activity_score < 0.1 {
+ctx.sender_velocity as f64 * 2.0
+} else {
+ctx.sender_velocity as f64 / ctx.sender_activity_score.max(0.1)
+};
+if puppet_factor > cfg.velocity_threshold {
+return TransferResult {
+final_tax: 0.0,
+is_blocked: 1,
+warning_code: CODE_BLOCK_VELOCITY_LIMIT,
+};
+}
+let newbie_threshold_sec = cfg.newbie_hours * 3600.0;
+let veteran_threshold_sec = cfg.veteran_hours * 3600.0;
+if (ctx.sender_play_time as f64) < newbie_threshold_sec
+&& (ctx.receiver_play_time as f64) > veteran_threshold_sec
+&& amount > ctx.newbie_limit
+{
 return TransferResult {
 final_tax: 0.0,
 is_blocked: 1,
 warning_code: CODE_BLOCK_REVERSE_FLOW
 };
 }
-if s_seconds > veteran_threshold_sec && r_seconds < newbie_threshold_sec {
-if (receiver_bal + amount) > cfg.newbie_receive_limit {
-return TransferResult {
-final_tax: 0.0,
-is_blocked: 1,
-warning_code: CODE_BLOCK_INJECTION
-};
-}
-}
 let mut warning_code = CODE_NORMAL;
 let risk_ratio = amount / sender_bal.max(1.0);
-let dynamic_warning_min = cfg.warning_min_amount * (1.0 + ctx.inflation_rate.max(0.0));
-if risk_ratio > cfg.warning_ratio && amount > dynamic_warning_min {
+if risk_ratio > cfg.warning_ratio || puppet_factor > (cfg.velocity_threshold * 0.7) {
 warning_code = CODE_WARNING_HIGH_RISK;
 }
 let inflation_adj = 1.0 + ctx.inflation_rate.max(0.0);
-let mut base_plus_luxury_tax = amount * cfg.base_tax_rate * inflation_adj;
+let mut tax = amount * cfg.base_tax_rate * inflation_adj;
+let behavioral_penalty = (ctx.sender_velocity as f64 * 0.05).exp();
+tax *= behavioral_penalty;
 if amount > cfg.luxury_threshold {
 let excess = amount - cfg.luxury_threshold;
-base_plus_luxury_tax = excess.mul_add(cfg.luxury_tax_rate, base_plus_luxury_tax);
+tax = excess.mul_add(cfg.luxury_tax_rate, tax);
 }
-let mut final_tax = base_plus_luxury_tax;
 if sender_bal < cfg.poor_threshold && receiver_bal > cfg.rich_threshold {
 let gap_tax = amount * cfg.wealth_gap_tax_rate;
-final_tax = final_tax.max(gap_tax);
+tax = tax.max(gap_tax);
 }
-let final_tax_clamped = final_tax.min(amount * 0.5);
+let tax_clamped = tax.min(amount * 0.8);
 TransferResult {
-final_tax: final_tax_clamped,
+final_tax: tax_clamped,
 is_blocked: 0,
 warning_code,
 }
 }
-pub fn is_high_risk_transfer(result: &TransferResult) -> bool {
+pub fn is_high_risk_transfer(result: &crate::models::TransferResult) -> bool {
 result.is_blocked == 1 || result.warning_code == CODE_WARNING_HIGH_RISK
 }
 

@@ -3,6 +3,10 @@ package top.ellan.ecobridge;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import org.bukkit.Bukkit;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import top.ellan.ecobridge.bridge.NativeBridge;
 import top.ellan.ecobridge.cache.HotDataCache;
@@ -15,6 +19,7 @@ import top.ellan.ecobridge.listener.CommandInterceptor;
 import top.ellan.ecobridge.listener.TradeListener;
 import top.ellan.ecobridge.manager.*;
 import top.ellan.ecobridge.network.RedisManager;
+import top.ellan.ecobridge.storage.ActivityCollector;
 import top.ellan.ecobridge.storage.AsyncLogger;
 import top.ellan.ecobridge.util.HolidayManager;
 import top.ellan.ecobridge.util.LogUtil;
@@ -25,13 +30,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * EcoBridge v0.8.9 - 工业级经济桥接内核
+ * EcoBridge v0.9.1 - 物理演算与宏观调控内核
  * <p>
  * 更新日志:
- * 1. 数据库层重构：基础设施(DatabaseManager)与业务逻辑(TransactionDao)分离。
- * 2. UltimateShop 集成升级：引入动态反射注入内核 (Limit & Price Injector)。
+ * 1. 初始化链条重构：EconomyManager 提升至首位，为物理核心提供宏观画像。
+ * 2. 宏观画像集成：支持 Market Heat (财富流速) 与 Eco Saturation (饱和度) 注入。
+ * 3. 性能优化：支持 SIMD 并行演算快照分发。
  */
-public final class EcoBridge extends JavaPlugin {
+public final class EcoBridge extends JavaPlugin implements Listener {
 
     private static volatile EcoBridge instance;
     private static final MiniMessage MM = MiniMessage.miniMessage();
@@ -43,12 +49,13 @@ public final class EcoBridge extends JavaPlugin {
     public void onEnable() {
         instance = this;
 
-        // 1. 初始化并发心脏：Java 25 虚拟线程执行器
+        // 1. 初始化并发心脏：Java 25 虚拟线程执行器 (Project Loom)
         this.virtualExecutor = Executors.newVirtualThreadPerTaskExecutor();
 
-        // 2. 引导基础架构
+        // 2. 引导基础架构 (IO 与 静态工具)
         try {
             bootstrapInfrastructure();
+            ActivityCollector.startHeartbeat(this);
         } catch (Exception e) {
             getLogger().severe("基础架构引导失败，系统强制挂起: " + e.getMessage());
             Bukkit.getPluginManager().disablePlugin(this);
@@ -57,41 +64,46 @@ public final class EcoBridge extends JavaPlugin {
 
         printBanner();
 
-        // 3. 环境与依赖校验
+        // 3. 核心环境校验
         if (!verifyDependencies()) return;
 
-        // 4. 组件加载拓扑
+        // 4. [核心] 组件加载拓扑 (Dependency Topology)
         try {
-            // A. Native 物理核心加载
+            // [STEP 1] 首先启动宏观画像中心
+            // 它负责采集全服交易脉冲，为后续所有演算提供 Market Heat 数据源
+            EconomyManager.init(this);
+
+            // [STEP 2] 加载 Native 物理核心
+            // 依赖说明：初始化时会检查 ABI 版本，并准备好 FFM 内存映射
             NativeBridge.init(this);
 
-            // B. 逻辑管理层启动
-            EconomyManager.init(this);
-            // ... (保持原有代码不变)
+            // [STEP 3] 启动逻辑管理层
+            // 依赖说明：PricingManager 启动宏观引擎，依赖 EconomyManager 的流速数据
+            // 以及 NativeBridge 的自适应 PID 函数句柄
             EconomicStateManager.init(this);
             PricingManager.init(this);
             TransferManager.init(this);
 
-            // C. 驱动层注册
+            // [STEP 4] 驱动层注册
             registerCommands();
             registerListeners();
             registerHooks();
 
-            // D. 延迟注入 UltimateShop 内核 (确保其加载完毕)
+            // [STEP 5] 延迟注入 UltimateShop 内核
             getServer().getScheduler().runTaskLater(this, () -> {
                 if (getServer().getPluginManager().isPluginEnabled("UltimateShop")) {
-                    LogUtil.info("检测到 UltimateShop，正在注入 EcoBridge 内核...");
-                    UShopLimitInjector.execute(this); // 注入限额
-                    UShopPriceInjector.execute(this); // [New] 注入价格
+                    LogUtil.info("检测到 UltimateShop，正在注入 EcoBridge 宏观演算内核...");
+                    UShopLimitInjector.execute(this);
+                    UShopPriceInjector.execute(this);
                 }
             }, 20L);
 
             this.fullyInitialized.set(true);
-            sendConsole("<blue>┃ <green>系统状态: <white>物理演算核心已进入实时同步状态 (v0.8.9) <blue>┃");
+            sendConsole("<blue>┃ <green>系统状态: <white>宏观自适应演算内核已上线 (v0.9.1) <blue>┃");
             sendConsole("<gradient:aqua:blue>┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛</gradient>");
 
         } catch (Throwable e) {
-            LogUtil.error("致命错误: 插件组件初始化链条中断", e);
+            LogUtil.error("致命错误: 插件组件初始化链条中断 (拓扑校验失败)", e);
             Bukkit.getPluginManager().disablePlugin(this);
         }
     }
@@ -100,39 +112,31 @@ public final class EcoBridge extends JavaPlugin {
     public void onDisable() {
         sendConsole("<yellow>[EcoBridge] 正在启动安全关机序列 (Panic-Safe Shutdown)...");
 
-        // 1. 拦截新请求
         this.fullyInitialized.set(false);
         
-        // 2. [New] 还原第三方插件注入 (防止重载内存泄漏/报错)
+        // 还原注入，防止重载导致的内存泄漏
         UShopLimitInjector.revert();
         UShopPriceInjector.revert();
 
-        // 3. 环境解绑 & 网络断开
         if (RedisManager.getInstance() != null) {
             RedisManager.getInstance().shutdown();
         }
-        HolidayManager.shutdown();
-
-        // 4. 执行核心数据落盘
+        
+        // 按照依赖反向关闭
+        if (PricingManager.getInstance() != null) PricingManager.getInstance().shutdown();
+        if (EconomyManager.getInstance() != null) EconomyManager.getInstance().shutdown();
+        
         shutdownPersistenceLayer();
-
-        // 5. 物理隔离
         NativeBridge.shutdown();
-
-        // 6. 资源清理
         terminateVirtualPool();
 
         getServer().getScheduler().cancelTasks(this);
-
         instance = null;
-        sendConsole("<red>[EcoBridge] 插件已安全卸载。内存屏障已关闭，物理资源已安全释放。");
     }
 
     private void bootstrapInfrastructure() {
         saveDefaultConfig();
         LogUtil.init();
-
-        // 数据库与基础设施初始化
         DatabaseManager.init();
         AsyncLogger.init(this);
         HolidayManager.init();
@@ -143,10 +147,8 @@ public final class EcoBridge extends JavaPlugin {
         if (AsyncLogger.getInstance() != null) {
             AsyncLogger.getInstance().shutdown();
         }
-
         LogUtil.info("正在执行热数据终点刷盘...");
         HotDataCache.saveAllSync();
-
         DatabaseManager.close();
     }
 
@@ -176,6 +178,7 @@ public final class EcoBridge extends JavaPlugin {
 
     private void registerListeners() {
         var pm = getServer().getPluginManager();
+        pm.registerEvents(this, this);
         pm.registerEvents(new CoinsEngineListener(this), this);
         pm.registerEvents(new CommandInterceptor(this), this);
         pm.registerEvents(new TradeListener(this), this);
@@ -185,7 +188,6 @@ public final class EcoBridge extends JavaPlugin {
     private void registerHooks() {
         if (getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")) {
             new EcoPlaceholderExpansion(this).register();
-            LogUtil.info("PlaceholderAPI 扩展已挂载。");
         }
     }
 
@@ -197,17 +199,23 @@ public final class EcoBridge extends JavaPlugin {
     public void reload() {
         reloadConfig();
         LogUtil.init();
-
         if (EconomyManager.getInstance() != null) EconomyManager.getInstance().loadState();
         if (PricingManager.getInstance() != null) PricingManager.getInstance().loadConfig();
-        
-        // 重新执行注入以刷新配置开关状态
         if (getServer().getPluginManager().isPluginEnabled("UltimateShop")) {
             UShopLimitInjector.execute(this);
-            UShopPriceInjector.execute(this); // [New] 刷新价格注入配置
+            UShopPriceInjector.execute(this);
         }
+        sendConsole("<green>[EcoBridge] 逻辑参数重载成功。Native 内存布局已重新热对齐。");
+    }
 
-        sendConsole("<green>[EcoBridge] 逻辑参数重载成功。Native 内存布局保持锁定。");
+    @EventHandler
+    public void onJoin(PlayerJoinEvent event) {
+        ActivityCollector.updateSnapshot(event.getPlayer());
+    }
+
+    @EventHandler
+    public void onQuit(PlayerQuitEvent event) {
+        ActivityCollector.removePlayer(event.getPlayer().getUniqueId());
     }
 
     public static EcoBridge getInstance() { return instance; }
@@ -218,7 +226,7 @@ public final class EcoBridge extends JavaPlugin {
     private void printBanner() {
         String version = getPluginMeta().getVersion();
         sendConsole("<gradient:aqua:blue>┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓</gradient>");
-        sendConsole("<blue>┃ <green>EcoBridge <white>v" + version + " <gray>| <aqua>Java 25 (Loom/FFM) <blue>┃");
+        sendConsole("<blue>┃ <green>EcoBridge <white>v" + version + " <gray>| <aqua>Macro Adaptive Edition <blue>┃");
     }
 
     private void sendConsole(String msg, TagResolver... resolvers) {

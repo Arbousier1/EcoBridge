@@ -1,7 +1,3 @@
-// ==================================================
-// FILE: ecobridge-java/src/main/java/top/ellan/ecobridge/engine/PriceComputeEngine.java
-// ==================================================
-
 package top.ellan.ecobridge.engine;
 
 import org.bukkit.configuration.ConfigurationSection;
@@ -11,142 +7,208 @@ import top.ellan.ecobridge.bridge.NativeBridge;
 import top.ellan.ecobridge.bridge.NativeBridge.Layouts;
 import top.ellan.ecobridge.bridge.NativeContextBuilder;
 import top.ellan.ecobridge.database.TransactionDao;
+import top.ellan.ecobridge.manager.PricingManager;
 import top.ellan.ecobridge.util.LogUtil;
 
-import java.lang.foreign.Arena;
-import java.lang.foreign.MemorySegment;
-import java.util.HashMap;
-import java.util.Map;
+import java.lang.foreign.*;
+import java.util.*;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+
+import static java.lang.foreign.ValueLayout.JAVA_DOUBLE;
 
 /**
- * 价格计算引擎 (PriceComputeEngine v1.1 - Native Math Integration)
- * <p>
- * 职责：
- * 1. 负责 Native 内存 (Arena) 的生命周期管理。
- * 2. 执行全量商品的定价计算循环。
- * 3. [Update] 适配全数学下沉架构，调用 Rust 侧的 computePriceBounded。
+ * 价格计算引擎 (PriceComputeEngine v1.4.7 - Striped Lock Aware)
+ * * 更新日志：
+ * 1. 结果回填锁感知：在提取演算结果时，竞争商品的 writeLock，确保数据原子性。
+ * 2. 保持 SIMD 批处理架构，利用 Java 25 Arena 管理堆外内存。
+ * 3. 增强降级演算的事务安全性。
  */
 public class PriceComputeEngine {
 
-    /**
-     * 执行一次全量市场计算
-     *
-     * @param plugin        插件实例 (用于获取最新配置)
-     * @param configTau     时间衰减常数
-     * @param defaultLambda 默认流动性系数
-     * @return 计算完成的价格快照 Map
-     */
-    public static Map<String, Double> computeSnapshot(EcoBridge plugin, double configTau, double defaultLambda) {
-        Map<String, Double> result = new HashMap<>();
+    private record ItemMeta(
+        String key,
+        String shopId,
+        String productId,
+        double basePrice,
+        double lambda,
+        int index
+    ) {}
 
-        // 1. 快速失败检查
+    /**
+     * 执行全量市场快照演算 (SIMD 向量化批处理版)
+     */
+    public static Map<String, Double> computeSnapshot(EcoBridge plugin, double configTau, double currentLambda) {
+        long startTime = System.nanoTime();
+        Map<String, Double> resultMap = new HashMap<>();
+
         if (!NativeBridge.isLoaded()) {
-            return result;
+            return resultMap;
         }
 
-        FileConfiguration globalConfig = plugin.getConfig();
-        ConfigurationSection itemSection = globalConfig.getConfigurationSection("item-settings");
-        if (itemSection == null) return result;
+        FileConfiguration config = plugin.getConfig();
+        ConfigurationSection itemSection = config.getConfigurationSection("item-settings");
+        if (itemSection == null) return resultMap;
 
+        // 1. 扫描并收集元数据
+        List<ItemMeta> activeItems = collectActiveItems(itemSection, currentLambda);
+        if (activeItems.isEmpty()) return resultMap;
+
+        int count = activeItems.size();
         long now = System.currentTimeMillis();
 
-        // 2. 核心计算循环
+        // 2. 批量获取 7 日均价 (数据库 IO 聚合)
+        Map<String, Double> histAvgMap = loadHistoryAverages(activeItems);
+
+        // 3. 线性堆外内存编排 (FFM Arena)
         try (Arena arena = Arena.ofConfined()) {
-            MemorySegment ctx = arena.allocate(Layouts.TRADE_CONTEXT);
-            MemorySegment cfg = arena.allocate(Layouts.MARKET_CONFIG);
+            SequenceLayout tradeCtxLayout = MemoryLayout.sequenceLayout(count, Layouts.TRADE_CONTEXT);
+            SequenceLayout marketCfgLayout = MemoryLayout.sequenceLayout(count, Layouts.MARKET_CONFIG);
+            SequenceLayout doubleArrLayout = MemoryLayout.sequenceLayout(count, JAVA_DOUBLE);
 
-            // 3. 填充全局环境上下文
-            NativeContextBuilder.fillGlobalContext(ctx, now);
+            MemorySegment ctxArray = arena.allocate(tradeCtxLayout);
+            MemorySegment cfgArray = arena.allocate(marketCfgLayout);
+            MemorySegment histAvgArray = arena.allocate(doubleArrLayout);
+            MemorySegment lambdaArray = arena.allocate(doubleArrLayout);
+            MemorySegment resultsArray = arena.allocate(doubleArrLayout);
 
-            // 4. 预计算 Neff (向量化)
             double neff = NativeBridge.queryNeffVectorized(now, configTau);
 
-            // 5. 遍历所有商品
-            for (String shopId : itemSection.getKeys(false)) {
-                ConfigurationSection shopSection = itemSection.getConfigurationSection(shopId);
-                if (shopSection == null) continue;
+            // 4. 数据 Packing (平铺至连续内存)
+            for (ItemMeta meta : activeItems) {
+                long ctxOffset = (long) meta.index() * Layouts.TRADE_CONTEXT.byteSize();
+                long cfgOffset = (long) meta.index() * Layouts.MARKET_CONFIG.byteSize();
 
-                for (String productId : shopSection.getKeys(false)) {
-                    processSingleItem(
-                        shopId, productId, shopSection,
-                        ctx, cfg,
-                        neff, defaultLambda, globalConfig,
-                        result
-                    );
-                }
+                MemorySegment ctxSlice = ctxArray.asSlice(ctxOffset, Layouts.TRADE_CONTEXT.byteSize());
+                NativeContextBuilder.fillGlobalContext(ctxSlice, now);
+                NativeBridge.VH_CTX_BASE_PRICE.set(ctxArray, ctxOffset, meta.basePrice());
+
+                ConfigurationSection itemConfig = itemSection.getConfigurationSection(meta.shopId() + "." + meta.productId());
+                fillMarketConfigAtOffset(cfgArray, cfgOffset, itemConfig, config, meta.lambda());
+
+                double histAvg = histAvgMap.getOrDefault(meta.productId(), meta.basePrice());
+                histAvgArray.setAtIndex(JAVA_DOUBLE, meta.index(), histAvg);
+                lambdaArray.setAtIndex(JAVA_DOUBLE, meta.index(), meta.lambda());
             }
+
+            // 5. 单次批量 FFI 调用 (驱动 Rust 并行计算)
+            NativeBridge.computeBatchPrices(
+                (long) count,
+                neff,
+                ctxArray,
+                cfgArray,
+                histAvgArray,
+                lambdaArray,
+                resultsArray
+            );
+
+            // 6. [关键修复] 结果回填 (带分段锁保护)
+            // 确保写入 resultMap 的瞬间，该商品没有正在进行的实时交易写入
+            extractResultsWithLock(activeItems, resultsArray, resultMap);
+
         } catch (Throwable e) {
-            LogUtil.error("计算引擎发生严重错误", e);
+            LogUtil.error("SIMD 批量计算失败，触发紧急降级演算", e);
+            fallbackToSingleWithLock(activeItems, resultMap, plugin, now, configTau);
         }
 
-        return result;
+        double durationMs = (System.nanoTime() - startTime) / 1_000_000.0;
+        LogUtil.debug("快照批量演算耗时: " + String.format("%.2f", durationMs) + "ms (Items: " + count + ")");
+        
+        return resultMap;
     }
 
     /**
-     * 处理单个商品的定价逻辑
+     * 提取演算结果，并利用分段锁确保事务一致性
      */
-    private static void processSingleItem(
-            String shopId, String productId, ConfigurationSection shopSection,
-            MemorySegment ctx, MemorySegment cfg,
-            double neff, double defaultLambda, FileConfiguration globalConfig,
-            Map<String, Double> resultCollector
-    ) {
-        String path = productId; 
-        String itemKey = shopId + ":" + productId;
-        
-        // 读取商品独立配置
-        double lambda = shopSection.getDouble(path + ".lambda", defaultLambda);
-        double p0 = shopSection.getDouble(path + ".base-price", -1.0);
-
-        if (p0 <= 0) return;
-
-        // A. 更新 Native 上下文
-        NativeContextBuilder.updateItemContext(ctx, p0);
-        
-        // B. 填充市场配置
-        ConfigurationSection itemConfig = shopSection.getConfigurationSection(path);
-        fillMarketConfig(cfg, itemConfig, globalConfig, defaultLambda);
-
-        // C. 执行 Native 计算
-        double epsilon = NativeBridge.calculateEpsilon(ctx, cfg);
-
-        // [Fix] 获取历史均价 (用于底价保护)
-        double histAvg = TransactionDao.get7DayAverage(productId);
-
-        // [Fix] 调用新的 computePriceBounded (替代旧的 computePrice)
-        // 参数: base, neff, amount(0), lambda, epsilon, histAvg
-        // 说明: 这里 amount 传 0.0 是因为这是"基准价预测"，不涉及实际交易增量
-        double finalPrice = NativeBridge.computePriceBounded(p0, neff, 0.0, lambda, epsilon, histAvg);
-
-        // D. 存入结果 (Java 侧不再需要 Math.max(floor, price) 逻辑，Rust 已处理)
-        resultCollector.put(itemKey, finalPrice);
+    private static void extractResultsWithLock(List<ItemMeta> activeItems, MemorySegment resultsArray, Map<String, Double> resultMap) {
+        PricingManager pm = PricingManager.getInstance();
+        for (ItemMeta meta : activeItems) {
+            // 获取该商品的写锁
+            ReentrantReadWriteLock.WriteLock writeLock = pm.getItemLock(meta.productId()).writeLock();
+            writeLock.lock();
+            try {
+                double computedPrice = resultsArray.getAtIndex(JAVA_DOUBLE, meta.index());
+                if (Double.isFinite(computedPrice) && computedPrice > 0) {
+                    resultMap.put(meta.key(), computedPrice);
+                } else {
+                    resultMap.put(meta.key(), meta.basePrice());
+                }
+            } finally {
+                writeLock.unlock();
+            }
+        }
     }
 
-    /**
-     * 填充 MarketConfig 内存段
-     */
-    private static void fillMarketConfig(
-            MemorySegment cfg, ConfigurationSection section, 
-            FileConfiguration globalConfig, double defaultLambda
+    private static List<ItemMeta> collectActiveItems(ConfigurationSection itemSection, double macroLambda) {
+        List<ItemMeta> items = new ArrayList<>();
+        int index = 0;
+        for (String shopId : itemSection.getKeys(false)) {
+            ConfigurationSection shopSec = itemSection.getConfigurationSection(shopId);
+            if (shopSec == null) continue;
+            for (String prodId : shopSec.getKeys(false)) {
+                double p0 = shopSec.getDouble(prodId + ".base-price", -1.0);
+                if (p0 <= 0) continue;
+                double lambda = shopSec.getDouble(prodId + ".lambda", macroLambda);
+                items.add(new ItemMeta(shopId + ":" + prodId, shopId, prodId, p0, lambda, index++));
+            }
+        }
+        return items;
+    }
+
+    private static Map<String, Double> loadHistoryAverages(List<ItemMeta> items) {
+        List<String> ids = items.stream().map(ItemMeta::productId).distinct().toList();
+        return TransactionDao.get7DayAveragesBatch(ids);
+    }
+
+    private static void fillMarketConfigAtOffset(
+            MemorySegment cfgBase, long offset, 
+            ConfigurationSection itemSec, FileConfiguration globalConfig, double currentLambda
     ) {
-        double lambda = (section != null) ? section.getDouble("lambda", defaultLambda) : defaultLambda;
-        NativeBridge.VH_CFG_LAMBDA.set(cfg, 0L, lambda);
-        NativeBridge.VH_CFG_VOLATILITY.set(cfg, 0L, 1.0);
+        NativeBridge.VH_CFG_LAMBDA.set(cfgBase, offset, currentLambda);
+        NativeBridge.VH_CFG_VOLATILITY.set(cfgBase, offset, 1.0);
+        NativeBridge.VH_CFG_S_AMP.set(cfgBase, offset, globalConfig.getDouble("economy.seasonal-amplitude", 0.15));
+        NativeBridge.VH_CFG_W_MULT.set(cfgBase, offset, globalConfig.getDouble("economy.weekend-multiplier", 1.2));
+        NativeBridge.VH_CFG_N_PROT.set(cfgBase, offset, globalConfig.getDouble("economy.newbie-protection-rate", 0.2));
 
-        NativeBridge.VH_CFG_S_AMP.set(cfg, 0L, globalConfig.getDouble("economy.seasonal-amplitude", 0.15));
-        NativeBridge.VH_CFG_W_MULT.set(cfg, 0L, globalConfig.getDouble("economy.weekend-multiplier", 1.2));
-        NativeBridge.VH_CFG_N_PROT.set(cfg, 0L, globalConfig.getDouble("economy.newbie-protection-rate", 0.2));
-
-        if (section != null) {
-            NativeBridge.VH_CFG_W_SEASONAL.set(cfg, 0L, section.getDouble("weights.seasonal", 0.25));
-            NativeBridge.VH_CFG_W_WEEKEND.set(cfg, 0L, section.getDouble("weights.weekend", 0.25));
-            NativeBridge.VH_CFG_W_NEWBIE.set(cfg, 0L, section.getDouble("weights.newbie", 0.25));
-            NativeBridge.VH_CFG_W_INFLATION.set(cfg, 0L, section.getDouble("weights.inflation", 0.25));
+        if (itemSec != null) {
+            NativeBridge.VH_CFG_W_SEASONAL.set(cfgBase, offset, itemSec.getDouble("weights.seasonal", 0.25));
+            NativeBridge.VH_CFG_W_WEEKEND.set(cfgBase, offset, itemSec.getDouble("weights.weekend", 0.25));
+            NativeBridge.VH_CFG_W_NEWBIE.set(cfgBase, offset, itemSec.getDouble("weights.newbie", 0.25));
+            NativeBridge.VH_CFG_W_INFLATION.set(cfgBase, offset, itemSec.getDouble("weights.inflation", 0.25));
         } else {
-            NativeBridge.VH_CFG_W_SEASONAL.set(cfg, 0L, 0.25);
-            NativeBridge.VH_CFG_W_WEEKEND.set(cfg, 0L, 0.25);
-            NativeBridge.VH_CFG_W_NEWBIE.set(cfg, 0L, 0.25);
-            NativeBridge.VH_CFG_W_INFLATION.set(cfg, 0L, 0.25);
+            NativeBridge.VH_CFG_W_SEASONAL.set(cfgBase, offset, 0.25);
+            NativeBridge.VH_CFG_W_WEEKEND.set(cfgBase, offset, 0.25);
+            NativeBridge.VH_CFG_W_NEWBIE.set(cfgBase, offset, 0.25);
+            NativeBridge.VH_CFG_W_INFLATION.set(cfgBase, offset, 0.25);
+        }
+    }
+
+    /**
+     * 降级演算：单商品原子计算 (同样带写锁保护)
+     */
+    private static void fallbackToSingleWithLock(List<ItemMeta> items, Map<String, Double> map, EcoBridge plugin, long now, double tau) {
+        PricingManager pm = PricingManager.getInstance();
+        for (ItemMeta meta : items) {
+            if (map.containsKey(meta.key())) continue;
+            
+            ReentrantReadWriteLock.WriteLock writeLock = pm.getItemLock(meta.productId()).writeLock();
+            writeLock.lock();
+            try (Arena arena = Arena.ofConfined()) {
+                MemorySegment ctx = arena.allocate(Layouts.TRADE_CONTEXT);
+                MemorySegment cfg = arena.allocate(Layouts.MARKET_CONFIG);
+                NativeContextBuilder.fillGlobalContext(ctx, now);
+                NativeBridge.VH_CTX_BASE_PRICE.set(ctx, 0L, meta.basePrice());
+                
+                double histAvg = TransactionDao.get7DayAverage(meta.productId());
+                double price = NativeBridge.computePriceBounded(
+                    meta.basePrice(), NativeBridge.queryNeffVectorized(now, tau), 0, meta.lambda(),
+                    NativeBridge.calculateEpsilon(ctx, cfg), histAvg
+                );
+                map.put(meta.key(), price);
+            } catch (Exception ex) {
+                map.put(meta.key(), meta.basePrice());
+            } finally {
+                writeLock.unlock();
+            }
         }
     }
 }

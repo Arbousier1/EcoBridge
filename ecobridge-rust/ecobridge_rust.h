@@ -30,6 +30,8 @@
 
 #define PANIC_DAMPING 1.8
 
+#define HEAT_SENSITIVITY 0.5
+
 #define CODE_NORMAL 0
 
 #define CODE_WARNING_HIGH_RISK 1
@@ -40,8 +42,10 @@
 
 #define CODE_BLOCK_INSUFFICIENT_FUNDS 4
 
+#define CODE_BLOCK_VELOCITY_LIMIT 5
+
 /*
- 交易定价演算上下文 (48 bytes)
+ 交易定价演算上下文 (64 bytes)
  严格对齐 Java 侧 NativeBridge.Layouts.TRADE_CONTEXT
  */
 typedef struct {
@@ -52,12 +56,12 @@ typedef struct {
   long long play_time_seconds;
   int timezone_offset;
   int newbie_mask;
+  double market_heat;
+  double eco_saturation;
 } TradeContext;
 
 /*
- [关键修复] 市场动态定价配置 (72 bytes)
- 已移除 `weights: [f64; 4]` 数组，改为 4 个独立命名字段。
- 这消除了 Java FFM 映射时的不确定性。
+ 市场动态定价配置 (72 bytes)
  */
 typedef struct {
   double base_lambda;
@@ -73,7 +77,6 @@ typedef struct {
 
 /*
  工业级 PID 控制器状态 (72 bytes)
- 用于动态调节市场税率与平抑异常波动。
  */
 typedef struct {
   double kp;
@@ -85,15 +88,11 @@ typedef struct {
   double filtered_d;
   double integration_limit;
   int is_saturated;
-  /*
-   [显式填充]: 确保结构体总大小为 72 字节 (8的倍数)
-   */
   int _padding;
 } PidState;
 
 /*
  转账演算最终结果 (16 bytes)
- 返回给 Java 侧的审计报告。
  */
 typedef struct {
   double final_tax;
@@ -102,8 +101,7 @@ typedef struct {
 } TransferResult;
 
 /*
- 转账风控审计上下文 (56 bytes)
- 对应 `ecobridge_compute_transfer_check` 的输入
+ 转账风控审计上下文 (72 bytes)
  */
 typedef struct {
   double amount;
@@ -113,10 +111,13 @@ typedef struct {
   double newbie_limit;
   long long sender_play_time;
   long long receiver_play_time;
+  double sender_activity_score;
+  int sender_velocity;
+  int _padding;
 } TransferContext;
 
 /*
- 审计监管与计税配置 (88 bytes)
+ 审计监管与计税配置 (96 bytes)
  */
 typedef struct {
   double base_tax_rate;
@@ -130,6 +131,7 @@ typedef struct {
   double warning_min_amount;
   double newbie_hours;
   double veteran_hours;
+  double velocity_threshold;
 } RegulatorConfig;
 
 uint32_t ecobridge_abi_version(void);
@@ -148,6 +150,17 @@ void ecobridge_get_health_stats(unsigned long long *out_total, unsigned long lon
 
 double ecobridge_query_neff_vectorized(long long current_ts, double tau);
 
+/*
+ 批量演算价格快照 (SIMD 批处理模式)
+ */
+void ecobridge_compute_batch_prices(unsigned long long count,
+                                    double neff,
+                                    const TradeContext *ctx_ptr,
+                                    const MarketConfig *cfg_ptr,
+                                    const double *hist_avgs_ptr,
+                                    const double *lambdas_ptr,
+                                    double *results_ptr);
+
 double ecobridge_compute_price_final(double base, double n_eff, double lambda, double epsilon);
 
 double ecobridge_compute_price_humane(double base,
@@ -156,9 +169,6 @@ double ecobridge_compute_price_humane(double base,
                                       double lambda,
                                       double epsilon);
 
-/*
- [New] 带地板价保护的定价入口
- */
 double ecobridge_compute_price_bounded(double base,
                                        double n_eff,
                                        double amt,
@@ -166,18 +176,19 @@ double ecobridge_compute_price_bounded(double base,
                                        double eps,
                                        double hist_avg);
 
-/*
- [New] 阶梯定价入口
- */
 double ecobridge_compute_tier_price(double base, double qty, bool is_sell);
 
 double ecobridge_calculate_epsilon(const TradeContext *ctx_ptr, const MarketConfig *cfg_ptr);
 
+/*
+ 演进为自适应宏观调控的 PID 步进接口
+ */
 double ecobridge_compute_pid_adjustment(PidState *pid_ptr,
                                         double target,
                                         double current,
                                         double dt,
-                                        double inflation);
+                                        double inflation,
+                                        double market_heat);
 
 void ecobridge_reset_pid_state(PidState *pid_ptr);
 
@@ -187,9 +198,42 @@ double ecobridge_calc_stability(long long last_ts, long long curr_ts);
 
 double ecobridge_calc_decay(double heat, double rate);
 
-TransferResult ecobridge_compute_transfer_check(const TransferContext *ctx_ptr,
-                                                const RegulatorConfig *cfg_ptr);
+void ecobridge_compute_transfer_check(TransferResult *out_result,
+                                      const TransferContext *ctx_ptr,
+                                      const RegulatorConfig *cfg_ptr);
 
 int ecobridge_shutdown_db(void);
+
+double ecobridge_compute_price_final(double base_price,
+                                     double n_eff,
+                                     double lambda,
+                                     double epsilon);
+
+double ecobridge_compute_price_humane(double base_price,
+                                      double n_eff,
+                                      double trade_amount,
+                                      double lambda,
+                                      double epsilon);
+
+double ecobridge_compute_tier_price(double base_price, double quantity, bool is_sell);
+
+double ecobridge_compute_price_bounded(double base,
+                                       double neff,
+                                       double amt,
+                                       double lambda,
+                                       double eps,
+                                       double hist_avg);
+
+/*
+ 批量价格演算内核 - 支持并行与 SIMD 加速
+ 该函数由 FFI 调用，内部使用并行迭代器处理大规模商品定价快照
+ */
+void ecobridge_compute_batch_prices(uintptr_t count,
+                                    double neff,
+                                    const TradeContext *ctx_ptr,
+                                    const MarketConfig *cfg_ptr,
+                                    const double *hist_avgs_ptr,
+                                    const double *lambdas_ptr,
+                                    double *output_ptr);
 
 #endif  /* ECOBRIDGE_RUST_H */

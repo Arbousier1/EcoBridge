@@ -1,0 +1,32 @@
+package top.ellan.ecobridge.listener;
+
+import cn.superiormc.ultimateshop.api.events.ShopTransactionEvent;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
+import top.ellan.ecobridge.hook.EcoBridgeDynamicPrice;
+import top.ellan.ecobridge.util.LogUtil;
+
+/**
+ * UltimateShop 交易拦截钩子
+ * 核心：实现交易瞬间的“双重校验”
+ */
+public class UShopTransactionHook implements Listener {
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onPurchase(ShopTransactionEvent event) {
+        // 1. 调用我们重构的逻辑容器进行双重校验
+        double validatedPrice = EcoBridgeDynamicPrice.getAndValidate(
+                event.getPlayer(), 
+                event.getObjectItem(), 
+                event.getAmount()
+        );
+
+        // 2. 如果返回 -1.0，说明触发了熔断保护（价格波动过大）
+        if (validatedPrice < 0) {
+            event.setCancelled(true);
+            event.getPlayer().sendMessage("§c[经济桥] 市场价格正在剧烈波动，请重新打开商店以获取最新报价。");
+            LogUtil.info("已拦截一笔价格波动过大的交易: " + event.getPlayer().getName());
+        }
+    }
+}

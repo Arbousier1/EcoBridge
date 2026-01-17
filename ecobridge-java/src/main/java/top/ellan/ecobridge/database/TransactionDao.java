@@ -9,18 +9,17 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 交易数据访问对象 (TransactionDao v0.8.9-Optimistic-Lock)
+ * 交易数据访问对象 (TransactionDao v0.8.10-Batch-Query)
  * <p>
  * 职责：
  * 1. 玩家资产数据的 SSoT (Single Source of Truth) 读取与持久化
  * 2. 处理乐观锁并发写入
  * 3. 提供市场分析所需的历史交易数据
+ * 4. 【新增】批量查询商品历史均价，优化定价引擎性能
  */
 public class TransactionDao {
 
@@ -182,6 +181,59 @@ public class TransactionDao {
             LogUtil.error("滑动地板数据回溯异常: " + productId, e);
         }
         return 0.0;
+    }
+
+    /**
+     * 【新增】批量获取多个商品过去 7 天的平均交易量（绝对值）
+     * 
+     * @param productIds 要查询的商品ID列表
+     * @return Map<商品ID, 7天平均交易量>
+     */
+    public static Map<String, Double> get7DayAveragesBatch(List<String> productIds) {
+        // 快速失败检查
+        if (productIds == null || productIds.isEmpty() || !DatabaseManager.isConnected()) {
+            return new HashMap<>();
+        }
+        
+        Map<String, Double> resultMap = new HashMap<>();
+        // 为所有商品ID初始化默认值为0.0
+        for (String productId : productIds) {
+            resultMap.put(productId, 0.0);
+        }
+        
+        // 构建IN子句的占位符
+        String placeholders = String.join(",", Collections.nCopies(productIds.size(), "?"));
+        String sql = "SELECT product_id, AVG(ABS(amount)) as avg_amount FROM ecobridge_sales " +
+                     "WHERE product_id IN (" + placeholders + ") " +
+                     "AND timestamp > ? " +
+                     "GROUP BY product_id";
+        
+        long cutoff = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(7);
+        
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            // 设置商品ID参数
+            for (int i = 0; i < productIds.size(); i++) {
+                pstmt.setString(i + 1, productIds.get(i));
+            }
+            // 设置时间参数
+            pstmt.setLong(productIds.size() + 1, cutoff);
+            
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    String productId = rs.getString("product_id");
+                    double avgAmount = rs.getDouble("avg_amount");
+                    resultMap.put(productId, avgAmount);
+                }
+                // 不需要为未查询到的商品设置默认值，因为我们已经初始化了所有商品ID为0.0
+            }
+        } catch (SQLException e) {
+            LogUtil.error("批量历史均价查询失败", e);
+            // 降级：返回已初始化的默认值(0.0)
+        }
+        
+        return resultMap;
     }
 
     /**

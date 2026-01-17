@@ -1,44 +1,50 @@
 [package]
 name = "ecobridge_rust"
-version = "0.8.3"
+version = "0.9.1"
 edition = "2021"
 authors = ["Ellan"]
-description = "EcoBridge Economy Core - Hardened DuckDB Analytics Engine"
+description = "EcoBridge Economy Core - Macro Adaptive & Parallel Engine"
 
 [lib]
-# 编译为 C 动态库 (.dll / .so / .dylib)
+# 编译为 C 动态库，供 Java 25 FFM 映射调用
 crate-type = ["cdylib"]
 
 [dependencies]
-# 系统底层接口
+# 系统底层接口，处理 C-ABI 兼容数据类型
 libc = "0.2.180"
 
+# 嵌入式分析数据库，用于处理高频经济流水
 duckdb = { version = "1.4.3", features = ["bundled", "chrono"] }
 
-# 高性能 MPSC 通道
+# 高性能跨线程通信
 crossbeam-channel = "0.5.15"
 
-# 并行计算框架
-rayon = { version = "1.11.0", optional = true }
+# [核心变更] 并行计算框架，用于实现 SIMD 批量定价演算
+rayon = "1.11.0"
 
-# 时间处理
+# 时间与时区处理
 chrono = { version = "0.4.43", features = ["std"] }
 
-# 静态全局变量
+# 静态状态管理（如数据库连接池和 PID 状态）
 lazy_static = "1.5"
 
 [build-dependencies]
-# C 头文件生成
+# 自动化生成 C 头文件 (.h)，供 Java jextract 解析
 cbindgen = "0.29.2"
 
 [features]
-default = []
-parallel = ["dep:rayon"]
+# 默认启用高性能并行计算
+default = ["parallel"]
+parallel = []
 
 [profile.release]
+# 开启最高等级优化
 opt-level = 3
+# 开启全量链接时优化，压榨跨语言调用性能
 lto = "fat"
 codegen-units = 1
+# 移除符号表以减小二进制体积
 strip = "symbols"
 
-# 保持默认的 panic = "unwind" 以支持 FFM 异常捕获
+# 保持默认以支持 FFM 异常捕获
+panic = "unwind"

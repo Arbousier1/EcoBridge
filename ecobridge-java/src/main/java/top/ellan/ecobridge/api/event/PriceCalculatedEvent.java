@@ -12,19 +12,13 @@ import top.ellan.ecobridge.EcoBridge;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.UnaryOperator;
 
 /**
- * 价格演算完成事件 (PriceCalculatedEvent v0.8.8 - Async Safe)
- * <p>
- * 触发时机：当 Rust 核心完成基于 Tanh 平滑定价和环境因子演算后，应用到商店前触发。
+ * 价格演算完成事件 (PriceCalculatedEvent v0.8.9 - Optimized)
  * 职责：
- * 1. 允许外部插件（如 VIP 系统、折扣券）在物理定价基础上叠加业务逻辑。
+ * 1. 允许外部插件在物理定价基础上叠加业务逻辑。
  * 2. 维护价格修改的审计链，记录所有干预操作。
- * <p>
- * 修复日志 (v0.8.8):
- * - [Safety] 引入 synchronized 与 CopyOnWriteArrayList，确保非同步监听下的线程安全。
  */
 public class PriceCalculatedEvent extends Event {
 
@@ -37,8 +31,8 @@ public class PriceCalculatedEvent extends Event {
     private final double rustBasePrice;      // Rust 物理引擎算出的原始单价 (不可变)
     private volatile double finalPrice;      // 经过干预后的最终应用单价 (可变)
 
-    // 修改审计日志：记录所有干预过此价格的插件及来源
-    private final List<String> modificationLog = new CopyOnWriteArrayList<>();
+    // 优化：改用 ArrayList 配合外部 synchronized 保护线程安全，提升写入性能
+    private final List<String> modificationLog = new ArrayList<>(4);
 
     /**
      * @param player    触发价格计算的玩家
@@ -53,7 +47,7 @@ public class PriceCalculatedEvent extends Event {
         this.productId = productId;
         this.rustBasePrice = calculated;
         this.finalPrice = calculated;
-        this.modificationLog.add("EcoKernel-v0.8.8");
+        this.modificationLog.add("EcoKernel-v0.8.9");
     }
 
     // ==================== 核心业务 API ====================
@@ -78,8 +72,8 @@ public class PriceCalculatedEvent extends Event {
 
     /**
      * 链式修改价格 (推荐用法)
-     * @param source   修改来源名称（如 "VipSystem"、"XmasCoupon"）
-     * @param modifier 价格处理函数 (例如: p -> p * 0.8)
+     * @param source   修改来源名称
+     * @param modifier 价格处理函数
      */
     public synchronized void modifyPrice(@NotNull String source, @NotNull UnaryOperator<Double> modifier) {
         double oldPrice = this.finalPrice;
@@ -103,15 +97,15 @@ public class PriceCalculatedEvent extends Event {
     /**
      * 判断价格是否被第三方插件干预过
      */
-    public boolean isModified() {
+    public synchronized boolean isModified() {
         return modificationLog.size() > 1;
     }
 
     /**
-     * 获取审计追踪日志 (只读)
+     * 获取审计追踪日志 (只读快照)
      */
     @NotNull
-    public List<String> getModificationLog() {
+    public synchronized List<String> getModificationLog() {
         return Collections.unmodifiableList(new ArrayList<>(modificationLog));
     }
 
@@ -122,20 +116,31 @@ public class PriceCalculatedEvent extends Event {
      */
     @NotNull
     public Component toComponent() {
-        // 线程安全地获取当前快照状态
-        List<String> logSnapshot = new ArrayList<>(modificationLog);
-        String lastSource = logSnapshot.get(logSnapshot.size() - 1);
+        String lastSource;
+        double currentFinal;
+        boolean modified;
 
-        String template = isModified()
-        ? "<gray>[EcoBridge] <white><product> <yellow><final> <dark_gray>(原:<base>, 改自:<source>)"
-        : "<gray>[EcoBridge] <white><product> <green><final> <dark_gray>(物理定价)";
+        // 提取快照状态以保证线程安全且不阻塞渲染逻辑
+        synchronized (this) {
+            if (modificationLog.isEmpty()) {
+                lastSource = "Unknown";
+            } else {
+                lastSource = modificationLog.get(modificationLog.size() - 1);
+            }
+            currentFinal = this.finalPrice;
+            modified = modificationLog.size() > 1;
+        }
+
+        String template = modified
+            ? "<gray>[EcoBridge] <white><product> <yellow><final> <dark_gray>(原:<base>, 改自:<source>)"
+            : "<gray>[EcoBridge] <white><product> <green><final> <dark_gray>(物理定价)";
 
         return EcoBridge.getMiniMessage().deserialize(template,
-        Placeholder.unparsed("product", productId),
-        Placeholder.unparsed("final", String.format("%.2f", finalPrice)),
-        Placeholder.unparsed("base", String.format("%.2f", rustBasePrice)),
-        Placeholder.unparsed("source", lastSource)
-    );
+            Placeholder.unparsed("product", productId),
+            Placeholder.unparsed("final", String.format("%.2f", currentFinal)),
+            Placeholder.unparsed("base", String.format("%.2f", rustBasePrice)),
+            Placeholder.unparsed("source", lastSource)
+        );
     }
 
     // ==================== Bukkit 样板代码 ====================
