@@ -1,14 +1,19 @@
 name: EcoBridge
-version: 0.8.8
+# 使用占位符，由 Gradle 的 ProcessResources 任务动态填充
+version: ${version}
 main: top.ellan.ecobridge.EcoBridge
 api-version: 1.21
 authors: [Ellan]
 description: "基于 Java 25 FFM + Rust 核心的离散历史求和动态经济系统"
 
-# 强制依赖：确保在 EcoBridge 启动前，依赖插件已完全加载
-depend: [CoinsEngine, UltimateShop]
+# 强制依赖：缺少这些插件 EcoBridge 将不会启动
+# 包含 NightCore 以支持相关的经济桥接逻辑
+depend: [CoinsEngine, UltimateShop, NightCore]
 
-# 加载时机：建议在世界加载后启动，确保 FFI 环境和本地库路径稳定
+# 软依赖：如果存在则优先加载，不存在也不影响基础功能
+softdepend: [PlaceholderAPI]
+
+# 加载时机：在世界加载后启动，确保 ABI 环境和本地库路径句柄稳定
 load: POSTWORLD
 
 commands:
@@ -22,8 +27,13 @@ commands:
     description: "通过 Rust 物理内核审计发起受监管的转账"
     usage: "/ecopay <player> <amount>"
     permission: ecobridge.pay
-    # 别名建议避开 essentials 的 pay，防止指令劫持失效
     aliases: [epay, auditpay]
+
+  # 🔥 指令劫持：显式接管 pay 指令，由 ecopay 系统进行逻辑审计
+  pay:
+    description: "受 EcoBridge 监管的标准转账指令"
+    usage: "/pay <player> <amount>"
+    permission: ecobridge.pay
 
 permissions:
   ecobridge.admin:
@@ -38,7 +48,7 @@ permissions:
     description: "允许查看 Rust 物理引擎的即时演算状态 (FPS/ABI/内存对齐)"
     default: op
 
-  # --- [新增] 转账流控制权限 (对应 TransferManager v0.8.5 逻辑) ---
+  # --- [转账流控制权限] ---
   
   ecobridge.bypass.tax:
     description: "金融特权：转账时豁免由 Rust 内核计算生成的动态交易税"
