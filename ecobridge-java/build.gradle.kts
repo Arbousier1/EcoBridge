@@ -7,27 +7,30 @@ buildscript {
         gradlePluginPortal()
     }
     dependencies {
+        // 针对 Java 25 优化的 ASM 字节码处理
         classpath("org.ow2.asm:asm-commons:9.9.1")
     }
 }
 
 plugins {
     `java-library`
-    // 严格遵照您的要求：Shadow 9.3.1
+    // 保持你要求的 Shadow 9.3.1
     id("com.gradleup.shadow") version "9.3.1"
 }
 
 group = "top.ellan"
 version = "1.0-SNAPSHOT"
 
-// --- [jextract 自动化配置] ---
+// --- [jextract 自动化配置逻辑] ---
 val rustHeaderFile = file("${projectDir}/../ecobridge-rust/ecobridge_rust.h")
 val generatedSourceDir = layout.buildDirectory.dir("generated/sources/jextract")
 val targetPackage = "top.ellan.ecobridge.gen"
 
+// 🔍 智能查找 jextract 启动脚本
 fun findJextract(): String {
     val os = org.gradle.internal.os.OperatingSystem.current()
     val binaryName = if (os.isWindows) "jextract.bat" else "jextract"
+    
     val localPropsFile = file("local.properties")
     if (localPropsFile.exists()) {
         val props = Properties()
@@ -43,22 +46,21 @@ fun findJextract(): String {
         val path = file("$envHome/bin/$binaryName")
         if (path.exists()) return path.absolutePath
     }
-    val javaHome = System.getProperty("java.home")
-    val jdkPath = file("$javaHome/bin/$binaryName")
-    if (jdkPath.exists()) return jdkPath.absolutePath
     return binaryName
 }
 
+// 核心任务：自动化生成 Java 绑定
 val generateBindings = tasks.register<Exec>("generateBindings") {
     group = "build"
-    description = "Generate Java FFM bindings from Rust header."
+    description = "使用 jextract 自动从 Rust 头文件生成 Java FFM 绑定。"
+
     doFirst {
         if (!rustHeaderFile.exists()) {
-            println("❌ Error: Rust header not found: ${rustHeaderFile.absolutePath}")
-            throw GradleException("Rust header missing. Please check build-rust stage.")
+            throw GradleException("❌ 错误：未找到头文件: ${rustHeaderFile.absolutePath}")
         }
         generatedSourceDir.get().asFile.mkdirs()
     }
+
     commandLine(
         findJextract(),
         "--output", generatedSourceDir.get().asFile.absolutePath,
@@ -67,24 +69,30 @@ val generateBindings = tasks.register<Exec>("generateBindings") {
         "--library", "ecobridge_rust",
         rustHeaderFile.absolutePath
     )
+
     inputs.file(rustHeaderFile)
     outputs.dir(generatedSourceDir)
 }
 
+// --- [Java 编译与工具链配置] ---
 java {
     toolchain { languageVersion.set(JavaLanguageVersion.of(25)) }
 }
 
 sourceSets {
     main {
-        java {
-            srcDir(generatedSourceDir)
-        }
+        // ✅ 关键修复：将任务输出注册为源码目录。
+        // 这解决了 "package top.ellan.ecobridge.gen does not exist" 报错。
+        java.srcDir(generateBindings)
     }
 }
 
 repositories {
     mavenCentral()
+    // 关键：Jackson 3.x 组件所在的官方仓库
+    maven("https://central.sonatype.com/repository/maven-snapshots/")
+    maven("https://oss.sonatype.org/content/repositories/releases/")
+    
     maven("https://jitpack.io")
     maven("https://repo.papermc.io/repository/maven-public/")
     maven("https://repo.nightexpressdev.com/releases")
@@ -106,21 +114,22 @@ dependencies {
     compileOnly("su.nightexpress.coinsengine:CoinsEngine:2.6.0")
     compileOnly("cn.superiormc.ultimateshop:plugin:4.2.3")
     
-    // 数据库与缓存 (最新版)
+    // 🔥 Jackson 3.0 全家桶 (基于你提供的迁移指南)
+    implementation(platform("tools.jackson:jackson-bom:3.0.0"))
+    implementation("tools.jackson.core:jackson-databind")
+    implementation("tools.jackson.core:jackson-core")
+    // 按照指南：annotations 坐标不改 (保持 com.fasterxml)
+    implementation("com.fasterxml.jackson.core:jackson-annotations")
+
+    // 🔥 数据库与缓存 (2026年 1月最新稳定版)
     implementation("org.mariadb.jdbc:mariadb-java-client:3.5.7")
-    implementation("com.zaxxer:HikariCP:6.2.1")
+    implementation("com.zaxxer:HikariCP:7.0.2")
     implementation("com.github.ben-manes.caffeine:caffeine:3.2.3")
-    implementation("redis.clients:jedis:5.2.0")
+    implementation("redis.clients:jedis:7.2.0")
     
-    // 🔥 Jackson 3.0.3 (完整迁移至 tools.jackson 命名空间)
-    implementation("tools.jackson.core:jackson-databind:3.0.3")
-    implementation("tools.jackson.core:jackson-core:3.0.3")
-    implementation("tools.jackson.core:jackson-annotations:3.0.3")
-    
-    // Gson
     compileOnly("com.google.code.gson:gson:2.13.2")
 
-    // JUnit 5
+    // 测试依赖
     testImplementation(platform("org.junit:junit-bom:5.14.1"))
     testImplementation("org.junit.jupiter:junit-jupiter")
 }
@@ -130,34 +139,41 @@ tasks.test {
 }
 
 tasks.withType<JavaCompile> {
+    // ✅ 双重保险：强制编译任务依赖于代码生成
     dependsOn(generateBindings)
+    
     options.encoding = "UTF-8"
     options.release.set(25)
-    options.compilerArgs.addAll(listOf("--enable-preview", "-Xlint:unchecked", "-Xlint:-preview"))
+    options.compilerArgs.addAll(listOf(
+        "--enable-preview",
+        "-Xlint:unchecked",
+        "-Xlint:-preview"
+    ))
 }
 
 tasks.named<ShadowJar>("shadowJar") {
     archiveClassifier.set("")
     val prefix = "top.ellan.ecobridge.libs"
     
+    // 重定向依赖，防止冲突
+    relocate("tools.jackson", "$prefix.jackson")
+    relocate("com.fasterxml.jackson.annotation", "$prefix.jackson.annotations")
     relocate("com.zaxxer.hikari", "$prefix.hikari")
     relocate("org.mariadb.jdbc", "$prefix.mariadb")
     relocate("com.github.benmanes.caffeine", "$prefix.caffeine")
     relocate("redis.clients", "$prefix.jedis")
-    relocate("tools.jackson", "$prefix.jackson")
-    relocate("tools.jackson.databind", "$prefix.jackson.databind")
-    relocate("tools.jackson.core", "$prefix.jackson.core")
-    relocate("tools.jackson.annotation", "$prefix.jackson.annotation")
-    relocate("com.fasterxml.jackson", "$prefix.fasterxml_jackson") // 保留兼容性
     
     from("src/main/resources") {
         include("*.dll", "*.so", "*.dylib", "natives/**")
     }
+    
     mergeServiceFiles()
 }
 
 tasks.withType<ProcessResources> {
     val props = mapOf("version" to project.version)
     inputs.properties(props)
-    filesMatching("plugin.yml") { expand(props) }
+    filesMatching("plugin.yml") {
+        expand(props)
+    }
 }
