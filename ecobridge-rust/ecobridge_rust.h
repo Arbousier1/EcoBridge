@@ -150,10 +150,7 @@ void ecobridge_get_health_stats(unsigned long long *out_total, unsigned long lon
 
 double ecobridge_query_neff_vectorized(long long current_ts, double tau);
 
-/*
- 批量演算价格快照 (SIMD 批处理模式)
- */
-void ecobridge_compute_batch_prices(unsigned long long count,
+void ecobridge_compute_batch_prices(uint64_t count,
                                     double neff,
                                     const TradeContext *ctx_ptr,
                                     const MarketConfig *cfg_ptr,
@@ -180,9 +177,6 @@ double ecobridge_compute_tier_price(double base, double qty, bool is_sell);
 
 double ecobridge_calculate_epsilon(const TradeContext *ctx_ptr, const MarketConfig *cfg_ptr);
 
-/*
- 演进为自适应宏观调控的 PID 步进接口
- */
 double ecobridge_compute_pid_adjustment(PidState *pid_ptr,
                                         double target,
                                         double current,
@@ -203,37 +197,5 @@ void ecobridge_compute_transfer_check(TransferResult *out_result,
                                       const RegulatorConfig *cfg_ptr);
 
 int ecobridge_shutdown_db(void);
-
-double ecobridge_compute_price_final(double base_price,
-                                     double n_eff,
-                                     double lambda,
-                                     double epsilon);
-
-double ecobridge_compute_price_humane(double base_price,
-                                      double n_eff,
-                                      double trade_amount,
-                                      double lambda,
-                                      double epsilon);
-
-double ecobridge_compute_tier_price(double base_price, double quantity, bool is_sell);
-
-double ecobridge_compute_price_bounded(double base,
-                                       double neff,
-                                       double amt,
-                                       double lambda,
-                                       double eps,
-                                       double hist_avg);
-
-/*
- 批量价格演算内核 - 支持并行与 SIMD 加速
- 该函数由 FFI 调用，内部使用并行迭代器处理大规模商品定价快照
- */
-void ecobridge_compute_batch_prices(uintptr_t count,
-                                    double neff,
-                                    const TradeContext *ctx_ptr,
-                                    const MarketConfig *cfg_ptr,
-                                    const double *hist_avgs_ptr,
-                                    const double *lambdas_ptr,
-                                    double *output_ptr);
 
 #endif  /* ECOBRIDGE_RUST_H */

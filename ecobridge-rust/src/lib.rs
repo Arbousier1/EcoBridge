@@ -35,7 +35,6 @@ macro_rules! ffi_guard {
             Ok(result) => result,
             Err(e) => {
                 let count = PANIC_COUNTER.fetch_add(1, Ordering::Relaxed);
-                
                 let msg = if let Some(s) = e.downcast_ref::<&str>() {
                     *s
                 } else if let Some(s) = e.downcast_ref::<String>() {
@@ -43,13 +42,10 @@ macro_rules! ffi_guard {
                 } else {
                     "Unknown panic origin"
                 };
-
                 eprintln!("[EcoBridge-Native] CRITICAL PANIC detected: {}", msg);
-                
                 if count > 100 {
                     eprintln!("CRITICAL: Native panic count exceeded threshold (100). System instability imminent.");
                 }
-                
                 $fallback
             }
         }
@@ -62,13 +58,12 @@ macro_rules! ffi_guard {
 
 #[no_mangle]
 pub extern "C" fn ecobridge_abi_version() -> u32 {
-    // 同步更新 ABI 版本至 0x0009_0000 (SSoT v0.9.1)
     0x0009_0000
 }
 
 #[no_mangle]
 pub extern "C" fn ecobridge_version() -> *const c_char {
-    ffi_guard!(std::ptr::null(), {
+    ffi_guard!(ptr::null(), {
         static VERSION: &[u8] = b"EcoBridge Native Core v0.9.1-Macro (SIMD & Adaptive PID Enabled)\0";
         VERSION.as_ptr() as *const c_char
     })
@@ -111,7 +106,6 @@ pub unsafe extern "C" fn ecobridge_log_to_duckdb(
         if !uuid_ptr.is_null() && !meta_ptr.is_null() {
             let uuid = CStr::from_ptr(uuid_ptr).to_string_lossy().into_owned();
             let meta = CStr::from_ptr(meta_ptr).to_string_lossy().into_owned();
-            
             economy::summation::append_trade_to_memory(ts, trade_amount.abs());
             storage::log_economy_event(ts, uuid, trade_amount, balance, meta);
         }
@@ -147,27 +141,27 @@ pub unsafe extern "C" fn ecobridge_query_neff_vectorized(
     })
 }
 
-/// 批量演算价格快照 (SIMD 批处理模式)
 #[no_mangle]
 pub unsafe extern "C" fn ecobridge_compute_batch_prices(
-    count: c_ulonglong,
-    neff: c_double,
+    count: u64,
+    neff: f64,
     ctx_ptr: *const TradeContext,
     cfg_ptr: *const MarketConfig,
-    hist_avgs_ptr: *const c_double,
-    lambdas_ptr: *const c_double,
-    results_ptr: *mut c_double,
+    hist_avgs_ptr: *const f64,
+    lambdas_ptr: *const f64,
+    results_ptr: *mut f64,
 ) {
-    // 直接转发给 pricing 模块中定义的 extern 函数
-    economy::pricing::ecobridge_compute_batch_prices(
-        count as usize,
-        neff,
-        ctx_ptr,
-        cfg_ptr,
-        hist_avgs_ptr,
-        lambdas_ptr,
-        results_ptr
-    );
+    ffi_guard!((), {
+        economy::pricing::compute_batch_prices_internal(
+            count as usize,
+            neff,
+            ctx_ptr,
+            cfg_ptr,
+            hist_avgs_ptr,
+            lambdas_ptr,
+            results_ptr
+        );
+    })
 }
 
 #[no_mangle]
@@ -177,8 +171,7 @@ pub extern "C" fn ecobridge_compute_price_final(
     lambda: c_double,
     epsilon: c_double,
 ) -> c_double {
-    // 修复命名冲突，调用 pricing 模块的对应实现
-    economy::pricing::ecobridge_compute_price_final(base, n_eff, lambda, epsilon)
+    economy::pricing::compute_price_final_internal(base, n_eff, lambda, epsilon)
 }
 
 #[no_mangle]
@@ -189,17 +182,19 @@ pub extern "C" fn ecobridge_compute_price_humane(
     lambda: c_double,
     epsilon: c_double,
 ) -> c_double {
-    // 修复调用路径
-    economy::pricing::ecobridge_compute_price_humane(base, n_eff, trade_amount, lambda, epsilon)
+    economy::pricing::compute_price_humane_internal(base, n_eff, trade_amount, lambda, epsilon)
 }
 
 #[no_mangle]
 pub extern "C" fn ecobridge_compute_price_bounded(
-    base: c_double, n_eff: c_double, amt: c_double, lambda: c_double, eps: c_double, 
-    hist_avg: c_double
+    base: c_double,
+    n_eff: c_double,
+    amt: c_double,
+    lambda: c_double,
+    eps: c_double,
+    hist_avg: c_double,
 ) -> c_double {
-    // 修复调用路径
-    economy::pricing::ecobridge_compute_price_bounded(base, n_eff, amt, lambda, eps, hist_avg)
+    economy::pricing::compute_price_bounded_internal(base, n_eff, amt, lambda, eps, hist_avg)
 }
 
 #[no_mangle]
@@ -224,7 +219,6 @@ pub unsafe extern "C" fn ecobridge_calculate_epsilon(
     })
 }
 
-/// 演进为自适应宏观调控的 PID 步进接口
 #[no_mangle]
 pub unsafe extern "C" fn ecobridge_compute_pid_adjustment(
     pid_ptr: *mut PidState,
@@ -232,14 +226,13 @@ pub unsafe extern "C" fn ecobridge_compute_pid_adjustment(
     current: c_double,
     dt: c_double,
     inflation: c_double,
-    market_heat: c_double, 
+    market_heat: c_double,
 ) -> c_double {
     ffi_guard!(0.0, {
         match pid_ptr.as_mut() {
             Some(pid) => {
-                // 透传财富流速至底层逻辑
                 economy::control::compute_pid_adjustment_internal(pid, target, current, dt, inflation, market_heat)
-            }
+            },
             None => 0.0,
         }
     })
@@ -255,7 +248,7 @@ pub unsafe extern "C" fn ecobridge_reset_pid_state(pid_ptr: *mut PidState) {
 }
 
 // -----------------------------------------------------------------------------
-// 4. 宏观经济导出 (Macro Economy Exports)
+// 4. 宏观经济导出
 // -----------------------------------------------------------------------------
 
 #[no_mangle]
@@ -280,7 +273,7 @@ pub extern "C" fn ecobridge_calc_decay(heat: c_double, rate: c_double) -> c_doub
 }
 
 // -----------------------------------------------------------------------------
-// 5. 安全审计 (Security Regulator)
+// 5. 安全审计
 // -----------------------------------------------------------------------------
 
 #[no_mangle]
@@ -290,25 +283,18 @@ pub unsafe extern "C" fn ecobridge_compute_transfer_check(
     cfg_ptr: *const RegulatorConfig,
 ) {
     if out_result.is_null() {
-        eprintln!("[EcoBridge-Native] CRITICAL ERROR: out_result pointer is null");
         return;
     }
-    
     let default_result = TransferResult::error(-999);
-    
     let result = ffi_guard!(default_result, {
         match (ctx_ptr.as_ref(), cfg_ptr.as_ref()) {
             (Some(ctx), Some(cfg)) => {
                 security::regulator::compute_transfer_check_internal(ctx, cfg)
             },
-            (None, _) => TransferResult::error(671),
-            (_, None) => TransferResult::error(672),
+            _ => TransferResult::error(671),
         }
     });
-    
-    ffi_guard!((), {
-        ptr::write(out_result, result);
-    })
+    unsafe { ptr::write(out_result, result) };
 }
 
 #[no_mangle]
