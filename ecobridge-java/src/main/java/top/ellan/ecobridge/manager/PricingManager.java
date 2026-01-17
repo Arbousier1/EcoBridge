@@ -352,4 +352,8 @@ public class PricingManager {
             }
         }
     }
+
+    public MemorySegment getGlobalPidState() {
+        return globalPidState; // 返回已分配的 PID_STATE 内存段 [cite: 373, 378]
+    }
 }

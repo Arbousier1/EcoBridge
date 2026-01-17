@@ -12,22 +12,20 @@ import top.ellan.ecobridge.bridge.NativeBridge;
 import top.ellan.ecobridge.collector.ActivityCollector;
 import top.ellan.ecobridge.manager.EconomicStateManager;
 import top.ellan.ecobridge.manager.EconomyManager;
+import top.ellan.ecobridge.manager.PricingManager;
 
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
 
 /**
- * EcoBridge 内部变量注册器 (物理限额修正版)
- * 职责：提供统一的变量计算逻辑，供 PAPI 和内部消息使用。
+ * EcoBridge 内部变量注册器 - 最终修正版
  */
 public final class InternalPlaceholder {
 
-    // --- 物理常量定义 (与内核保持一致) ---
-    public static final int PHYSICAL_HARD_CAP = 2000;    // 市场饱和/熔断线 (超过此值触发红色警告)
-    public static final int PHYSICAL_OPTIMAL_CAP = 500;  // 最佳收益线 (超过此值开始收益递减)
+    public static final int PHYSICAL_HARD_CAP = 2000;
+    public static final int PHYSICAL_OPTIMAL_CAP = 500;
 
-    // 私有构造
     private InternalPlaceholder() {}
 
     /**
@@ -35,20 +33,33 @@ public final class InternalPlaceholder {
      */
     @NotNull
     public static TagResolver getGlobalResolver() {
+        EconomyManager eco = EconomyManager.getInstance();
+        double currentKp = 0, currentKi = 0, currentKd = 0;
+
+        if (NativeBridge.isLoaded() && PricingManager.getInstance() != null) {
+            MemorySegment pidSeg = PricingManager.getInstance().getGlobalPidState();
+            if (pidSeg != null && pidSeg.address() != 0) {
+                currentKp = pidSeg.get(ValueLayout.JAVA_DOUBLE, 0);
+                currentKi = pidSeg.get(ValueLayout.JAVA_DOUBLE, 8);
+                currentKd = pidSeg.get(ValueLayout.JAVA_DOUBLE, 16);
+            }
+        }
+
         return TagResolver.resolver(
-            Placeholder.unparsed("inflation", 
-                String.format("%.2f%%", EconomyManager.getInstance().getInflationRate() * 100)),
-            Placeholder.unparsed("stability", 
-                String.format("%.2f", EconomyManager.getInstance().getStabilityFactor())),
-            Placeholder.unparsed("holiday_status", 
-                HolidayManager.isTodayHoliday() ? "是" : "否"),
-            Placeholder.unparsed("holiday_mult", 
-                String.format("%.1fx", HolidayManager.getHolidayEpsilonFactor()))
+            Placeholder.unparsed("inflation", String.format("%.2f%%", eco.getInflationRate() * 100)),
+            Placeholder.unparsed("stability", String.format("%.2f", eco.getStabilityFactor())),
+            Placeholder.unparsed("market_heat", String.format("%.1f", eco.getMarketHeat())),
+            Placeholder.unparsed("eco_saturation", String.format("%.2f%%", eco.getEcoSaturation() * 100)),
+            Placeholder.unparsed("pid_kp", String.format("%.3f", currentKp)),
+            Placeholder.unparsed("pid_ki", String.format("%.3f", currentKi)),
+            Placeholder.unparsed("pid_kd", String.format("%.3f", currentKd)),
+            Placeholder.unparsed("holiday_status", HolidayManager.isTodayHoliday() ? "是" : "否"),
+            Placeholder.unparsed("holiday_mult", String.format("%.1fx", HolidayManager.getHolidayEpsilonFactor()))
         );
     }
 
     /**
-     * 2. 获取系统底层监控变量 (FFM)
+     * 2. 系统底层 FFM 状态
      */
     @NotNull
     public static TagResolver getSystemResolver() {
@@ -74,21 +85,26 @@ public final class InternalPlaceholder {
     }
 
     /**
-     * 3. 获取玩家画像变量
+     * 3. 玩家画像 (修复 int 转换为 boolean 的错误)
      */
     @NotNull
     public static TagResolver getPlayerResolver(@Nullable Player player) {
         if (player == null) return TagResolver.empty();
+        
         var snapshot = ActivityCollector.capture(player, 48.0);
+        
+        // 关键修复：将 int 类型的 isNewbie() 显式与 1 比较
+        String tag = (snapshot.isNewbie() == 1) ? "新手" : "资深";
+        
         return TagResolver.resolver(
             getGlobalResolver(),
             Placeholder.unparsed("player_hours", String.format("%.1f", snapshot.hours())),
-            Placeholder.unparsed("newbie_tag", (snapshot.isNewbie() & 1) == 1 ? "新手" : "资深")
+            Placeholder.unparsed("newbie_tag", tag)
         );
     }
 
     /**
-     * 4. 获取市场阶段变量
+     * 4. 市场分析
      */
     @NotNull
     public static TagResolver getMarketResolver(@NotNull String productId) {
@@ -106,23 +122,22 @@ public final class InternalPlaceholder {
     }
 
     /**
-     * 5. 获取配额变量 (供内部 GUI 使用)
+     * 5. 配额监控 (Record 方法访问修正)
      */
     @NotNull
     public static TagResolver getQuotaResolver(@NotNull Player player, @NotNull ObjectItem item) {
-        // 复用下方的计算逻辑
         QuotaData data = calculateQuota(player, item);
 
         return TagResolver.resolver(
-            Placeholder.unparsed("quota_used", String.valueOf(data.used)),
-            Placeholder.unparsed("quota_limit", String.valueOf(data.hardLimit)),
-            Placeholder.unparsed("quota_optimal", String.valueOf(data.optimalLimit)),
-            Placeholder.unparsed("quota_remaining", String.valueOf(data.remaining)),
-            Placeholder.unparsed("quota_percent", String.format("%.1f%%", data.percent))
+            Placeholder.unparsed("quota_used", String.valueOf(data.used())),
+            Placeholder.unparsed("quota_limit", String.valueOf(data.hardLimit())),
+            Placeholder.unparsed("quota_optimal", String.valueOf(data.optimalLimit())),
+            Placeholder.unparsed("quota_remaining", String.valueOf(data.remaining())),
+            Placeholder.unparsed("quota_percent", String.format("%.1f%%", data.percent()))
         );
     }
 
-    // --- 数据计算核心 (供 PAPI 和 Resolver 共用) ---
+    // --- 数据模型 ---
 
     public record QuotaData(int used, int hardLimit, int optimalLimit, int remaining, double percent) {}
 
@@ -130,7 +145,6 @@ public final class InternalPlaceholder {
         ObjectUseTimesCache cache = ShopHelper.getPlayerUseTimesCache(item, player);
         int used = (cache != null) ? cache.getSellUseTimes() : 0;
         
-        // 强制使用物理常量，忽略 UltimateShop 配置文件的 -1
         int hardLimit = PHYSICAL_HARD_CAP;
         int optimalLimit = PHYSICAL_OPTIMAL_CAP;
         int remaining = Math.max(0, hardLimit - used);
