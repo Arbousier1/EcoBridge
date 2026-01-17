@@ -1,10 +1,12 @@
 package top.ellan.ecobridge.network;
 
-// Jackson 3.x 导入（注意：除了 jackson-annotations，包名已全部从 com.fasterxml.jackson 改为 tools.jackson）
-import tools.jackson.core.JacksonException; // JsonProcessingException 在 3.x 中已重命名为 JacksonException
+// 🔥 Jackson 3.x 核心导入
+import tools.jackson.core.JacksonException; 
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
-// Jedis 和其他工具类导入保持不变
+import tools.jackson.databind.DeserializationFeature;
+
+// Jedis 和其他工具类
 import redis.clients.jedis.Connection;
 import redis.clients.jedis.ConnectionPoolConfig;
 import redis.clients.jedis.DefaultJedisClientConfig;
@@ -20,23 +22,16 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * 分布式同步管理器 (Redis Manager v0.10.0 - Jackson 3.x Migrated)
+ * 分布式同步管理器 (Redis Manager v0.10.0 - Jackson 3.x Fully Migrated)
  * 职责：实现高频、跨服的价格演算状态同步。
- * <p>
- * 优化与变更日志:
- * 1. [Migration] 从 Jackson 2.x 迁移至 Jackson 3.x (JDK 17+基线，包名变更，API不可变)。
- * 2. [Perf] 继续使用 Jackson (databind) 进行高性能序列化。
  */
 public class RedisManager {
 
     private static RedisManager instance;
     private final EcoBridge plugin;
     
-    // Jackson 3.x: ObjectMapper 不可变，必须通过 Builder 构建。
-    // JsonMapper 是 JSON 格式的专用 Mapper，推荐使用。
+    // Jackson 3.x 中 ObjectMapper 是不可变的
     private final ObjectMapper mapper;
-    // 注意：在 Jackson 3.x 中，建议使用具体的 JsonMapper/YamlMapper 等替代通用的 ObjectMapper。
-    // 但为了最小化代码变更，此处声明为 ObjectMapper 仍可工作。
 
     private PooledConnectionProvider provider;
     private volatile JedisPubSub subscriber;
@@ -57,11 +52,10 @@ public class RedisManager {
         this.serverId = config.getString("redis.server-id", "unknown_server");
         this.tradeChannel = config.getString("redis.channels.trade", "ecobridge:global_trade");
 
-        // Jackson 3.x: ObjectMapper 必须通过 Builder 模式构建和配置。
+        // 🔥 Jackson 3.x 推荐使用 JsonMapper Builder
         this.mapper = JsonMapper.builder()
-                // 你可以在此处添加 Jackson 2.x 中通过 setter 方法进行的配置。
-                // 例如，禁用尾随令牌检查以匹配 Jackson 2.x 默认行为并提升性能：
-                // .disable(tools.jackson.databind.DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+                // 性能优化：禁用尾随令牌检查（Jackson 3 默认开启，但在高频同步中建议关闭以对齐 2.x 性能）
+                .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
                 .build();
 
         if (enabled) {
@@ -109,11 +103,12 @@ public class RedisManager {
         this.provider = new PooledConnectionProvider(address, clientConfigBuilder.build(), poolConfig);
         this.active.set(true);
 
-        LogUtil.info("<green>Redis 通道已打开 (Jackson 3.x Core)。ID: " + serverId);
+        LogUtil.info("<green>Redis 通道已打开 (Jackson 3.x 驱动)。ID: " + serverId);
         startSubscriberLoop();
     }
 
     private void startSubscriberLoop() {
+        // 使用 JDK 21+ 虚拟线程处理订阅，防止阻塞主线程
         Thread.ofVirtual().name("EcoBridge-Redis-Sub").start(() -> {
             int retryCount = 0;
             while (active.get() && plugin.isEnabled()) {
@@ -169,41 +164,34 @@ public class RedisManager {
     }
 
     private void flushLoop() {
-        // [Resource Guard] 批处理与时间片限制
         final int BATCH_SIZE = 100;
         final long MAX_FLUSH_TIME_MS = 5000;
 
         try {
             long startTime = System.currentTimeMillis();
             
-            try (redis.clients.jedis.Connection connection = provider.getConnection();
-                 redis.clients.jedis.Jedis jedis = new redis.clients.jedis.Jedis(connection)) {
+            try (Connection connection = provider.getConnection();
+                 Jedis jedis = new Jedis(connection)) {
                 
                 int processed = 0;
-                
                 while (!offlineQueue.isEmpty() && active.get()) {
                     TradePacket packet = offlineQueue.peek();
                     if (packet == null) break;
 
                     try {
-                        // ✅ [Jackson 3.x] 序列化适配
-                        // mapper 已通过 Builder 模式在构造函数中初始化
+                        // ✅ Jackson 3.x 序列化
                         String json = mapper.writeValueAsString(packet);
                         jedis.publish(tradeChannel, json);
-                        
-                        // 发送成功才移除
                         offlineQueue.poll(); 
-                    } catch (JacksonException e) { // 捕获 JacksonException 而非 JsonProcessingException
-                        // [Fault Tolerance] 遇到序列化坏包，必须丢弃，否则会卡死队列头部
-                        LogUtil.error("Redis 序列化严重错误，丢弃坏包: " + e.getMessage(), e);
+                    } catch (JacksonException e) {
+                        LogUtil.error("Redis 序列化坏包，已丢弃: " + e.getMessage(), e);
                         offlineQueue.poll(); 
                     }
                     
-                    // [Resource Guard] 检查配额
                     processed++;
                     if (processed >= BATCH_SIZE || 
                        (System.currentTimeMillis() - startTime) > MAX_FLUSH_TIME_MS) {
-                        break; // 主动释放连接
+                        break;
                     }
                 }
             }
@@ -211,7 +199,6 @@ public class RedisManager {
             LogUtil.warn("Redis 批量冲刷中止: " + e.getMessage());
         } finally {
             isFlushing.set(false);
-            // [Safety Fix] CAS 安全调度
             if (!offlineQueue.isEmpty() && active.get()) {
                 flushOfflineQueueAsync();
             }
@@ -222,8 +209,7 @@ public class RedisManager {
         try {
             if (json == null || json.isBlank()) return;
             
-            // ✅ [Jackson 3.x] 反序列化
-            // JacksonException 是 RuntimeException，此处可以捕获更通用的 Exception 或 JacksonException。
+            // ✅ Jackson 3.x 反序列化 (JacksonException 是运行时异常)
             TradePacket packet = mapper.readValue(json, TradePacket.class);
             
             if (packet == null || serverId.equals(packet.sourceServer)) return;
@@ -233,7 +219,7 @@ public class RedisManager {
                     packet.productId, packet.amount, packet.timestamp
                 );
             }
-        } catch (JacksonException e) { // 捕获 JacksonException 而非 JsonProcessingException
+        } catch (JacksonException e) {
             LogUtil.warn("收到格式错误的贸易包: " + e.getMessage());
         } catch (Exception e) {
             LogUtil.warn("处理跨服贸易包失败: " + e.getMessage());
@@ -252,7 +238,7 @@ public class RedisManager {
                     if (p != null) {
                         try {
                             jedis.publish(tradeChannel, mapper.writeValueAsString(p));
-                        } catch (JacksonException ignored) {} // 忽略序列化异常
+                        } catch (JacksonException ignored) {} 
                     }
                 }
             } catch (Exception ignored) {}
@@ -262,7 +248,10 @@ public class RedisManager {
         if (provider != null) provider.close();
     }
 
-    // Jackson 3.x 对 Java Record 的支持良好（JDK 17+ 基线）。
+    /**
+     * 贸易数据包 - 使用 Java Record (JDK 17+)
+     * Jackson 3.0 对 Record 的原生支持非常出色，无需额外注解。
+     */
     private record TradePacket(
         String sourceServer,
         String productId,
