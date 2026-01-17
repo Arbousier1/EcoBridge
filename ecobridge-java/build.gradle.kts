@@ -14,7 +14,7 @@ buildscript {
 
 plugins {
     `java-library`
-    // 2026年 1月最新稳定版 Shadow 插件
+    // 2026年 1月最新稳定版 Shadow 插件 (com.gradleup.shadow)
     id("com.gradleup.shadow") version "8.3.6"
 }
 
@@ -22,6 +22,7 @@ group = "top.ellan"
 version = "1.0-SNAPSHOT"
 
 // --- [jextract 自动化配置逻辑] ---
+// 确保路径指向 artifact 下载后的位置
 val rustHeaderFile = file("${projectDir}/../ecobridge-rust/ecobridge_rust.h")
 val generatedSourceDir = layout.buildDirectory.dir("generated/sources/jextract")
 val targetPackage = "top.ellan.ecobridge.gen"
@@ -71,9 +72,14 @@ val generateBindings = tasks.register<Exec>("generateBindings") {
     group = "build"
     description = "使用 jextract 自动从 Rust 头文件生成 Java FFM 绑定。"
 
+    // 确保目录存在
     doFirst {
         if (!rustHeaderFile.exists()) {
-            throw GradleException("未找到 Rust 头文件: ${rustHeaderFile.absolutePath}。请先编译 Rust 项目。")
+            // 在 CI 环境下，打印当前目录结构帮助调试
+            println("❌ 错误：未找到头文件: ${rustHeaderFile.absolutePath}")
+            println("当前目录文件列表:")
+            projectDir.parentFile.listFiles()?.forEach { println(" - ${it.name}") }
+            throw GradleException("Rust 头文件缺失，请检查 build-rust 阶段是否成功上传了 artifact。")
         }
         generatedSourceDir.get().asFile.mkdirs()
     }
@@ -82,8 +88,7 @@ val generateBindings = tasks.register<Exec>("generateBindings") {
         findJextract(),
         "--output", generatedSourceDir.get().asFile.absolutePath,
         "--target-package", targetPackage,
-        // 🔥🔥🔥 [关键配置] 强制指定辅助类名为 ecobridge_rust_h 🔥🔥🔥
-        // 这样生成的 MarketConfig.java 才能正确找到它
+        // 🔥 强制指定 header class name，确保 Java 代码能引用到 ecobridge_rust_h
         "--header-class-name", "ecobridge_rust_h",
         "--library", "ecobridge_rust",
         rustHeaderFile.absolutePath
@@ -101,8 +106,9 @@ java {
 // 将生成的代码加入源代码集
 sourceSets {
     main {
-        // ✅ 修正点：直接传入任务实例
-        // Gradle 会自动解析任务的 outputs 目录，并自动添加 dependsOn 依赖
+        // ✅ 关键修复：将任务输出注册为源码目录
+        // 这会自动建立 compileJava -> generateBindings 的依赖关系
+        // 从而解决 "package top.ellan.ecobridge.gen does not exist"
         java.srcDir(generateBindings)
     }
 }
@@ -113,23 +119,39 @@ repositories {
     maven("https://repo.papermc.io/repository/maven-public/")
     maven("https://repo.nightexpressdev.com/releases")
     maven("https://repo.lanink.cn/repository/maven-public/")
+    // ✅ 关键修复：新增 PlaceholderAPI 仓库
+    maven("https://repo.extendedclip.com/content/repositories/placeholderapi/")
     flatDir { dirs("libs") }
 }
 
 dependencies {
+    // Spigot/Paper API
+    // ⚠️ 已保留您指定的 1.21.1 版本
+    compileOnly("io.papermc.paper:paper-api:1.21.1-R0.1-SNAPSHOT")
+    
+    // ✅ 关键修复：新增 PlaceholderAPI 依赖 (解决 Hook 报错)
+    compileOnly("me.clip:placeholderapi:2.11.6")
+
+    // 其他插件依赖
     compileOnly(fileTree(mapOf("dir" to "libs", "include" to listOf("**/*.jar"))))
-    compileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
     compileOnly("su.nightexpress.nightcore:main:2.13.0")
     compileOnly("su.nightexpress.coinsengine:CoinsEngine:2.6.0")
     compileOnly("cn.superiormc.ultimateshop:plugin:4.2.3")
     
-    implementation("org.mariadb.jdbc:mariadb-java-client:3.5.7")
-    implementation("com.zaxxer:HikariCP:6.2.1")
-    implementation("com.github.ben-manes.caffeine:caffeine:3.2.3")
-    implementation("redis.clients:jedis:7.2.0")
-    compileOnly("com.google.code.gson:gson:2.12.1")
+    // 数据库与工具库 (已保留您指定的版本)
+    implementation("org.mariadb.jdbc:mariadb-java-client:3.3.2")
+    implementation("com.zaxxer:HikariCP:5.1.0")
+    implementation("com.github.ben-manes.caffeine:caffeine:3.1.8")
+    implementation("redis.clients:jedis:5.1.0")
+    
+    // ✅ 关键修复：新增 Jackson 依赖 (解决 RedisManager 报错)
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.16.1")
+    implementation("com.fasterxml.jackson.core:jackson-core:2.16.1")
+    implementation("com.fasterxml.jackson.core:jackson-annotations:2.16.1")
+    
+    compileOnly("com.google.code.gson:gson:2.10.1")
 
-    // JUnit 5 测试依赖
+    // 测试依赖
     testImplementation(platform("org.junit:junit-bom:5.10.2"))
     testImplementation("org.junit.jupiter:junit-jupiter")
 }
@@ -139,7 +161,7 @@ tasks.test {
 }
 
 tasks.withType<JavaCompile> {
-    // 显式依赖确保顺序（虽然 srcDir(task) 已经处理了，但加这一行双重保险）
+    // 🔒 双重保险：强制编译任务依赖于绑定生成
     dependsOn(generateBindings)
     
     options.encoding = "UTF-8"
@@ -154,10 +176,13 @@ tasks.withType<JavaCompile> {
 tasks.named<ShadowJar>("shadowJar") {
     archiveClassifier.set("")
     val prefix = "top.ellan.ecobridge.libs"
+    
+    // 重定位依赖，防止冲突
     relocate("com.zaxxer.hikari", "$prefix.hikari")
     relocate("org.mariadb.jdbc", "$prefix.mariadb")
     relocate("com.github.benmanes.caffeine", "$prefix.caffeine")
     relocate("redis.clients", "$prefix.jedis")
+    relocate("com.fasterxml.jackson", "$prefix.jackson") // ✅ 重定位 Jackson 防止冲突
     
     from("src/main/resources") {
         include("*.dll", "*.so", "*.dylib", "natives/**")
