@@ -33,7 +33,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public final class EcoBridge extends JavaPlugin {
 
-    private static EcoBridge instance;
+    private static volatile EcoBridge instance;
     private static final MiniMessage MM = MiniMessage.miniMessage();
 
     private ExecutorService virtualExecutor;

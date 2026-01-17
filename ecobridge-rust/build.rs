@@ -1,5 +1,3 @@
-// =============== ecobridge-rust/build.rs ===============
-
 use std::env;
 use std::path::PathBuf;
 
@@ -77,6 +75,10 @@ fn configure_platform_linker() {
     let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
 
     match target_os.as_str() {
+        "windows" => {
+            // [Fix] DuckDB 依赖在 Windows 上需要链接 Restart Manager API
+            println!("cargo:rustc-link-lib=Rstrtmgr");
+        }
         "macos" => {
             println!("cargo:rustc-link-arg=-Wl,-install_name,@rpath/libecobridge_rust.dylib");
         }

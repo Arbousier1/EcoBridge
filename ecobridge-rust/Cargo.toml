@@ -6,46 +6,39 @@ authors = ["Ellan"]
 description = "EcoBridge Economy Core - Hardened DuckDB Analytics Engine"
 
 [lib]
+# 编译为 C 动态库 (.dll / .so / .dylib)
 crate-type = ["cdylib"]
 
 [dependencies]
-# 系统接口
-libc = "0.2"
+# 系统底层接口
+libc = "0.2.180"
 
-# 数据库引擎
-# 这里的版本请根据您实际环境微调，如果 1.1 编译有问题可回退到 0.9.2
-duckdb = { version = "1.1", features = ["bundled", "chrono"] }
+duckdb = { version = "1.4.3", features = ["bundled", "chrono", "arrow"] }
 
-# [关键修复] 添加 MPSC 通道支持，用于零阻塞日志写入
-crossbeam-channel = "0.5"
+# 高性能 MPSC 通道
+crossbeam-channel = "0.5.15"
 
-# 并行计算 (Rayon)
-# 设置为 optional，由下方的 [features] 控制开关
-rayon = { version = "1.10", optional = true }
+# 并行计算框架
+rayon = { version = "1.11.0", optional = true }
 
 # 时间处理
-chrono = { version = "0.4", features = ["std"] }
+chrono = { version = "0.4.43", features = ["std"] }
 
-# 静态变量
+# 静态全局变量
 lazy_static = "1.5"
 
 [build-dependencies]
-cbindgen = "0.27"
+# C 头文件生成
+cbindgen = "0.29.2"
 
 [features]
-# 默认不开启并行，以减小二进制体积和编译时间
 default = []
-
-# 定义 parallel 特性：开启此特性时，自动启用 rayon 依赖
-# 编译命令: cargo build --release --features parallel
 parallel = ["dep:rayon"]
 
 [profile.release]
 opt-level = 3
 lto = "fat"
 codegen-units = 1
-# 剥离符号表以减小二进制体积
 strip = "symbols"
 
-# [重要] 移除了 panic = "abort"
-# 原因：lib.rs 使用了 catch_unwind 宏 (ffi_guard) 来保护 JVM 不被 Rust panic 搞崩。
+# 保持默认的 panic = "unwind" 以支持 FFM 异常捕获
