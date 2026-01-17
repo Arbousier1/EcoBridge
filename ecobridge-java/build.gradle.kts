@@ -107,6 +107,8 @@ repositories {
     maven("https://repo.papermc.io/repository/maven-public/")
     maven("https://repo.nightexpressdev.com/releases")
     maven("https://repo.lanink.cn/repository/maven-public/")
+    // [新增] PlaceholderAPI 仓库
+    maven("https://repo.extendedclip.com/content/repositories/placeholderapi/")
     flatDir { dirs("libs") }
 }
 
@@ -116,17 +118,17 @@ dependencies {
     compileOnly("su.nightexpress.nightcore:main:2.13.0")
     compileOnly("su.nightexpress.coinsengine:CoinsEngine:2.6.0")
     compileOnly("cn.superiormc.ultimateshop:plugin:4.2.3")
+    // [新增] PlaceholderAPI 依赖
+    compileOnly("me.clip:placeholderapi:2.11.6")
 
     implementation("org.mariadb.jdbc:mariadb-java-client:3.5.7")
     implementation("com.zaxxer:HikariCP:6.2.1")
     implementation("com.github.ben-manes.caffeine:caffeine:3.2.3")
     implementation("redis.clients:jedis:7.2.0")
     
-    // 🔥 [新增] Jackson 高性能 JSON 处理库 (替换 Gson)
-    // Jackson 性能远超 Gson，且对 Java Record 支持更好
+    // 🔥 Jackson 高性能 JSON 处理库
     implementation("com.fasterxml.jackson.core:jackson-databind:2.18.2")
     
-    // 保留 Gson 仅作编译兼容 (如果其他代码没用到，可以删除)
     compileOnly("com.google.code.gson:gson:2.12.1")
 }
 
@@ -149,7 +151,7 @@ tasks.named<ShadowJar>("shadowJar") {
     relocate("com.github.benmanes.caffeine", "$prefix.caffeine")
     relocate("redis.clients", "$prefix.jedis")
     
-    // 🔥 [关键] 将 Jackson 重新打包到插件内部，防止与其他插件的版本冲突
+    // 🔥 将 Jackson 重新打包到插件内部
     relocate("com.fasterxml.jackson", "$prefix.jackson")
     
     from("src/main/resources") {

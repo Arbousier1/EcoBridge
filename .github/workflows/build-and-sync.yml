@@ -6,7 +6,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  # 第一阶段：在三个平台上并行编译 Rust 动态库
   build-rust:
     name: Build Rust Core on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -38,7 +37,6 @@ jobs:
         run: |
           cd ecobridge-rust
           cargo build --release
-        # 使用 Cargo 配置文件中的 release 优化选项 [cite: 394]
 
       - name: Prepare Artifact
         shell: bash
@@ -57,7 +55,6 @@ jobs:
           name: ${{ matrix.os }}-binary
           path: dist/
 
-  # 第二阶段：汇总二进制文件并构建 Java 插件
   build-java:
     name: Build Java Plugin (Java 25)
     needs: build-rust
@@ -69,7 +66,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: '25'
-          [cite_start]distribution: 'oracle' # FFM API 在 Java 25 中需要特定的发行版支持 [cite: 19]
+          distribution: 'oracle' 
 
       - name: Download All Native Binaries
         uses: actions/download-artifact@v4

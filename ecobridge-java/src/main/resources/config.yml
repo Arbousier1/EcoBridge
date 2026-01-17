@@ -66,21 +66,27 @@ economy:
   # [宏观] 价格波动幅度超过此阈值时，会触发 PID 控制器进行宏观调控
   volatility-threshold: 50000.0
 
-  # [校准] 经济热度的每日自然衰减率 (对应 EconomyManager.java 逻辑, 原 'daily-decay-rate' 已修改为 'decay-rate')
+  # [校准] 经济热度的每日自然衰减率 (对应 EconomyManager.java)
+  # 已修正为 'decay-rate' (原 daily-decay-rate)
   decay-rate: 0.05 # 0.05 意味着每天衰减 5%
 
   # [微观] 动态定价模型的核心参数，影响价格随供需变化的陡峭程度
-  # [校准] 键名对齐 UShopProvider.java 逻辑
-  lambda: 0.002
+  # [校准] 键名对齐 UShopProvider.java 逻辑，同时也对应 PricingManager 的 default-lambda
+  default-lambda: 0.002
+  
   # [微观] 动态定价模型的时间衰减常数，影响历史交易数据的权重随时间下降的速度
   tau: 7.0
+  
+  # [微观] 全局出售折扣率 (PricingManager.java 使用)
+  sell-ratio: 0.5
 
   # [环境因子] Rust 核心权重参数 (MarketConfig SSoT)
   # 季节性活动对价格影响的幅度
   seasonal-amplitude: 0.15
   # 周末时段的价格乘数
   weekend-multiplier: 1.2
-  # [校准] 新手保护对价格影响的力度 (对应 UShopProvider.java, 去掉了 -rate)
+  # [校准] 新手保护对价格影响的力度 (对应 UShopProvider.java)
+  # 已修正为 'newbie-protection' (原 newbie-protection-rate)
   newbie-protection: 0.2
   # 强制开启节日模式，忽略外部API结果
   force-festival-mode: false
@@ -105,11 +111,11 @@ economy:
     poor-threshold: 10000.0
     # 被认定为“富人”的资产阈值
     rich-threshold: 1000000.0
-    # [校准] 新手玩家单次接收转账的最大限额 (对应 TransferManager.java, 去掉了 -receive)
+    # [校准] 新手玩家单次接收转账的最大限额 (对应 TransferManager.java)
+    # 已修正为 'newbie-limit' (原 newbie-receive-limit)
     newbie-limit: 50000.0
-    # [校准] 警告比率在当前 Rust 代码中是硬编码的 (0.9)，此配置项不会生效
-    # 如果未来 Rust 代码修改为从配置读取，则可以启用
-    # warning-ratio: 0.9 # 发送者余额与此比率的乘积，作为判断高风险的金额阈值之一
+    # [Rust 硬编码] 警告比率目前在 Rust 内核中固定为 0.9，此处配置暂不生效
+    # warning-ratio: 0.9 
     # 触发高风险警告的最低金额
     warning-min-amount: 50000.0
     # 被认定为“新手”的游玩小时数上限

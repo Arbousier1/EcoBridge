@@ -36,7 +36,7 @@ def export_project(source_dir, output_file):
     with open(output_file, 'w', encoding='utf-8') as f_out:
         for root, dirs, files in os.walk(source_dir):
             # 排除常见的忽略目录
-            if any(part in root for part in ['target', 'build', '.git', 'gradle']):
+            if any(part in root for part in ['target', 'build', '.git', 'gradle', 'yml']):
                 continue
                 
             for file in files:

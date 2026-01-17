@@ -7,15 +7,13 @@ import org.bukkit.plugin.java.JavaPlugin;
 import top.ellan.ecobridge.bridge.NativeBridge;
 import top.ellan.ecobridge.cache.HotDataCache;
 import top.ellan.ecobridge.command.TransferCommand;
-import top.ellan.ecobridge.database.DatabaseManager; // [新增] 引入数据库管理器
+import top.ellan.ecobridge.database.DatabaseManager;
+import top.ellan.ecobridge.hook.EcoPlaceholderExpansion;
 import top.ellan.ecobridge.listener.CacheListener;
 import top.ellan.ecobridge.listener.CoinsEngineListener;
 import top.ellan.ecobridge.listener.CommandInterceptor;
 import top.ellan.ecobridge.listener.TradeListener;
-import top.ellan.ecobridge.manager.EconomyManager;
-import top.ellan.ecobridge.manager.PricingManager;
-import top.ellan.ecobridge.manager.TransferManager;
-import top.ellan.ecobridge.manager.EconomicStateManager;
+import top.ellan.ecobridge.manager.*;
 import top.ellan.ecobridge.network.RedisManager;
 import top.ellan.ecobridge.storage.AsyncLogger;
 import top.ellan.ecobridge.util.HolidayManager;
@@ -31,7 +29,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * <p>
  * 更新日志:
  * 1. 数据库层重构：基础设施(DatabaseManager)与业务逻辑(TransactionDao)分离。
- * 2. Native层重构：引入 NativeLoader 解决生命周期管理与热重载资源释放问题。
+ * 2. UltimateShop 集成升级：引入动态反射注入内核 (Limit & Price Injector)。
  */
 public final class EcoBridge extends JavaPlugin {
 
@@ -64,11 +62,12 @@ public final class EcoBridge extends JavaPlugin {
 
         // 4. 组件加载拓扑
         try {
-            // A. Native 物理核心加载 (自动处理 Loader 与 ABI 校验)
+            // A. Native 物理核心加载
             NativeBridge.init(this);
 
             // B. 逻辑管理层启动
             EconomyManager.init(this);
+            // ... (保持原有代码不变)
             EconomicStateManager.init(this);
             PricingManager.init(this);
             TransferManager.init(this);
@@ -76,6 +75,16 @@ public final class EcoBridge extends JavaPlugin {
             // C. 驱动层注册
             registerCommands();
             registerListeners();
+            registerHooks();
+
+            // D. 延迟注入 UltimateShop 内核 (确保其加载完毕)
+            getServer().getScheduler().runTaskLater(this, () -> {
+                if (getServer().getPluginManager().isPluginEnabled("UltimateShop")) {
+                    LogUtil.info("检测到 UltimateShop，正在注入 EcoBridge 内核...");
+                    UShopLimitInjector.execute(this); // 注入限额
+                    UShopPriceInjector.execute(this); // [New] 注入价格
+                }
+            }, 20L);
 
             this.fullyInitialized.set(true);
             sendConsole("<blue>┃ <green>系统状态: <white>物理演算核心已进入实时同步状态 (v0.8.9) <blue>┃");
@@ -93,20 +102,24 @@ public final class EcoBridge extends JavaPlugin {
 
         // 1. 拦截新请求
         this.fullyInitialized.set(false);
+        
+        // 2. [New] 还原第三方插件注入 (防止重载内存泄漏/报错)
+        UShopLimitInjector.revert();
+        UShopPriceInjector.revert();
 
-        // 2. 环境解绑 & 网络断开
+        // 3. 环境解绑 & 网络断开
         if (RedisManager.getInstance() != null) {
             RedisManager.getInstance().shutdown();
         }
         HolidayManager.shutdown();
 
-        // 3. 执行核心数据落盘 (关键顺序：驱逐缓存 -> 刷入 SQL -> 关闭持久化连接)
+        // 4. 执行核心数据落盘
         shutdownPersistenceLayer();
 
-        // 4. 物理隔离：切断 FFI 入口，释放 Native 资源 (必须在持久化之后)
+        // 5. 物理隔离
         NativeBridge.shutdown();
 
-        // 5. 资源清理：关闭虚拟线程池
+        // 6. 资源清理
         terminateVirtualPool();
 
         getServer().getScheduler().cancelTasks(this);
@@ -119,9 +132,8 @@ public final class EcoBridge extends JavaPlugin {
         saveDefaultConfig();
         LogUtil.init();
 
-        // [修复] 使用 DatabaseManager 初始化连接池与表结构
+        // 数据库与基础设施初始化
         DatabaseManager.init();
-
         AsyncLogger.init(this);
         HolidayManager.init();
         RedisManager.init(this);
@@ -133,10 +145,8 @@ public final class EcoBridge extends JavaPlugin {
         }
 
         LogUtil.info("正在执行热数据终点刷盘...");
-        // 这里的 HotDataCache.saveAllSync 内部会调用 TransactionDao，只要 DatabaseManager 没关就没问题
         HotDataCache.saveAllSync();
 
-        // [修复] 关闭数据库连接池与基础设施
         DatabaseManager.close();
     }
 
@@ -171,6 +181,13 @@ public final class EcoBridge extends JavaPlugin {
         pm.registerEvents(new TradeListener(this), this);
         pm.registerEvents(new CacheListener(), this);
     }
+    
+    private void registerHooks() {
+        if (getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")) {
+            new EcoPlaceholderExpansion(this).register();
+            LogUtil.info("PlaceholderAPI 扩展已挂载。");
+        }
+    }
 
     private void registerCommands() {
         var cmd = getCommand("ecopay");
@@ -183,6 +200,12 @@ public final class EcoBridge extends JavaPlugin {
 
         if (EconomyManager.getInstance() != null) EconomyManager.getInstance().loadState();
         if (PricingManager.getInstance() != null) PricingManager.getInstance().loadConfig();
+        
+        // 重新执行注入以刷新配置开关状态
+        if (getServer().getPluginManager().isPluginEnabled("UltimateShop")) {
+            UShopLimitInjector.execute(this);
+            UShopPriceInjector.execute(this); // [New] 刷新价格注入配置
+        }
 
         sendConsole("<green>[EcoBridge] 逻辑参数重载成功。Native 内存布局保持锁定。");
     }

@@ -67,8 +67,8 @@ public class HotDataCache {
 
     private static void saveAsync(UUID uuid, PlayerData data, String reason) {
         EcoBridge.getInstance().getVirtualExecutor().execute(() -> {
-            // 这里调用 updateBalanceSync 触发乐观锁写入逻辑
-            TransactionDao.updateBalanceSync(uuid, data.getBalance());
+            // 这里调用 updateBalanceBlocking 触发乐观锁写入逻辑
+            TransactionDao.updateBalanceBlocking(uuid, data.getBalance());
 
             if (LogUtil.isDebugEnabled()) {
                 LogUtil.debug("数据写回成功 [" + reason + "]: " + uuid + " (Balance: " + data.getBalance() + ")");
@@ -84,7 +84,7 @@ public class HotDataCache {
         var snapshotMap = CACHE.asMap();
 
         for (var entry : snapshotMap.entrySet()) {
-            TransactionDao.updateBalanceSync(entry.getKey(), entry.getValue().getBalance());
+            TransactionDao.updateBalanceBlocking(entry.getKey(), entry.getValue().getBalance());
         }
 
         CACHE.invalidateAll();

@@ -57,14 +57,14 @@ public class TransactionDao {
      */
     public static void updateBalance(UUID uuid, double balance) {
         if (DatabaseManager.getExecutor() == null) return;
-        DatabaseManager.getExecutor().execute(() -> updateBalanceSync(uuid, balance));
+        DatabaseManager.getExecutor().execute(() -> updateBalanceBlocking(uuid, balance));
     }
 
     /**
      * 同步持久化玩家余额（包含乐观锁重试机制）
      * 该方法是线程安全的，处理了并发写入冲突。
      */
-    public static void updateBalanceSync(UUID uuid, double balance) {
+    public static void updateBalanceBlocking(UUID uuid, double balance) {
         if (!DatabaseManager.isConnected()) return;
 
         // CAS 更新语句：只有版本号匹配时才更新，且版本号自增
