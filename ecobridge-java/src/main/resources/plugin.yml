@@ -8,7 +8,7 @@ description: "基于 Java 25 FFM + Rust 核心的离散历史求和动态经济�
 
 # 强制依赖：缺少这些插件 EcoBridge 将不会启动
 # 包含 NightCore 以支持相关的经济桥接逻辑
-depend: [CoinsEngine, UltimateShop, NightCore]
+depend: [CoinsEngine, UltimateShop, nightcore]
 
 # 软依赖：如果存在则优先加载，不存在也不影响基础功能
 softdepend: [PlaceholderAPI]
