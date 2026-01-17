@@ -7,14 +7,14 @@ buildscript {
         gradlePluginPortal()
     }
     dependencies {
-        // ASM 9.9.1: 支持 Java 25 字节码格式
+        // ASM 9.9.1: 支持 Java 25 字节码
         classpath("org.ow2.asm:asm-commons:9.9.1")
     }
 }
 
 plugins {
     `java-library`
-    // 严格保留你要求的版本
+    // 严格保留要求的版本
     id("com.gradleup.shadow") version "9.3.1"
 }
 
@@ -72,13 +72,18 @@ java {
 
 sourceSets {
     main {
-        // 注册生成的源码目录，自动建立编译依赖
         java.srcDir(generateBindings)
     }
 }
 
 repositories {
     mavenCentral()
+    // 🔥 关键修复：根据 Wiki 提示，添加 Sonatype 官方发布和快照仓库
+    // Jackson 3.0 的部分组件（如 2.20.0 版本的 annotations）在此处发布
+    maven("https://oss.sonatype.org/content/repositories/releases/")
+    maven("https://oss.sonatype.org/content/repositories/snapshots/")
+    maven("https://central.sonatype.com/repository/maven-snapshots/")
+    
     maven("https://jitpack.io")
     maven("https://repo.papermc.io/repository/maven-public/")
     maven("https://repo.nightexpressdev.com/releases")
@@ -88,33 +93,32 @@ repositories {
 }
 
 dependencies {
-    // 1. 严格保留：Paper 1.21.11
+    // 严格保留：Paper 1.21.11
     compileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
     
-    // 2. 核心 Hook (最新稳定版)
     compileOnly("me.clip:placeholderapi:2.11.6")
     compileOnly("su.nightexpress.nightcore:main:2.13.0")
     compileOnly("su.nightexpress.coinsengine:CoinsEngine:2.6.0")
     compileOnly("cn.superiormc.ultimateshop:plugin:4.2.3")
     compileOnly(fileTree(mapOf("dir" to "libs", "include" to listOf("**/*.jar"))))
 
-    // 3. 🔥 Jackson 3.0 全家桶 (基于迁移指南)
+    // 🔥 Jackson 3.0 迁移适配
+    // 使用新的 Group ID: tools.jackson
     implementation(platform("tools.jackson:jackson-bom:3.0.0"))
     implementation("tools.jackson.core:jackson-databind")
     implementation("tools.jackson.core:jackson-core")
-    // 迁移指南指出 annotations 坐标不改，版本为 2.20
-    implementation("com.fasterxml.jackson.core:jackson-annotations:2.20.0")
+    // Wiki 规定：jackson-annotations 保持 com.fasterxml.jackson.core 坐标
+    // 此处不指定版本，交由 jackson-bom 自动解析（解析为 Wiki 提到的 2.20 系列）
+    implementation("com.fasterxml.jackson.core:jackson-annotations")
 
-    // 4. 🔥 数据库与缓存 (2026年1月最新稳定版)
+    // 数据库与缓存 (2026年1月最新稳定版)
     implementation("org.mariadb.jdbc:mariadb-java-client:3.5.7")
     implementation("com.zaxxer:HikariCP:7.0.2")
     implementation("com.github.ben-manes.caffeine:caffeine:3.2.3")
     implementation("redis.clients:jedis:7.2.0")
     
-    // 5. 其他工具
     compileOnly("com.google.code.gson:gson:2.13.2")
 
-    // 6. 测试框架
     testImplementation(platform("org.junit:junit-bom:5.14.1"))
     testImplementation("org.junit.jupiter:junit-jupiter")
 }
@@ -130,9 +134,11 @@ tasks.named<ShadowJar>("shadowJar") {
     archiveClassifier.set("")
     val prefix = "top.ellan.ecobridge.libs"
     
-    // 重定向所有第三方库，防止版本冲突
+    // 🔥 更新 Shadow 重定位逻辑以匹配 Jackson 3 的新包名
     relocate("tools.jackson", "$prefix.jackson")
+    // 特别处理 annotations 包名，它在 3.0 中依然保持 com.fasterxml.jackson.annotation
     relocate("com.fasterxml.jackson.annotation", "$prefix.jackson.annotations")
+    
     relocate("com.zaxxer.hikari", "$prefix.hikari")
     relocate("org.mariadb.jdbc", "$prefix.mariadb")
     relocate("com.github.benmanes.caffeine", "$prefix.caffeine")
