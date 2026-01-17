@@ -41,11 +41,12 @@ jobs:
       - uses: actions/checkout@v4
 
       # [Windows] 排除 Defender 扫描以防止 I/O 卡死
+      # ⚠️ 修复：shell 必须与 run 对齐，不能缩进到 run 里面
       - name: Disable Windows Defender
         if: matrix.os == 'windows-latest'
+        shell: powershell
         run: |
           Set-MpPreference -ExclusionPath ${{ github.workspace }}
-          shell: powershell
 
       # [Rust] 安装工具链
       - name: Setup Rust
