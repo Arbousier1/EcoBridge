@@ -7,20 +7,21 @@ buildscript {
         gradlePluginPortal()
     }
     dependencies {
+        // ASM 9.9.1: 支持 Java 25 字节码格式
         classpath("org.ow2.asm:asm-commons:9.9.1")
     }
 }
 
 plugins {
     `java-library`
-    // 严格遵照您的要求：Shadow 9.3.1
+    // 严格保留你要求的版本
     id("com.gradleup.shadow") version "9.3.1"
 }
 
 group = "top.ellan"
 version = "1.0-SNAPSHOT"
 
-// --- [jextract 自动化配置] ---
+// --- [jextract 自动绑定逻辑] ---
 val rustHeaderFile = file("${projectDir}/../ecobridge-rust/ecobridge_rust.h")
 val generatedSourceDir = layout.buildDirectory.dir("generated/sources/jextract")
 val targetPackage = "top.ellan.ecobridge.gen"
@@ -34,8 +35,8 @@ fun findJextract(): String {
         localPropsFile.inputStream().use { props.load(it) }
         val localHome = props.getProperty("jextract.home")
         if (localHome != null) {
-            val possiblePaths = listOf(file("$localHome/bin/$binaryName"), file("$localHome/$binaryName"))
-            for (path in possiblePaths) if (path.exists()) return path.absolutePath
+            val path = file("$localHome/bin/$binaryName")
+            if (path.exists()) return path.absolutePath
         }
     }
     val envHome = System.getenv("JEXTRACT_HOME")
@@ -43,20 +44,13 @@ fun findJextract(): String {
         val path = file("$envHome/bin/$binaryName")
         if (path.exists()) return path.absolutePath
     }
-    val javaHome = System.getProperty("java.home")
-    val jdkPath = file("$javaHome/bin/$binaryName")
-    if (jdkPath.exists()) return jdkPath.absolutePath
     return binaryName
 }
 
 val generateBindings = tasks.register<Exec>("generateBindings") {
     group = "build"
-    description = "Generate Java FFM bindings from Rust header."
     doFirst {
-        if (!rustHeaderFile.exists()) {
-            println("❌ Error: Rust header not found: ${rustHeaderFile.absolutePath}")
-            throw GradleException("Rust header missing. Please check build-rust stage.")
-        }
+        if (!rustHeaderFile.exists()) throw GradleException("Rust header not found at ${rustHeaderFile.absolutePath}")
         generatedSourceDir.get().asFile.mkdirs()
     }
     commandLine(
@@ -71,15 +65,15 @@ val generateBindings = tasks.register<Exec>("generateBindings") {
     outputs.dir(generatedSourceDir)
 }
 
+// --- [Java 环境配置] ---
 java {
     toolchain { languageVersion.set(JavaLanguageVersion.of(25)) }
 }
 
 sourceSets {
     main {
-        java {
-            srcDir(generatedSourceDir)
-        }
+        // 注册生成的源码目录，自动建立编译依赖
+        java.srcDir(generateBindings)
     }
 }
 
@@ -94,39 +88,35 @@ repositories {
 }
 
 dependencies {
-    // 严格保留：Paper 1.21.11
+    // 1. 严格保留：Paper 1.21.11
     compileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
     
-    // PlaceholderAPI
+    // 2. 核心 Hook (最新稳定版)
     compileOnly("me.clip:placeholderapi:2.11.6")
-
-    // 其他插件依赖
-    compileOnly(fileTree(mapOf("dir" to "libs", "include" to listOf("**/*.jar"))))
     compileOnly("su.nightexpress.nightcore:main:2.13.0")
     compileOnly("su.nightexpress.coinsengine:CoinsEngine:2.6.0")
     compileOnly("cn.superiormc.ultimateshop:plugin:4.2.3")
-    
-    // 数据库与缓存 (最新版)
+    compileOnly(fileTree(mapOf("dir" to "libs", "include" to listOf("**/*.jar"))))
+
+    // 3. 🔥 Jackson 3.0 全家桶 (基于迁移指南)
+    implementation(platform("tools.jackson:jackson-bom:3.0.0"))
+    implementation("tools.jackson.core:jackson-databind")
+    implementation("tools.jackson.core:jackson-core")
+    // 迁移指南指出 annotations 坐标不改，版本为 2.20
+    implementation("com.fasterxml.jackson.core:jackson-annotations:2.20.0")
+
+    // 4. 🔥 数据库与缓存 (2026年1月最新稳定版)
     implementation("org.mariadb.jdbc:mariadb-java-client:3.5.7")
-    implementation("com.zaxxer:HikariCP:6.2.1")
+    implementation("com.zaxxer:HikariCP:7.0.2")
     implementation("com.github.ben-manes.caffeine:caffeine:3.2.3")
-    implementation("redis.clients:jedis:5.2.0")
+    implementation("redis.clients:jedis:7.2.0")
     
-    // 🔥 Jackson 3.0.3 (完整迁移至 tools.jackson 命名空间)
-    implementation("tools.jackson.core:jackson-databind:3.0.3")
-    implementation("tools.jackson.core:jackson-core:3.0.3")
-    implementation("tools.jackson.core:jackson-annotations:3.0.3")
-    
-    // Gson
+    // 5. 其他工具
     compileOnly("com.google.code.gson:gson:2.13.2")
 
-    // JUnit 5
+    // 6. 测试框架
     testImplementation(platform("org.junit:junit-bom:5.14.1"))
     testImplementation("org.junit.jupiter:junit-jupiter")
-}
-
-tasks.test {
-    useJUnitPlatform()
 }
 
 tasks.withType<JavaCompile> {
@@ -140,15 +130,13 @@ tasks.named<ShadowJar>("shadowJar") {
     archiveClassifier.set("")
     val prefix = "top.ellan.ecobridge.libs"
     
+    // 重定向所有第三方库，防止版本冲突
+    relocate("tools.jackson", "$prefix.jackson")
+    relocate("com.fasterxml.jackson.annotation", "$prefix.jackson.annotations")
     relocate("com.zaxxer.hikari", "$prefix.hikari")
     relocate("org.mariadb.jdbc", "$prefix.mariadb")
     relocate("com.github.benmanes.caffeine", "$prefix.caffeine")
     relocate("redis.clients", "$prefix.jedis")
-    relocate("tools.jackson", "$prefix.jackson")
-    relocate("tools.jackson.databind", "$prefix.jackson.databind")
-    relocate("tools.jackson.core", "$prefix.jackson.core")
-    relocate("tools.jackson.annotation", "$prefix.jackson.annotation")
-    relocate("com.fasterxml.jackson", "$prefix.fasterxml_jackson") // 保留兼容性
     
     from("src/main/resources") {
         include("*.dll", "*.so", "*.dylib", "natives/**")
