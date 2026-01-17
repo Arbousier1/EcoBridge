@@ -3,7 +3,7 @@ import java.util.Properties
 
 buildscript {
     repositories {
-        central()
+        mavenCentral()
         gradlePluginPortal()
     }
     dependencies {
@@ -14,7 +14,7 @@ buildscript {
 
 plugins {
     `java-library`
-    id("com.gradleup.shadow") version "8.3.5" // 建议使用稳定版，或保持您的 9.3.1
+    id("com.gradleup.shadow") version "9.3.1" // 建议使用稳定版，或保持您的 9.3.1
     idea
 }
 
