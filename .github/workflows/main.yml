@@ -1,90 +1,62 @@
-name: EcoBridge High-Performance Build (Java 25)
+name: EcoBridge Core Sync & Build
 
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
-
-env:
-  CARGO_INCREMENTAL: 0
-  JAVA_TOOL_OPTIONS: "-Dfile.encoding=UTF-8"
+  workflow_dispatch:
 
 jobs:
-  # 第一阶段：编译多平台 Native 内核
   build-rust:
-    name: Native Core (${{ matrix.os }})
+    name: Build Rust Core on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
-            artifact: libecobridge_rust.so
+            artifact_name: libecobridge_rust.so
+            asset_name: libecobridge_rust.so
           - os: windows-latest
-            artifact: ecobridge_rust.dll
+            artifact_name: ecobridge_rust.dll
+            asset_name: ecobridge_rust.dll
           - os: macos-latest
-            artifact: libecobridge_rust.dylib
-    runs-on: ${{ matrix.os }}
-    
+            artifact_name: libecobridge_rust.dylib
+            asset_name: libecobridge_rust.dylib
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Disable Windows Defender
-        if: matrix.os == 'windows-latest'
-        run: |
-          Set-MpPreference -ExclusionPath ${{ github.workspace }}
-          Write-Host "✅ Windows Defender 已排除工作目录，防止编译卡死。"
-        shell: powershell
-
-      - name: Setup Rust
+      - name: Setup Rust Toolchain
         uses: dtolnay/rust-toolchain@stable
-        with:
-          # 为 macOS 准备通用二进制支持
-          targets: ${{ matrix.os == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: "ecobridge-rust -> target"
 
-      - name: Build Rust
-        shell: bash
-        env:
-          # Windows 下强制使用 LLD 链接器，这是解决 Windows 编译长时间卡住的关键
-          RUSTFLAGS: >-
-            ${{ matrix.os == 'windows-latest' 
-              && '-C link-arg=Rstrtmgr.lib -C linker=lld-link' 
-              || '' }}
+      - name: Build Rust Library (Release)
         run: |
           cd ecobridge-rust
-          if [ "${{ matrix.os }}" = "macos-latest" ]; then
-            cargo build --release --target x86_64-apple-darwin
-            cargo build --release --target aarch64-apple-darwin
-            mkdir -p target/release/
-            lipo -create \
-              target/x86_64-apple-darwin/release/libecobridge_rust.dylib \
-              target/aarch64-apple-darwin/release/libecobridge_rust.dylib \
-              -output target/release/libecobridge_rust.dylib
+          cargo build --release
+
+      - name: Prepare Artifact
+        shell: bash
+        run: |
+          # 统一将编译出的二进制文件移动到暂存目录 
+          mkdir -p dist
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            cp ecobridge-rust/target/release/ecobridge_rust.dll dist/
           else
-            cargo build --release
+            cp ecobridge-rust/target/release/${{ matrix.artifact_name }} dist/
           fi
 
-      - name: Upload Native Library
+      - name: Upload Native Binary
         uses: actions/upload-artifact@v4
         with:
-          name: native-${{ matrix.os }}
-          path: ecobridge-rust/target/release/${{ matrix.artifact }}
+          name: ${{ matrix.os }}-binary
+          path: dist/
 
-      - name: Upload Header File
-        if: matrix.os == 'ubuntu-latest'
-        uses: actions/upload-artifact@v4
-        with:
-          name: rust-header
-          path: ecobridge-rust/ecobridge_rust.h
-
-  # 第二阶段：组装 Java 插件
   build-java:
-    name: Java 25 Assembly
+    name: Build Java Plugin (Java 25)
     needs: build-rust
     runs-on: ubuntu-latest
     steps:
@@ -94,52 +66,34 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: '25'
-          distribution: 'oracle'
-          cache: 'gradle'
+          distribution: 'oracle' 
 
-      - name: Setup jextract
-        run: |
-          # 下载适用于 Java 22+ 的 jextract (FFM API 绑定工具)
-          wget https://download.java.net/java/early_access/jextract/22/4/openjdk-22-jextract+4-30_linux-x64_bin.tar.gz -O jextract.tar.gz
-          mkdir -p jextract_bin
-          tar -xzf jextract.tar.gz -C jextract_bin --strip-components=1
-          # 注入环境变量，使 build.gradle.kts 中的 findJextract() 能找到它
-          echo "JEXTRACT_HOME=$(pwd)/jextract_bin" >> $GITHUB_ENV
-          echo "✅ jextract 环境已就绪: $(pwd)/jextract_bin/bin/jextract"
-
-      - name: Restore Header File
-        uses: actions/download-artifact@v4
-        with:
-          name: rust-header
-          path: ecobridge-rust
-
-      - name: Download Native Libs
+      - name: Download All Native Binaries
         uses: actions/download-artifact@v4
         with:
           path: native-libs
-          pattern: native-*
           merge-multiple: true
 
-      - name: Prepare Resources
-        shell: bash
+      - name: Sync Binaries to Java Resources
         run: |
-          # 将编译好的库放入 Java 资源目录，供 ShadowJar 打包 
+          # 确保 Java 源码集的 resources 目录存在 
           mkdir -p ecobridge-java/src/main/resources/
-          cp native-libs/* ecobridge-java/src/main/resources/
-          echo "📦 已注入的 Native 库列表:"
-          ls -l ecobridge-java/src/main/resources/
+          cp native-libs/ecobridge_rust.dll ecobridge-java/src/main/resources/
+          cp native-libs/libecobridge_rust.so ecobridge-java/src/main/resources/
+          cp native-libs/libecobridge_rust.dylib ecobridge-java/src/main/resources/
+          ls -R ecobridge-java/src/main/resources/
 
       - name: Build with Gradle
-        working-directory: ecobridge-java
         run: |
+          cd ecobridge-java
           chmod +x gradlew
-          # 显式执行 generateBindings 以确保 FFM 代码生成成功 [cite: 1]
-          ./gradlew generateBindings --no-daemon
-          ./gradlew clean shadowJar -x test --no-daemon
+          # 禁用 jextract 自动化，因为我们是在 CI 环境构建成品，且 native 库已手动置入 
+          ./gradlew shadowJar -x generateBindings 
+        env:
+          ORG_GRADLE_PROJECT_version: ${{ github.ref_name }}
 
-      - name: Upload Final Jar
+      - name: Upload Plugin JAR
         uses: actions/upload-artifact@v4
         with:
-          name: EcoBridge-Final-Jar
-          path: ecobridge-java/build/libs/EcoBridge-*.jar
-          retention-days: 90
+          name: EcoBridge-Plugin
+          path: ecobridge-java/build/libs/*.jar
