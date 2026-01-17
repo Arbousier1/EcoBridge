@@ -7,6 +7,10 @@ on:
     branches: [ "main" ]
 
 env:
+  # 全局启用 sccache 包装器 (关键加速配置)
+  RUSTC_WRAPPER: "sccache"
+  SCCACHE_GHA_ENABLED: "true"
+  # 配合 sccache 必须关闭增量编译
   CARGO_INCREMENTAL: 0
   JAVA_TOOL_OPTIONS: "-Dfile.encoding=UTF-8"
 
@@ -21,19 +25,13 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
             artifact_name: libecobridge_rust.so
-            # Ubuntu 默认输出路径通常在 target/release
             artifact_path: ecobridge-rust/target/release/libecobridge_rust.so
-            
           - os: windows-latest
-            target: x86_64-pc-windows-msvc
             artifact_name: ecobridge_rust.dll
-            # Windows 有时会包含 target 目录，视具体配置而定，这里统一用 release
+            # Windows 有时会包含 target 目录，这里路径需要精确
             artifact_path: ecobridge-rust/target/release/ecobridge_rust.dll
-            
           - os: macos-latest
-            # macOS 特殊处理，target 在脚本里指定了多架构
             artifact_name: libecobridge_rust.dylib
             artifact_path: ecobridge-rust/target/release/libecobridge_rust.dylib
 
@@ -42,32 +40,38 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # [Windows] 排除 Defender 扫描以加速编译
+      # [Windows] 排除 Defender 扫描以防止 I/O 卡死
       - name: Disable Windows Defender
         if: matrix.os == 'windows-latest'
         run: |
           Set-MpPreference -ExclusionPath ${{ github.workspace }}
-          Write-Host "✅ Windows Defender 已排除工作目录。"
-        shell: powershell
+          shell: powershell
 
-      # [Rust] 安装工具链，确保 macOS 安装了跨架构目标
+      # [Rust] 安装工具链
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-          # 关键修复：显式添加 macOS 的 aarch64 和 x86_64 目标，否则 lipo 会失败
+          # macOS 需要安装 x86_64 和 aarch64 两个目标以构建通用二进制
           targets: ${{ matrix.os == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
+      # [Cache] 启用 sccache (编译器级缓存，对 Windows 极其有效)
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.5
+
+      # [Cache] 启用依赖项缓存 (辅助加速)
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: "ecobridge-rust -> target"
+          key: ${{ matrix.os }}-cargo-v2
+          cache-on-failure: true
 
-      # [Rust] 编译脚本
+      # [Build] 编译脚本
       - name: Build Rust
         shell: bash
         env:
-          # Windows 下强制使用 LLD 链接器防止卡死
+          # Windows 下强制使用 LLD 链接器，防止大文件链接卡死
           RUSTFLAGS: >-
             ${{ matrix.os == 'windows-latest' 
               && '-C link-arg=-fuse-ld=lld' 
@@ -75,26 +79,27 @@ jobs:
         run: |
           cd ecobridge-rust
           
+          # 打印初始缓存统计
+          sccache --show-stats
+          
           if [ "${{ matrix.os }}" = "macos-latest" ]; then
-            # macOS 通用二进制构建 (Universal Binary)
-            echo "🍎 构建 macOS x86_64..."
+            echo "🍎 构建 macOS 通用二进制 (Universal Binary)..."
             cargo build --release --target x86_64-apple-darwin
-            
-            echo "🍎 构建 macOS aarch64 (M1/M2)..."
             cargo build --release --target aarch64-apple-darwin
             
-            # 创建通用库
             mkdir -p target/release
+            # 合并架构
             lipo -create \
               target/x86_64-apple-darwin/release/libecobridge_rust.dylib \
               target/aarch64-apple-darwin/release/libecobridge_rust.dylib \
               -output target/release/libecobridge_rust.dylib
-              
-            echo "✅ macOS Universal Binary 打包完成"
           else
             # Linux & Windows 普通构建
             cargo build --release
           fi
+          
+          # 打印最终缓存统计
+          sccache --show-stats
 
       # [Artifact] 上传编译好的库文件
       - name: Upload Native Library
@@ -103,7 +108,7 @@ jobs:
           name: native-${{ matrix.os }}
           path: ${{ matrix.artifact_path }}
 
-      # [Artifact] 仅从 Ubuntu 上传头文件 (用于 Java 阶段生成绑定)
+      # [Artifact] 仅从 Ubuntu 上传头文件 (供 Java 阶段使用)
       - name: Upload Header File
         if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
@@ -124,23 +129,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # [Java] 安装 JDK 25 (Early Access)
+      # [Java] 设置 JDK 25 环境
       - name: Set up JDK 25
         uses: actions/setup-java@v4
         with:
           java-version: '25'
-          # 使用 oracle-graalvm-ea-25 或 openjdk 25
-          distribution: 'temurin' 
-          # 如果 temurin 没有 25，可以换成 'oracle'
+          distribution: 'temurin' # 若 Temurin 25 不可用，可尝试 'oracle' 或 'zulu'
           cache: 'gradle'
 
-      # [Jextract] 安装 FFM 绑定生成工具
+      # [Jextract] 安装 FFM 绑定生成工具 (使用 JDK 22 EA 版本作为兼容方案)
       - name: Setup jextract
         run: |
-          # ⚠️ 注意：这里使用 JDK 22 的 jextract 是权宜之计。
-          # 如果 Java 25 的 FFM API 有重大变更，可能需要寻找更新的 jextract 版本。
-          # 截至目前，jextract 主要发布在 JDK 22 EA 阶段。
-          
           DOWNLOAD_URL="https://download.java.net/java/early_access/jextract/22/4/openjdk-22-jextract+4-30_linux-x64_bin.tar.gz"
           
           echo "⬇️ Downloading jextract..."
@@ -149,21 +148,20 @@ jobs:
           mkdir -p jextract_bin
           tar -xzf jextract.tar.gz -C jextract_bin --strip-components=1
           
-          # 关键修复：赋予执行权限！
+          # 赋予执行权限 (关键修复)
           chmod +x jextract_bin/bin/jextract
           
-          # 注入环境变量
           echo "JEXTRACT_HOME=$(pwd)/jextract_bin" >> $GITHUB_ENV
-          echo "✅ jextract 安装完毕: $(pwd)/jextract_bin/bin/jextract"
+          echo "✅ jextract 安装完毕"
 
-      # [Artifact] 恢复头文件
+      # [Artifact] 下载头文件
       - name: Restore Header File
         uses: actions/download-artifact@v4
         with:
           name: rust-header
           path: ecobridge-rust
 
-      # [Artifact] 恢复所有平台的 Native 库
+      # [Artifact] 下载所有平台的 Native 库
       - name: Download Native Libs
         uses: actions/download-artifact@v4
         with:
@@ -171,31 +169,28 @@ jobs:
           pattern: native-*
           merge-multiple: true
 
-      # [Resource] 将 Native 库注入到 Java 资源目录
+      # [Resource] 注入资源
+      # 注意：直接放入 resources 根目录，以匹配 NativeBridge.java 中 plugin.getResource(name) 的逻辑
       - name: Prepare Resources
         run: |
-          # 确保目录存在
-          mkdir -p ecobridge-java/src/main/resources/natives
+          mkdir -p ecobridge-java/src/main/resources/
+          cp native-libs/* ecobridge-java/src/main/resources/
           
-          # 复制文件 (平铺结构)
-          cp native-libs/* ecobridge-java/src/main/resources/natives/
-          
-          echo "📦 资源目录内容:"
-          ls -R ecobridge-java/src/main/resources/natives/
+          echo "📦 最终资源列表:"
+          ls -l ecobridge-java/src/main/resources/
 
-      # [Gradle] 构建 JAR
+      # [Gradle] 构建最终 Jar
       - name: Build with Gradle
         working-directory: ecobridge-java
         run: |
           chmod +x gradlew
-          
-          # 1. 生成绑定 (需要 ecobridge-rust/ecobridge_rust.h)
-          # 2. 打包 (ShadowJar 会自动包含 resources/natives 下的 .dll/.so/.dylib)
+          # 显式运行 generateBindings 确保 Java 代码生成
           ./gradlew clean generateBindings shadowJar -x test --no-daemon
 
       # [Artifact] 上传最终产物
       - name: Upload Final Jar
         uses: actions/upload-artifact@v4
         with:
-          name: EcoBridge-Java25-Build
+          name: EcoBridge-Release
           path: ecobridge-java/build/libs/*-all.jar
+          retention-days: 90
