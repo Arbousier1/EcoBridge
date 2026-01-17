@@ -14,7 +14,7 @@ use crate::models::HistoryRecord;
 // -----------------------------------------------------------------------------
 
 lazy_static! {
-    // [核心架构] 全局内存历史 - 单一事实来源 (Single Source of Truth)
+    // 全局内存历史 - 单一事实来源 (Single Source of Truth)
     // 供 summation.rs 的 SIMD 模块读取，完全绕过 DuckDB I/O
     static ref GLOBAL_HISTORY: RwLock<Vec<HistoryRecord>> = RwLock::new(Vec::with_capacity(200_000));
 }
@@ -83,7 +83,7 @@ pub fn shutdown_db_internal() -> c_int {
 }
 
 // -----------------------------------------------------------------------------
-// 核心初始化逻辑
+// 核心初始化逻辑 (已适配 DuckDB)
 // -----------------------------------------------------------------------------
 
 pub fn init_economy_db(path_str: &str) -> c_int {
@@ -97,14 +97,15 @@ pub fn init_economy_db(path_str: &str) -> c_int {
     let write_conn = match Connection::open(&db_path) {
         Ok(c) => c,
         Err(e) => {
-            eprintln!("[EcoBridge-Storage] DB Open Error: {}", e);
+            eprintln!("[EcoBridge-Storage] DuckDB Open Error: {}", e);
             return -4;
         }
     };
 
-    // ✅ 修复点：移除 SQLite 特有的 PRAGMA 指令，改用 DuckDB 兼容配置
+    // 使用 DuckDB 原生指令替换 PRAGMA 
     let ddl_res = write_conn.execute_batch(
         "SET memory_limit='512MB';
+         SET threads=4;
          CREATE TABLE IF NOT EXISTS economy_log (
              ts BIGINT,
              player_uuid VARCHAR,
@@ -120,22 +121,22 @@ pub fn init_economy_db(path_str: &str) -> c_int {
         return -5;
     }
 
-    // 启动预热：将最近 90 天的数据加载到 GLOBAL_HISTORY
+    // 启动预热：将最近 90 天的数据加载到 GLOBAL_HISTORY [cite: 736]
     load_recent_history_to_memory(&write_conn);
 
     // 初始化连接池
     let pool_size = 4;
     let (pool_tx, pool_rx) = bounded(pool_size);
-    for _i in 0..pool_size {
+    for _ in 0..pool_size {
         if let Ok(c) = write_conn.try_clone() {
             let _ = pool_tx.send(c);
         }
     }
 
-    READ_POOL.set(ConnectionPool {
+    let _ = READ_POOL.set(ConnectionPool {
         available: pool_rx,
         recycle: pool_tx,
-    }).ok();
+    });
 
     let (tx, rx) = bounded(50_000);
 
@@ -150,20 +151,14 @@ pub fn init_economy_db(path_str: &str) -> c_int {
     }
 }
 
-/// 从 DuckDB 加载历史数据到内存以供 SIMD 使用
 fn load_recent_history_to_memory(conn: &Connection) {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_millis() as i64;
-    
+    let now = chrono::Utc::now().timestamp_millis();
     let cutoff = now - (90i64 * 86_400_000);
-    println!("[EcoBridge-Storage] 正在预热内存数据 (Cutoff: {})...", cutoff);
-
+    
     let mut stmt = match conn.prepare("SELECT ts, delta FROM economy_log WHERE ts > ? ORDER BY ts ASC") {
         Ok(s) => s,
         Err(e) => {
-            eprintln!("[EcoBridge-Storage] Preload Prepare Error: {}", e);
+            eprintln!("[EcoBridge-Storage] Preload Error: {}", e);
             return;
         }
     };
@@ -175,18 +170,13 @@ fn load_recent_history_to_memory(conn: &Connection) {
         })
     });
 
-    match records_iter {
-        Ok(iter) => {
-            let mut hist = GLOBAL_HISTORY.write().unwrap();
-            let start_len = hist.len();
-            for rec in iter {
-                if let Ok(r) = rec {
-                    hist.push(r);
-                }
+    if let Ok(iter) = records_iter {
+        if let Ok(mut hist) = GLOBAL_HISTORY.write() {
+            for rec in iter.flatten() {
+                hist.push(rec);
             }
-            println!("[EcoBridge-Storage] 预热完成。加载了 {} 条记录到内存。", hist.len() - start_len);
+            println!("[EcoBridge-Storage] 内存预热完成：加载了 {} 条记录。", hist.len());
         }
-        Err(e) => eprintln!("[EcoBridge-Storage] Preload Query Error: {}", e),
     }
 }
 
@@ -194,85 +184,57 @@ pub fn get_history_read() -> std::sync::RwLockReadGuard<'static, Vec<HistoryReco
     GLOBAL_HISTORY.read().unwrap()
 }
 
-/// 核心双写：同时更新内存（瞬时计算）和异步持久化队列
 pub fn log_economy_event(ts: i64, uuid: String, delta: f64, balance: f64, meta: String) {
     TOTAL_LOGS.fetch_add(1, Ordering::Relaxed);
     
-    // 1. 同步写内存
-    {
-        if let Ok(mut hist) = GLOBAL_HISTORY.write() {
-             hist.push(HistoryRecord { timestamp: ts, amount: delta });
-             
-             // 长度保护，防止 OOM
-             if hist.len() > 500_000 {
-                 let keep = 400_000;
-                 let remove_count = hist.len() - keep;
-                 hist.drain(0..remove_count);
-             }
+    if let Ok(mut hist) = GLOBAL_HISTORY.write() {
+        hist.push(HistoryRecord { timestamp: ts, amount: delta });
+        if hist.len() > 500_000 {
+            let keep = 400_000;
+            let remove_count = hist.len() - keep;
+            hist.drain(0..remove_count);
         }
     }
 
-    // 2. 异步入库
     if let Some(sender) = LOG_SENDER.get() {
-        if let Err(_) = sender.try_send(LogEvent { ts, uuid, delta, balance, meta }) {
+        if sender.try_send(LogEvent { ts, uuid, delta, balance, meta }).is_err() {
             DROPPED_LOGS.fetch_add(1, Ordering::Relaxed);
         }
-    } else {
-        DROPPED_LOGS.fetch_add(1, Ordering::Relaxed);
     }
 }
 
 fn writer_loop(conn: Connection, rx: Receiver<LogEvent>) {
     let mut buffer = Vec::with_capacity(1024);
-    
     loop {
-        let first = match rx.recv() {
-            Ok(msg) => msg,
-            Err(_) => break, 
-        };
-
-        if first.ts == -1 { 
-            eprintln!("[EcoBridge-Storage] 接收到关机信号，正在冲刷缓存并退出...");
-            break; 
-        }
-
-        buffer.push(first);
-
-        while buffer.len() < 1024 {
-            match rx.try_recv() {
-                Ok(msg) => {
-                    if msg.ts == -1 { break; }
-                    buffer.push(msg);
-                },
-                Err(_) => break,
+        match rx.recv() {
+            Ok(msg) if msg.ts != -1 => {
+                buffer.push(msg);
+                while buffer.len() < 1024 {
+                    match rx.try_recv() {
+                        Ok(m) if m.ts != -1 => buffer.push(m),
+                        _ => break,
+                    }
+                }
+                flush_buffer_to_db(&conn, &mut buffer);
             }
+            _ => break, 
         }
-
-        flush_buffer_to_db(&conn, &mut buffer);
     }
-
     if !buffer.is_empty() {
         flush_buffer_to_db(&conn, &mut buffer);
     }
-    eprintln!("[EcoBridge-Storage] 后台写入线程已安全终止。");
 }
 
 fn flush_buffer_to_db(conn: &Connection, buffer: &mut Vec<LogEvent>) {
     if buffer.is_empty() { return; }
-    // 使用 DuckDB Appender API 进行高性能批量插入
-    match conn.appender("economy_log") {
-        Ok(mut appender) => {
-            for ev in buffer.drain(..) {
-                if appender.append_row(params![ev.ts, ev.uuid, ev.delta, ev.balance, ev.meta]).is_err() {
-                    DROPPED_LOGS.fetch_add(1, Ordering::Relaxed);
-                }
-            }
+    // 使用 DuckDB Appender API 进行极速批量插入 [cite: 748]
+    if let Ok(mut appender) = conn.appender("economy_log") {
+        for ev in buffer.drain(..) {
+            let _ = appender.append_row(params![ev.ts, ev.uuid, ev.delta, ev.balance, ev.meta]);
         }
-        Err(e) => {
-            eprintln!("[EcoBridge-Storage] Appender Error: {}", e);
-            DROPPED_LOGS.fetch_add(buffer.len() as u64, Ordering::Relaxed);
-            buffer.clear();
-        }
+    } else {
+        DROPPED_LOGS.fetch_add(buffer.len() as u64, Ordering::Relaxed);
+        buffer.clear();
     }
 }
 
@@ -314,13 +276,7 @@ pub fn load_recent_history(days: i64) -> Vec<crate::models::HistoryRecord> {
     let ms_lookback = days * 86_400_000;
     let cutoff = chrono::Utc::now().timestamp_millis() - ms_lookback;
 
-    let query = "
-        SELECT ts, delta 
-        FROM economy_log 
-        WHERE ts > ? 
-        ORDER BY ts ASC
-    ";
-
+    let query = "SELECT ts, delta FROM economy_log WHERE ts > ? ORDER BY ts ASC";
     let mut stmt = raw_conn.prepare(query).unwrap();
     let record_iter = stmt.query_map(params![cutoff], |row| {
         Ok(crate::models::HistoryRecord {
@@ -330,10 +286,8 @@ pub fn load_recent_history(days: i64) -> Vec<crate::models::HistoryRecord> {
     }).unwrap();
 
     let mut history = Vec::new();
-    for record in record_iter {
-        if let Ok(r) = record {
-            history.push(r);
-        }
+    for record in record_iter.flatten() {
+        history.push(record);
     }
     
     let _ = pool.recycle.send(raw_conn);
