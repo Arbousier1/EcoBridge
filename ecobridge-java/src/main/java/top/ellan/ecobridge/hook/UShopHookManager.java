@@ -25,12 +25,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * UltimateShop 统一接管管理器 (v3.0.1 - Clean Integration)
- * <p>
- * 职责：
- * 1. 集中管理价格 (Prices) 与限额 (Limits) 的反射注入。
- * 2. 移除未使用的冗余字段，消除 IDE 警告。
- * 3. 确保跨线程交易的一致性与资源回收的安全性。
+ * UltimateShop 统一接管管理器 (v3.0.3 - Warning Free)
  */
 public class UShopHookManager {
 
@@ -80,7 +75,6 @@ public class UShopHookManager {
                     if (item == null) continue;
 
                     synchronized (item) {
-                        // 1. 接管价格逻辑
                         if (plugin.getConfig().getBoolean("integrations.ultimateshop.price-takeover", true)) {
                             if (!originalPrices.containsKey(item)) {
                                 originalPrices.put(item, new ObjectPrices[]{
@@ -93,7 +87,6 @@ public class UShopHookManager {
                             priceInjected++;
                         }
 
-                        // 2. 接管限额逻辑
                         if (plugin.getConfig().getBoolean("integrations.ultimateshop.limit-takeover", true)) {
                             if (!originalLimits.containsKey(item)) {
                                 originalLimits.put(item, new ObjectLimit[]{
@@ -140,9 +133,6 @@ public class UShopHookManager {
         LogUtil.info("UltimateShop 所有接管代理已安全卸载，原始逻辑已还原。");
     }
 
-    // ============================================================
-    // INNER CLASS: 动态价格代理 (优化版)
-    // ============================================================
     public static class EcoBridgeDynamicPrice extends ObjectPrices {
         private final String productId;
         private final String currencyId;
@@ -154,26 +144,36 @@ public class UShopHookManager {
 
         static {
             try {
-                try { takeResultCtor = TakeResult.class.getDeclaredConstructor(); } 
-                catch (NoSuchMethodException e) { takeResultCtor = TakeResult.class.getDeclaredConstructor(boolean.class); }
-                takeResultCtor.setAccessible(true);
+                takeResultCtor = getBestConstructor(TakeResult.class);
+                if (takeResultCtor != null) takeResultCtor.setAccessible(true);
 
-                try { giveResultCtor = GiveResult.class.getDeclaredConstructor(); } 
-                catch (NoSuchMethodException e) { giveResultCtor = GiveResult.class.getDeclaredConstructor(boolean.class); }
-                giveResultCtor.setAccessible(true);
+                giveResultCtor = getBestConstructor(GiveResult.class);
+                if (giveResultCtor != null) giveResultCtor.setAccessible(true);
 
                 takeResultMapField = findField(TakeResult.class, "resultMap", "results", "map");
                 giveResultMapField = findField(GiveResult.class, "resultMap", "results", "map");
                 if (takeResultMapField != null) takeResultMapField.setAccessible(true);
                 if (giveResultMapField != null) giveResultMapField.setAccessible(true);
-            } catch (Exception e) { e.printStackTrace(); }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        /**
+         * 自动探测最合适的构造函数，解决 NoSuchMethodException
+         */
+        @SuppressWarnings("unchecked") // ✅ 修复：压制泛型转换警告
+        private static <T> Constructor<T> getBestConstructor(Class<T> clazz) {
+            try { return clazz.getDeclaredConstructor(); } catch (NoSuchMethodException ignored) {}
+            try { return clazz.getDeclaredConstructor(boolean.class); } catch (NoSuchMethodException ignored) {}
+            try { return clazz.getDeclaredConstructor(ObjectPrices.class, boolean.class); } catch (NoSuchMethodException ignored) {}
+            Constructor<?>[] ctors = clazz.getDeclaredConstructors();
+            return ctors.length > 0 ? (Constructor<T>) ctors[0] : null;
         }
 
         public EcoBridgeDynamicPrice(ObjectItem item, String productId) {
-            // 这里调用父类构造，标记为自定义类型
-            super(new YamlConfiguration(), "EcoBridge", item, PriceMode.BUY); 
+            super(new YamlConfiguration(), "EcoBridge", item, PriceMode.BUY);
             this.productId = productId;
-            // 从主类配置直接读取
             this.currencyId = EcoBridge.getInstance().getConfig().getString("economy.currency-id", "coins");
         }
 
@@ -222,13 +222,16 @@ public class UShopHookManager {
         }
 
         private static Field findField(Class<?> c, String... ns) {
-            for (String n : ns) { try { return c.getDeclaredField(n); } catch (Exception ignored) {} }
+            for (String n : ns) {
+                try { return c.getDeclaredField(n); } catch (Exception ignored) {}
+            }
             return null;
         }
 
         private TakeResult createTakeResult(boolean s, Map<String, Object> m) {
             try {
-                TakeResult r = (takeResultCtor.getParameterCount() == 0) ? takeResultCtor.newInstance() : takeResultCtor.newInstance(s);
+                if (takeResultCtor == null) return null;
+                TakeResult r = instantiateWithContext(takeResultCtor, s);
                 if (takeResultMapField != null) takeResultMapField.set(r, m);
                 return r;
             } catch (Exception e) { return null; }
@@ -236,10 +239,27 @@ public class UShopHookManager {
 
         private GiveResult createGiveResult(boolean s, Map<String, Object> m) {
             try {
-                GiveResult r = (giveResultCtor.getParameterCount() == 0) ? giveResultCtor.newInstance() : giveResultCtor.newInstance(s);
+                if (giveResultCtor == null) return null;
+                GiveResult r = instantiateWithContext(giveResultCtor, s);
                 if (giveResultMapField != null) giveResultMapField.set(r, m);
                 return r;
             } catch (Exception e) { return null; }
+        }
+
+        /**
+         * 根据构造函数参数动态注入值
+         */
+        private <T> T instantiateWithContext(Constructor<T> ctor, boolean success) throws Exception {
+            int count = ctor.getParameterCount();
+            if (count == 0) return ctor.newInstance();
+            Object[] args = new Object[count];
+            for (int i = 0; i < count; i++) {
+                Class<?> type = ctor.getParameterTypes()[i];
+                if (type == boolean.class) args[i] = success;
+                else if (type == ObjectPrices.class) args[i] = this;
+                else args[i] = null;
+            }
+            return ctor.newInstance(args);
         }
 
         private boolean isSimulationContext() {
@@ -247,9 +267,6 @@ public class UShopHookManager {
         }
     }
 
-    // ============================================================
-    // INNER CLASS: 动态限额代理
-    // ============================================================
     public static class EcoBridgeDynamicLimit extends ObjectLimit {
         private final EcoBridge plugin;
         private final ObjectLimit original;
@@ -261,8 +278,7 @@ public class UShopHookManager {
 
         @Override
         public int getPlayerLimits(Player player) {
-            // 宏观管控逻辑：如果服务器触发了“紧急管控模式”，则锁定极低限额
-            if (plugin.getConfig().getBoolean("economy.macro.panic-mode", false)) return 20; 
+            if (plugin.getConfig().getBoolean("economy.macro.panic-mode", false)) return 20;
             return original != null ? original.getPlayerLimits(player) : -1;
         }
 
