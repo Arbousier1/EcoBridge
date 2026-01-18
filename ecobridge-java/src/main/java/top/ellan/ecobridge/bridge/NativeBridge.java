@@ -12,10 +12,10 @@ import static java.lang.foreign.ValueLayout.*;
 
 /**
  * NativeBridge (API Layer v0.9.5 - Final Stable Edition)
- * * 核心优化：
- * 1. 移除了 generateBindings 中的 --library 参数，改为由 NativeLoader 手动加载。
- * 2. 增强了对 jextract 生成类型的兼容性（使用 Number 转型）。
- * 3. 严格管理 Arena 声明周期，确保无原生内存泄漏。
+ * 核心优化：
+ * 1. 修复了字符串读取时的边界限制 (reinterpret)。
+ * 2. 修复了 MethodHandle 调用时的返回值签名匹配 (WrongMethodTypeException)。
+ * 3. 严格管理 Arena 生命周期，确保无原生内存泄漏。
  */
 public class NativeBridge {
 
@@ -120,7 +120,7 @@ public class NativeBridge {
             VH_RES_CODE = resLayout.varHandle(MemoryLayout.PathElement.groupElement("warning_code"));
 
         } catch (Exception e) {
-            throw new RuntimeException("CRITICAL: FFM Memory Layout Initialization Failed! Check your Rust structs.", e);
+            throw new RuntimeException("CRITICAL: FFM Memory Layout Initialization Failed!", e);
         }
     }
 
@@ -128,7 +128,7 @@ public class NativeBridge {
         if (isLoaded()) return;
 
         try {
-            // 步骤 1：调用 NativeLoader 手动加载 .dll/.so
+            // 步骤 1：手动加载库文件
             NativeLoader.load(plugin);
             Linker linker = Linker.nativeLinker();
 
@@ -136,10 +136,10 @@ public class NativeBridge {
             getAbiVersionMH = bind(linker, "ecobridge_abi_version", FunctionDescriptor.of(JAVA_INT));
             int nativeVersion = (int) getAbiVersionMH.invokeExact();
             if (nativeVersion != EXPECTED_ABI_VERSION) {
-                throw new IllegalStateException(String.format("ABI Mismatch! Java=0x%08X, Native=0x%08X. Please rebuild native libs.", EXPECTED_ABI_VERSION, nativeVersion));
+                throw new IllegalStateException(String.format("ABI Mismatch! Java=0x%08X, Native=0x%08X", EXPECTED_ABI_VERSION, nativeVersion));
             }
 
-            // 步骤 3：批量绑定 C 函数符号
+            // 步骤 3：绑定函数
             initDBMH = bind(linker, "ecobridge_init_db", FunctionDescriptor.of(JAVA_INT, ADDRESS));
             getVersionMH = bind(linker, "ecobridge_version", FunctionDescriptor.of(ADDRESS));
             getHealthStatsMH = bind(linker, "ecobridge_get_health_stats", FunctionDescriptor.ofVoid(ADDRESS, ADDRESS));
@@ -158,18 +158,20 @@ public class NativeBridge {
             computePriceBoundedMH = bind(linker, "ecobridge_compute_price_bounded", FunctionDescriptor.of(JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE));
             computeBatchPricesMH = bind(linker, "ecobridge_compute_batch_prices", FunctionDescriptor.ofVoid(JAVA_LONG, JAVA_DOUBLE, ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS));
 
-            // 步骤 4：初始化原生数据库
+            // 步骤 4：数据库初始化
             try (Arena arena = Arena.ofConfined()) {
                 String dataPath = plugin.getDataFolder().getAbsolutePath();
                 int result = (int) initDBMH.invokeExact(arena.allocateFrom(dataPath));
-                if (result != 0 && result != -3) { // -3 通常代表数据库已处于打开状态
+                if (result != 0 && result != -3) {
                     throw new IllegalStateException("Rust Engine DB Initialization Failed: Error Code " + result);
                 }
             }
 
-            bridgeArena = Arena.ofShared(); // 成功标志
+            // 步骤 5：成功加载标志及版本读取修复
+            bridgeArena = Arena.ofShared(); 
             MemorySegment v = (MemorySegment) getVersionMH.invokeExact();
-            LogUtil.info("<green>Native engine loaded successfully! Version: " + v.getString(0));
+            // ✅ 核心修复：使用 reinterpret 重新解释长度，否则 getString 会报错
+            LogUtil.info("<green>Native engine loaded successfully! Version: " + v.reinterpret(1024).getString(0));
 
         } catch (Throwable e) {
             LogUtil.error("FATAL: Native Bridge failed to initialize.", e);
@@ -180,7 +182,7 @@ public class NativeBridge {
     private static MethodHandle bind(Linker linker, String name, FunctionDescriptor desc) {
         return NativeLoader.findSymbol(name)
                 .map(symbol -> linker.downcallHandle(symbol, desc))
-                .orElseThrow(() -> new UnsatisfiedLinkError("CRITICAL: Failed to find symbol in native library: " + name));
+                .orElseThrow(() -> new UnsatisfiedLinkError("CRITICAL: Failed to find symbol: " + name));
     }
 
     public static boolean isLoaded() {
@@ -190,7 +192,10 @@ public class NativeBridge {
     public static synchronized void shutdown() {
         if (isLoaded()) {
             try {
-                if (shutdownDBMH != null) shutdownDBMH.invokeExact();
+                // ✅ 核心修复：必须匹配 MethodHandle 的返回值类型
+                if (shutdownDBMH != null) {
+                    int _ = (int) shutdownDBMH.invokeExact();
+                }
             } catch (Throwable t) {
                 LogUtil.error("Error during native database shutdown.", t);
             } finally {
@@ -213,9 +218,7 @@ public class NativeBridge {
         computeTierPriceMH = null; computePriceBoundedMH = null; computeBatchPricesMH = null;
     }
 
-    // =================================================================
-    // API Wrappers (带有类型安全保护的 FFI 调用)
-    // =================================================================
+    // --- API 包装器 ---
 
     public static double calcInflation(double heat, double m1) {
         if (!isLoaded()) return 0.0;
@@ -280,10 +283,10 @@ public class NativeBridge {
             MemorySegment resultSeg = arena.allocate(Layouts.TRANSFER_RESULT);
             checkTransferMH.invokeExact(resultSeg, ctxSeg, cfgSeg);
             
-            // ✅ 安全转换逻辑：jextract 可能会将 bool 映射为 byte
-            double tax = ((Number) VH_RES_TAX.get(resultSeg)).doubleValue();
-            boolean isBlocked = ((Number) VH_RES_BLOCKED.get(resultSeg)).intValue() != 0;
-            int warningCode = ((Number) VH_RES_CODE.get(resultSeg)).intValue();
+            // 安全类型提取逻辑
+            double tax = ((Number) VH_RES_TAX.get(resultSeg, 0L)).doubleValue();
+            boolean isBlocked = ((Number) VH_RES_BLOCKED.get(resultSeg, 0L)).intValue() != 0;
+            int warningCode = ((Number) VH_RES_CODE.get(resultSeg, 0L)).intValue();
             
             return new TransferResult(tax, isBlocked, warningCode);
         } catch (Throwable t) {
@@ -306,9 +309,6 @@ public class NativeBridge {
         }
     }
 
-    // =================================================================
-    // 布局常量类：供其他 Manager 分配内存使用
-    // =================================================================
     public static class Layouts {
         public static final GroupLayout TRADE_CONTEXT = TradeContext.layout();
         public static final GroupLayout MARKET_CONFIG = MarketConfig.layout();

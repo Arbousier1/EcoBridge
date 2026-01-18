@@ -7,17 +7,17 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import java.util.Properties
 buildscript {
 repositories {
-central()
+mavenCentral()
 gradlePluginPortal()
 }
 dependencies {
-// ASM 9.9.1: 完美支持 Java 25 预览版字节码，确保 shadowJar 正常工作
+// ASM 9.9.1: 支持 Java 25 字节码，确保 shadowJar 正常工作
 classpath("org.ow2.asm:asm-commons:9.9.1")
 }
 }
 plugins {
 `java-library`
-id("com.gradleup.shadow") version "8.3.5" // 建议使用稳定版，或保持您的 9.3.1
+id("com.gradleup.shadow") version "9.3.1"
 idea
 }
 group = "top.ellan"
@@ -26,9 +26,6 @@ version = "1.0-SNAPSHOT"
 val rustHeaderFile = file("${projectDir}/../ecobridge-rust/ecobridge_rust.h")
 val generatedSourceDir = layout.buildDirectory.dir("generated/sources/jextract")
 val targetPackage = "top.ellan.ecobridge.gen"
-/**
-* 自动寻找 jextract 可执行文件
-*/
 fun findJextract(): String {
 val os = org.gradle.internal.os.OperatingSystem.current()
 val binaryName = if (os.isWindows) "jextract.bat" else "jextract"
@@ -63,15 +60,11 @@ findJextract(),
 "--output", generatedSourceDir.get().asFile.absolutePath,
 "--target-package", targetPackage,
 "--header-class-name", "ecobridge_rust_h",
-// ✅ 关键修改：移除了 --library 参数。
-// 这将防止生成的 Java 类在静态块中自动调用 System.loadLibrary()。
-// 现在加载权完全交给了您的 NativeLoader。
 rustHeaderFile.absolutePath
 )
 inputs.file(rustHeaderFile)
 outputs.dir(generatedSourceDir)
 }
-// IntelliJ 配置：支持生成的代码高亮与跳转
 idea {
 module {
 generatedSourceDirs.add(generatedSourceDir.get().asFile)
@@ -91,10 +84,8 @@ java.srcDir(generateBindings)
 // --- [仓库配置] ---
 repositories {
 mavenCentral()
-// 核心库与预发布库
 maven("https://central.sonatype.com/repository/maven-snapshots/")
 maven("https://oss.sonatype.org/content/repositories/releases/")
-// 三方插件与 API
 maven("https://jitpack.io")
 maven("https://repo.papermc.io/repository/maven-public/")
 maven("https://repo.nightexpressdev.com/releases")
@@ -103,25 +94,21 @@ maven("https://repo.extendedclip.com/content/repositories/placeholderapi/")
 flatDir { dirs("libs") }
 }
 dependencies {
-// Minecraft & 插件 API
 compileOnly("io.papermc.paper:paper-api:1.21.1-R0.1-SNAPSHOT")
 compileOnly("me.clip:placeholderapi:2.11.6")
 compileOnly("su.nightexpress.nightcore:main:2.13.0")
 compileOnly("su.nightexpress.coinsengine:CoinsEngine:2.6.0")
 compileOnly("cn.superiormc.ultimateshop:plugin:4.2.3")
 compileOnly(fileTree(mapOf("dir" to "libs", "include" to listOf("**/*.jar"))))
-// Jackson 3.0 BOM (处理 JSON)
 implementation(platform("tools.jackson:jackson-bom:3.0.0"))
 implementation("tools.jackson.core:jackson-databind")
 implementation("tools.jackson.core:jackson-core")
 implementation("com.fasterxml.jackson.core:jackson-annotations")
-// 数据库与缓存
 implementation("org.mariadb.jdbc:mariadb-java-client:3.5.7")
 implementation("com.zaxxer:HikariCP:7.0.2")
 implementation("com.github.ben-manes.caffeine:caffeine:3.2.3")
-implementation("redis.clients:jedis:5.2.0") // 建议使用 5.x 稳定版，7.x 尚在早期
+implementation("redis.clients:jedis:5.2.0")
 compileOnly("com.google.code.gson:gson:2.11.0")
-// 测试
 testImplementation(platform("org.junit:junit-bom:5.11.0"))
 testImplementation("org.junit.jupiter:junit-jupiter")
 }
@@ -135,23 +122,29 @@ options.compilerArgs.addAll(listOf(
 "-Xlint:-preview"
 ))
 }
+// --- [ShadowJar 配置 - 核心修复区域] ---
 tasks.named<ShadowJar>("shadowJar") {
 archiveClassifier.set("")
 val prefix = "top.ellan.ecobridge.libs"
-// 重定向以避免与其他插件版本冲突
+// 重定向配置
 relocate("tools.jackson", "$prefix.jackson")
 relocate("com.fasterxml.jackson.annotation", "$prefix.jackson.annotations")
 relocate("com.zaxxer.hikari", "$prefix.hikari")
 relocate("org.mariadb.jdbc", "$prefix.mariadb")
-//relocate("com.github.benmanes.caffeine", "$prefix.caffeine")
+// 注意：报错信息显示之前重定向到了 $prefix.caffeine，这里建议暂时保持关闭重定向
+// 以确保排查 minimize 问题，如果确实需要重定向，请取消下面这行的注释
+// relocate("com.github.benmanes.caffeine", "$prefix.caffeine")
 relocate("redis.clients", "$prefix.jedis")
-// 打包原生库资源文件
 from("src/main/resources") {
 include("*.dll", "*.so", "*.dylib", "natives/**")
 }
 mergeServiceFiles()
 minimize {
+// 排除 MariaDB
 exclude(dependency("org.mariadb.jdbc:.*"))
+// ✅ 核心修复：排除 Caffeine
+// 防止 Shadow 认为 Caffeine 内部通过反射加载的实现类（如 SSMSW）是无用的并将其剔除
+exclude(dependency("com.github.ben-manes.caffeine:caffeine:.*"))
 }
 }
 tasks.withType<ProcessResources> {
@@ -5174,12 +5167,13 @@ db_path.push("ecobridge_vault.db");
 let write_conn = match Connection::open(&db_path) {
 Ok(c) => c,
 Err(e) => {
-eprintln!("[EcoBridge-Storage] DB Open Error: {}", e);
+eprintln!("[EcoBridge-Storage] DuckDB Open Error: {}", e);
 return -4;
 }
 };
 let ddl_res = write_conn.execute_batch(
 "SET memory_limit='512MB';
+SET threads=4;
 CREATE TABLE IF NOT EXISTS economy_log (
 ts BIGINT,
 player_uuid VARCHAR,
@@ -5196,15 +5190,15 @@ return -5;
 load_recent_history_to_memory(&write_conn);
 let pool_size = 4;
 let (pool_tx, pool_rx) = bounded(pool_size);
-for _i in 0..pool_size {
+for _ in 0..pool_size {
 if let Ok(c) = write_conn.try_clone() {
 let _ = pool_tx.send(c);
 }
 }
-READ_POOL.set(ConnectionPool {
+let _ = READ_POOL.set(ConnectionPool {
 available: pool_rx,
 recycle: pool_tx,
-}).ok();
+});
 let (tx, rx) = bounded(50_000);
 thread::Builder::new()
 .name("ecobridge-db-writer".into())
@@ -5216,16 +5210,12 @@ Err(_) => -7,
 }
 }
 fn load_recent_history_to_memory(conn: &Connection) {
-let now = std::time::SystemTime::now()
-.duration_since(std::time::UNIX_EPOCH)
-.unwrap_or_default()
-.as_millis() as i64;
+let now = chrono::Utc::now().timestamp_millis();
 let cutoff = now - (90i64 * 86_400_000);
-println!("[EcoBridge-Storage] 正在预热内存数据 (Cutoff: {})...", cutoff);
 let mut stmt = match conn.prepare("SELECT ts, delta FROM economy_log WHERE ts > ? ORDER BY ts ASC") {
 Ok(s) => s,
 Err(e) => {
-eprintln!("[EcoBridge-Storage] Preload Prepare Error: {}", e);
+eprintln!("[EcoBridge-Storage] Preload Error: {}", e);
 return;
 }
 };
@@ -5235,18 +5225,13 @@ timestamp: row.get(0)?,
 amount: row.get(1)?,
 })
 });
-match records_iter {
-Ok(iter) => {
-let mut hist = GLOBAL_HISTORY.write().unwrap();
-let start_len = hist.len();
-for rec in iter {
-if let Ok(r) = rec {
-hist.push(r);
+if let Ok(iter) = records_iter {
+if let Ok(mut hist) = GLOBAL_HISTORY.write() {
+for rec in iter.flatten() {
+hist.push(rec);
 }
+println!("[EcoBridge-Storage] 内存预热完成：加载了 {} 条记录。", hist.len());
 }
-println!("[EcoBridge-Storage] 预热完成。加载了 {} 条记录到内存。", hist.len() - start_len);
-}
-Err(e) => eprintln!("[EcoBridge-Storage] Preload Query Error: {}", e),
 }
 }
 pub fn get_history_read() -> std::sync::RwLockReadGuard<'static, Vec<HistoryRecord>> {
@@ -5254,7 +5239,6 @@ GLOBAL_HISTORY.read().unwrap()
 }
 pub fn log_economy_event(ts: i64, uuid: String, delta: f64, balance: f64, meta: String) {
 TOTAL_LOGS.fetch_add(1, Ordering::Relaxed);
-{
 if let Ok(mut hist) = GLOBAL_HISTORY.write() {
 hist.push(HistoryRecord { timestamp: ts, amount: delta });
 if hist.len() > 500_000 {
@@ -5263,58 +5247,42 @@ let remove_count = hist.len() - keep;
 hist.drain(0..remove_count);
 }
 }
-}
 if let Some(sender) = LOG_SENDER.get() {
-if let Err(_) = sender.try_send(LogEvent { ts, uuid, delta, balance, meta }) {
+if sender.try_send(LogEvent { ts, uuid, delta, balance, meta }).is_err() {
 DROPPED_LOGS.fetch_add(1, Ordering::Relaxed);
 }
-} else {
-DROPPED_LOGS.fetch_add(1, Ordering::Relaxed);
 }
 }
 fn writer_loop(conn: Connection, rx: Receiver<LogEvent>) {
 let mut buffer = Vec::with_capacity(1024);
 loop {
-let first = match rx.recv() {
-Ok(msg) => msg,
-Err(_) => break,
-};
-if first.ts == -1 {
-eprintln!("[EcoBridge-Storage] 接收到关机信号，正在冲刷缓存并退出...");
-break;
-}
-buffer.push(first);
+match rx.recv() {
+Ok(msg) if msg.ts != -1 => {
+buffer.push(msg);
 while buffer.len() < 1024 {
 match rx.try_recv() {
-Ok(msg) => {
-if msg.ts == -1 { break; }
-buffer.push(msg);
-},
-Err(_) => break,
+Ok(m) if m.ts != -1 => buffer.push(m),
+_ => break,
 }
 }
 flush_buffer_to_db(&conn, &mut buffer);
+}
+_ => break,
+}
 }
 if !buffer.is_empty() {
 flush_buffer_to_db(&conn, &mut buffer);
 }
-eprintln!("[EcoBridge-Storage] 后台写入线程已安全终止。");
 }
 fn flush_buffer_to_db(conn: &Connection, buffer: &mut Vec<LogEvent>) {
 if buffer.is_empty() { return; }
-match conn.appender("economy_log") {
-Ok(mut appender) => {
+if let Ok(mut appender) = conn.appender("economy_log") {
 for ev in buffer.drain(..) {
-if appender.append_row(params![ev.ts, ev.uuid, ev.delta, ev.balance, ev.meta]).is_err() {
-DROPPED_LOGS.fetch_add(1, Ordering::Relaxed);
+let _ = appender.append_row(params![ev.ts, ev.uuid, ev.delta, ev.balance, ev.meta]);
 }
-}
-}
-Err(e) => {
-eprintln!("[EcoBridge-Storage] Appender Error: {}", e);
+} else {
 DROPPED_LOGS.fetch_add(buffer.len() as u64, Ordering::Relaxed);
 buffer.clear();
-}
 }
 }
 pub fn query_neff_from_db(current_ts: i64, tau: f64) -> f64 {
@@ -5349,12 +5317,7 @@ Err(_) => return Vec::new(),
 };
 let ms_lookback = days * 86_400_000;
 let cutoff = chrono::Utc::now().timestamp_millis() - ms_lookback;
-let query = "
-SELECT ts, delta
-FROM economy_log
-WHERE ts > ?
-ORDER BY ts ASC
-";
+let query = "SELECT ts, delta FROM economy_log WHERE ts > ? ORDER BY ts ASC";
 let mut stmt = raw_conn.prepare(query).unwrap();
 let record_iter = stmt.query_map(params![cutoff], |row| {
 Ok(crate::models::HistoryRecord {
@@ -5363,10 +5326,8 @@ amount: row.get::<_, f64>(1)?.abs(),
 })
 }).unwrap();
 let mut history = Vec::new();
-for record in record_iter {
-if let Ok(r) = record {
-history.push(r);
-}
+for record in record_iter.flatten() {
+history.push(record);
 }
 let _ = pool.recycle.send(raw_conn);
 history

@@ -30,7 +30,10 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
- * 核心定价管理器 (PricingManager v1.4.2 - Hardened Production)
+ * 核心定价管理器 (PricingManager v1.4.3 - Hardened Production)
+ * 修复点：
+ * 1. 增加了对 NativeBridge 加载状态的实时检测，防止初始化失败时的报错刷屏。
+ * 2. 维持了演算循环在虚拟线程中的高效运行。
  */
 public class PricingManager {
 
@@ -133,11 +136,17 @@ public class PricingManager {
         Thread.ofVirtual().name("EcoBridge-Macro-Engine").start(() -> {
             while (isRunning && plugin.isEnabled()) {
                 try {
+                    // ✅ 核心修复：如果 Native 没加载成功，直接跳过演算，防止调用堆外非法地址
+                    if (!NativeBridge.isLoaded()) {
+                        Thread.sleep(5000); // 没加载时降低频率
+                        continue;
+                    }
+
                     long now = System.currentTimeMillis();
                     double dt = (now - lastComputeTime) / 1000.0;
                     lastComputeTime = now;
 
-                    // ✅ 修复：在异步线程安全地获取在线人数
+                    // 安全地获取在线人数
                     int onlineCount = CompletableFuture.supplyAsync(
                             () -> Bukkit.getOnlinePlayers().size(),
                             runnable -> Bukkit.getScheduler().runTask(plugin, runnable)
@@ -149,11 +158,12 @@ public class PricingManager {
 
                     double inflation = EconomyManager.getInstance().getInflationRate();
 
+                    // 调用 Native 进行 PID 演算
                     double macroAdjustment = NativeBridge.computePidAdjustment(
                             globalPidState, targetHeat, currentHeat, dt, inflation, currentHeat
                     );
 
-                    // ✅ 恢复：对齐你的 PriceComputeEngine 原始签名 (3 参数)
+                    // 执行批量价格演算
                     Map<String, Double> nextPrices = PriceComputeEngine.computeSnapshot(
                             plugin, configTau, defaultLambda * macroAdjustment
                     );
@@ -162,11 +172,12 @@ public class PricingManager {
                         priceSnapshot.set(Map.copyOf(nextPrices));
                     }
 
-                    Thread.sleep(2000);
+                    Thread.sleep(2000); // 演算步长 2s
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     break;
                 } catch (Throwable e) {
+                    // 此时捕获的异常会包含更清晰的上下文
                     LogUtil.warn("宏观引擎演算异常: " + e.getMessage());
                 }
             }
@@ -200,15 +211,17 @@ public class PricingManager {
             if (basePrice <= 0) {
                 basePrice = PriceOracle.getOriginalBasePrice(item, amount < 0);
             }
+            
+            // 此处依赖 NativeBridge.isLoaded() 的内置保护
             double calculatedPrice = NativeBridge.computeTierPrice(basePrice, Math.abs(amount), amount > 0);
             PriceCalculatedEvent event = new PriceCalculatedEvent(player, shopId, productId, calculatedPrice);
 
+            // 线程安全：事件必须在主线程触发
             if (Bukkit.isPrimaryThread()) {
                 Bukkit.getPluginManager().callEvent(event);
                 return event.getFinalPrice();
             }
 
-            // ✅ 线程安全修复：通过 Bukkit 调度器将事件抛回主线程执行
             return CompletableFuture.runAsync(() -> Bukkit.getPluginManager().callEvent(event), 
                     runnable -> Bukkit.getScheduler().runTask(plugin, runnable))
                     .thenApply(v -> event.getFinalPrice())
@@ -290,9 +303,6 @@ public class PricingManager {
         return current.getOrDefault(shopId + ":" + productId, -1.0);
     }
 
-    /**
-     * ✅ 修复：解决缓存加载时的阻塞问题
-     */
     private ThreadSafeHistory getHistoryContainer(String productId) {
         ThreadSafeHistory container = historyCache.getIfPresent(productId);
         if (container == null) {
@@ -313,7 +323,7 @@ public class PricingManager {
         itemLocks.invalidateAll();
     }
 
-    // --- 内部类：保持原有结构 ---
+    // --- 线程安全历史记录容器 ---
 
     private static class ThreadSafeHistory {
         private final ArrayDeque<SaleRecord> deque;
@@ -354,6 +364,6 @@ public class PricingManager {
     }
 
     public MemorySegment getGlobalPidState() {
-        return globalPidState; // 返回已分配的 PID_STATE 内存段 [cite: 373, 378]
+        return globalPidState;
     }
 }
