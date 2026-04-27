@@ -124,7 +124,7 @@ pub fn mpc_optimize(
     // Gradient descent
     for _iter in 0..cfg.iterations {
         // 1. Forward simulate with current controls
-        let (trajectory, total_cost) = simulate_trajectory(
+        let (_trajectory, total_cost) = simulate_trajectory(
             m1_ratio, price_index, inflation_rate, market_heat,
             net_flow_rate, target_m1, dt_seconds,
             &controls, &cfg,
@@ -199,7 +199,7 @@ fn simulate_trajectory(
     inflation_rate: f64,
     market_heat: f64,
     net_flow_rate: f64,
-    target_m1: f64,
+    _target_m1: f64,
     dt_seconds: f64,
     controls: &[f64],   // [lambda, sink, faucet] × horizon
     cfg: &MpcState,
@@ -211,7 +211,7 @@ fn simulate_trajectory(
     let mut px = price_index;
     let mut inf = inflation_rate;
     let mut heat = market_heat;
-    let flow = net_flow_rate; // simplified: keep baseline flow constant
+    let _flow = net_flow_rate; // simplified: keep baseline flow constant
 
     let mut trajectory = Vec::with_capacity(h + 1);
     trajectory.push([m1, px, inf]);

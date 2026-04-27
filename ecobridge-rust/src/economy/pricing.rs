@@ -188,7 +188,7 @@ pub fn compute_price_bounded_internal_cached(
 ) -> f64 {
     let raw_price = compute_price_behavioral_core(base_micros, n_eff, amt_micros, lambda, eps);
     let floor = (hist_avg * 0.62 * vol_mult).max(0.01);
-    let mut price = raw_price.max(floor);
+    let price = raw_price.max(floor);
     let (recovered, _active) = apply_recovery_pull(price, hist_avg, vol_mult, 0);
     recovered.max(floor)
 }

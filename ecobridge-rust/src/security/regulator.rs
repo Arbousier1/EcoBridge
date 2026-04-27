@@ -44,7 +44,7 @@ pub fn compute_transfer_check_internal(
     let final_limit = calculated_limit.min(max_limit);
 
     // 拦截判定：比较原始 i64 Micros 以确保绝对精确
-    let final_limit_micros = crate::crate::to_micros_saturating(final_limit);
+    let final_limit_micros = crate::to_micros_saturating(final_limit);
     if ctx.amount_micros > final_limit_micros && final_limit_micros > 0 {
         return TransferResult {
             final_tax_micros: 0,
@@ -111,7 +111,7 @@ pub fn compute_transfer_check_internal(
 
     TransferResult {
         // 结果转换回 i64 Micros 传回 Java
-        final_tax_micros: crate::crate::to_micros_saturating(tax_clamped),
+        final_tax_micros: crate::to_micros_saturating(tax_clamped),
         is_blocked: 0,
         warning_code,
     }
