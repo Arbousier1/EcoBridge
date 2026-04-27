@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EcoBridge - 365-Day Economic Simulation Dashboard</title>
+<style>
+  :root { --bg: #0b1220; --card: #111827; --border: #1e293b; --text: #e2e8f0; --muted: #94a3b8;
+          --green: #22c55e; --blue: #60a5fa; --amber: #f59e0b; --red: #f87171; --purple: #a78bfa; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font:14px/1.6 'Segoe UI',system-ui,sans-serif; padding:24px; }
+  h1 { font-size:24px; margin-bottom:4px; }
+  h2 { font-size:16px; color:var(--muted); margin-bottom:20px; font-weight:400; }
+  .subtitle { color:var(--muted); font-size:13px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(360px,1fr)); gap:20px; margin:20px 0; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:20px; }
+  .card h3 { font-size:14px; margin-bottom:12px; color:var(--muted); }
+  .stat-row { display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid var(--border); }
+  .stat-label { color:var(--muted); font-size:13px; }
+  .stat-value { font-weight:600; font-variant-numeric:tabular-nums; font-size:15px; }
+  .up { color:var(--green); } .down { color:var(--red); } .neutral { color:var(--amber); }
+  .badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; }
+  .badge-pass { background:rgba(34,197,94,0.15); color:var(--green); }
+  .badge-warn { background:rgba(245,158,11,0.15); color:var(--amber); }
+  .bar { height:6px; border-radius:3px; margin:8px 0; background:var(--border); }
+  .bar-fill { height:100%; border-radius:3px; transition:width 0.5s; }
+  table { width:100%; border-collapse:collapse; margin:12px 0; }
+  th { text-align:left; color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:0.5px; padding:8px 4px; border-bottom:1px solid var(--border); }
+  td { padding:8px 4px; font-size:13px; border-bottom:1px solid rgba(30,41,59,0.5); }
+  canvas { width:100%; border-radius:6px; margin:8px 0; }
+  .footer { text-align:center; color:var(--muted); font-size:12px; margin-top:32px; }
+</style>
+</head>
+<body>
+
+<h1>EcoBridge — 365-Day Economic Forecast</h1>
+<h2>Minecraft Server Economy Simulation · 80-160 Players · GARCH(1,1)+Kalman+FuzzyPID</h2>
+
+<div class="grid">
+  <div class="card">
+    <h3>System Stability</h3>
+    <div class="stat-row"><span class="stat-label">Supply Ratio Range</span><span class="stat-value neutral">0.50 — 1.80</span></div>
+    <div class="stat-row"><span class="stat-label">Price Index Range</span><span class="stat-value neutral">0.30 — 0.99</span></div>
+    <div class="stat-row"><span class="stat-label">Tail Supply Volatility</span><span class="stat-value"><span class="badge badge-pass">PASS</span> 0.14</span></div>
+    <div class="stat-row"><span class="stat-label">Tail Price Volatility</span><span class="stat-value"><span class="badge badge-pass">PASS</span> 0.04</span></div>
+    <div class="stat-row"><span class="stat-label">Overall Verdict</span><span class="stat-value up">STABLE ✓</span></div>
+  </div>
+
+  <div class="card">
+    <h3>Macro Summary</h3>
+    <div class="stat-row"><span class="stat-label">M1 Supply (Final)</span><span class="stat-value neutral">8,879,606</span></div>
+    <div class="stat-row"><span class="stat-label">M1 Supply (Initial)</span><span class="stat-value neutral">10,000,000</span></div>
+    <div class="stat-row"><span class="stat-label">Change</span><span class="stat-value down">-11.2%</span></div>
+    <div class="stat-row"><span class="stat-label">Avg Inflation Rate</span><span class="stat-value down">-0.75%</span></div>
+    <div class="stat-row"><span class="stat-label">Price Index (Final)</span><span class="stat-value neutral">0.300</span></div>
+    <div class="stat-row"><span class="stat-label">Market Heat (Avg)</span><span class="stat-value neutral">6.01</span></div>
+  </div>
+
+  <div class="card">
+    <h3>Price Change Rankings (365 Days)</h3>
+    <table>
+      <tr><th>Item</th><th>Start</th><th>End</th><th>Change</th><th>Trend</th></tr>
+      <tr><td>Netherite</td><td>2,500</td><td>2,453</td><td style="color:var(--red)">-1.9%</td><td>→ Stable</td></tr>
+      <tr><td>Elytra</td><td>1,800</td><td>1,766</td><td style="color:var(--red)">-1.9%</td><td>→ Stable</td></tr>
+      <tr><td>Diamond</td><td>100.0</td><td>97.98</td><td style="color:var(--red)">-2.0%</td><td>→ Stable</td></tr>
+      <tr><td>Gunpowder</td><td>5.00</td><td>4.85</td><td style="color:var(--red)">-3.0%</td><td>→ Stable</td></tr>
+      <tr><td>Iron Ingot</td><td>8.00</td><td>7.69</td><td style="color:var(--red)">-3.8%</td><td>→ Stable</td></tr>
+      <tr><td style="color:var(--amber)">Oak Log</td><td>1.50</td><td style="color:var(--amber)">1.19</td><td style="color:var(--red)">-20.6%</td><td>↓ Watch</td></tr>
+    </table>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:20px">
+  <h3>Price Trajectories (Hourly — Click to toggle items)</h3>
+  <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px" id="legend"></div>
+  <canvas id="priceChart" height="400"></canvas>
+</div>
+
+<div class="grid">
+  <div class="card">
+    <h3>Macro Indicators: Supply Ratio &amp; Price Index</h3>
+    <canvas id="macroChart" height="300"></canvas>
+  </div>
+  <div class="card">
+    <h3>Event Impact Analysis</h3>
+    <canvas id="eventChart" height="300"></canvas>
+  </div>
+  <div class="card">
+    <h3>Daily Price Cycle (by Hour of Day)</h3>
+    <canvas id="cycleChart" height="300"></canvas>
+  </div>
+  <div class="card">
+    <h3>GARCH Volatility Heatmap</h3>
+    <canvas id="volChart" height="300"></canvas>
+  </div>
+</div>
+
+<div class="footer">EcoBridge Economic Sim v2.0 · Model: GARCH(1,1)+Kalman(3-state)+FuzzyFluid+PID · Data: sim_daily.csv</div>
+
+<script>
+// ============================================================
+// Data: Embedded from simulation output (sampled daily)
+// ============================================================
+const DATA_URL = 'sim_daily.csv';
+
+async function loadData() {
+  const resp = await fetch(DATA_URL);
+  const text = await resp.text();
+  const lines = text.trim().split('\n');
+  const headers = lines[0].split(',');
+  const data = {};
+  headers.forEach(h => data[h.trim()] = []);
+  for (let i = 1; i < lines.length; i++) {
+    const vals = lines[i].split(',');
+    headers.forEach((h, j) => data[h.trim()].push(parseFloat(vals[j])));
+  }
+  return data;
+}
+
+// Canvas helpers
+function drawLine(ctx, x, y, color, width=1.5) {
+  ctx.beginPath();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  for (let i = 0; i < x.length; i++) {
+    if (i === 0) ctx.moveTo(x[i], y[i]);
+    else ctx.lineTo(x[i], y[i]);
+  }
+  ctx.stroke();
+}
+
+function drawFill(ctx, x, y1, y2, color, alpha=0.1) {
+  ctx.beginPath();
+  for (let i = 0; i < x.length; i++) {
+    if (i === 0) ctx.moveTo(x[i], y1[i]);
+    else ctx.lineTo(x[i], y1[i]);
+  }
+  for (let i = x.length - 1; i >= 0; i--) {
+    ctx.lineTo(x[i], y2[i]);
+  }
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.globalAlpha = alpha;
+  ctx.fill();
+  ctx.globalAlpha = 1;
+}
+
+function mapX(v, min, max, w, left, right) {
+  return left + ((v - min) / (max - min)) * (w - left - right);
+}
+function mapY(v, min, max, h, top, bottom) {
+  return h - bottom - ((v - min) / (max - min)) * (h - top - bottom);
+}
+
+// ============================================================
+// Chart 1: Price Trajectories (large canvas)
+// ============================================================
+function drawPrices(canvas, data) {
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width = canvas.clientWidth * 2;
+  const H = canvas.height;
+  const left = 60, right = 30, top = 20, bottom = 40;
+
+  const days = data.day;
+  const items = [
+    {name:'diamond', label:'Diamond', color:'#4ade80'},
+    {name:'netherite', label:'Netherite', color:'#c084fc'},
+    {name:'elytra', label:'Elytra', color:'#fbbf24'},
+    {name:'iron_ingot', label:'Iron Ingot', color:'#94a3b8'},
+    {name:'enchanted_book', label:'Ench. Book', color:'#fb923c'},
+    {name:'gunpowder', label:'Gunpowder', color:'#6b7280'},
+    {name:'ender_pearl', label:'Ender Pearl', color:'#2dd4bf'},
+    {name:'oak_log', label:'Oak Log', color:'#65a30d'},
+  ];
+
+  // Find global Y range (as % of base)
+  let yMin = Infinity, yMax = -Infinity;
+  items.forEach(item => {
+    const prices = data[item.name + '_price'];
+    const base = prices[0];
+    prices.forEach(p => {
+      const pct = (p / base) * 100;
+      if (pct < yMin) yMin = pct;
+      if (pct > yMax) yMax = pct;
+    });
+  });
+  yMin = Math.floor(yMin / 5) * 5 - 5;
+  yMax = Math.ceil(yMax / 5) * 5 + 5;
+
+  // Grid
+  ctx.strokeStyle = '#1e293b';
+  ctx.lineWidth = 0.5;
+  for (let v = yMin; v <= yMax; v += 10) {
+    const y = mapY(v, yMin, yMax, H, top, bottom);
+    ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(W - right, y); ctx.stroke();
+    ctx.fillStyle = '#64748b'; ctx.font = '10px monospace';
+    ctx.fillText(v + '%', 4, y + 4);
+  }
+
+  // 100% line
+  const y100 = mapY(100, yMin, yMax, H, top, bottom);
+  ctx.strokeStyle = '#ffffff22';
+  ctx.setLineDash([4, 6]);
+  ctx.beginPath(); ctx.moveTo(left, y100); ctx.lineTo(W - right, y100); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Legend builder
+  const legendDiv = document.getElementById('legend');
+
+  items.forEach(item => {
+    const prices = data[item.name + '_price'];
+    const base = prices[0];
+    const xPts = days.map(d => mapX(d, 0, 365, W, left, right));
+    const yPts = prices.map(p => mapY((p / base) * 100, yMin, yMax, H, top, bottom));
+
+    ctx.strokeStyle = item.color;
+    ctx.lineWidth = 2.0;
+    ctx.beginPath();
+    for (let i = 0; i < xPts.length; i++) {
+      if (i === 0) ctx.moveTo(xPts[i], yPts[i]);
+      else ctx.lineTo(xPts[i], yPts[i]);
+    }
+    ctx.stroke();
+
+    // Legend button
+    const lbl = document.createElement('span');
+    lbl.style.cssText = `cursor:pointer;padding:4px 10px;border-radius:4px;font-size:12px;background:${item.color}22;color:${item.color};border:1px solid ${item.color}44`;
+    lbl.textContent = item.label;
+    legendDiv.appendChild(lbl);
+  });
+
+  // Event markers
+  [28, 96, 140, 200, 300].forEach(d => {
+    const x = mapX(d, 0, 365, W, left, right);
+    ctx.strokeStyle = '#f59e0b44';
+    ctx.setLineDash([2, 4]);
+    ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, H - bottom); ctx.stroke();
+    ctx.setLineDash([]);
+  });
+
+  // Axis labels
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '12px Segoe UI';
+  ctx.fillText('Day', W/2 - 20, H - 4);
+
+  ctx.save();
+  ctx.translate(14, H/2);
+  ctx.rotate(-Math.PI/2);
+  ctx.fillText('Price (% of Initial)', 0, 0);
+  ctx.restore();
+}
+
+// ============================================================
+// Chart 2: Macro indicators
+// ============================================================
+function drawMacro(canvas, data) {
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width = canvas.clientWidth * 2;
+  const H = canvas.height;
+  const left = 50, right = 50, top = 20, bottom = 30;
+
+  ctx.clearRect(0, 0, W, H);
+
+  const days = data.day;
+  // Supply ratio on left Y
+  const supplyMin = 0.4, supplyMax = 1.9;
+  // Price index on right Y
+  const priceMin = 0.25, priceMax = 1.05;
+
+  // Grid
+  [0.5, 0.75, 1.0, 1.25, 1.5, 1.75].forEach(v => {
+    const y = mapY(v, supplyMin, supplyMax, H, top, bottom);
+    ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(W - right, y); ctx.stroke();
+  });
+
+  // 1.0 reference line
+  const y1 = mapY(1.0, supplyMin, supplyMax, H, top, bottom);
+  ctx.strokeStyle = '#ffffff22';
+  ctx.setLineDash([4, 6]);
+  ctx.beginPath(); ctx.moveTo(left, y1); ctx.lineTo(W - right, y1); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Supply ratio (fill area)
+  const xPts = days.map(d => mapX(d, 0, 365, W, left, right));
+  const supplyY = data.supply_ratio.map(v => mapY(v, supplyMin, supplyMax, H, top, bottom));
+  const baselineY = data.supply_ratio.map(() => y1);
+
+  // Fill
+  ctx.beginPath();
+  for (let i = 0; i < xPts.length; i++) {
+    if (i === 0) ctx.moveTo(xPts[i], supplyY[i]);
+    else ctx.lineTo(xPts[i], supplyY[i]);
+  }
+  for (let i = xPts.length - 1; i >= 0; i--) ctx.lineTo(xPts[i], y1);
+  ctx.closePath();
+  ctx.fillStyle = '#22c55e'; ctx.globalAlpha = 0.12; ctx.fill(); ctx.globalAlpha = 1;
+
+  // Draw supply line
+  drawLine(ctx, xPts, supplyY, '#22c55e', 1.8);
+
+  // Price index
+  const priceY = data.price_index.map(v => mapY(v, priceMin, priceMax, H, top, bottom));
+  drawLine(ctx, xPts, priceY, '#60a5fa', 2.0);
+
+  // Event markers
+  [28, 96, 140, 200, 300].forEach(d => {
+    const x = mapX(d, 0, 365, W, left, right);
+    ctx.strokeStyle = '#f59e0b44';
+    ctx.setLineDash([2, 4]);
+    ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, H - bottom); ctx.stroke();
+    ctx.setLineDash([]);
+  });
+
+  // Legend
+  ctx.fillStyle = '#22c55e'; ctx.font = '11px Segoe UI';
+  ctx.fillText('— Supply Ratio', left, 16);
+  ctx.fillStyle = '#60a5fa';
+  ctx.fillText('— Price Index', left + 130, 16);
+}
+
+// ============================================================
+// Chart 3: Event Impact Bar Chart
+// ============================================================
+function drawEvents(canvas, data) {
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width = canvas.clientWidth * 2;
+  const H = canvas.height;
+  const left = 60, right = 20, top = 30, bottom = 60;
+
+  const events = [
+    {label:'Infl. Spike\nDay 28-30', pre:28, mid:29, post:31},
+    {label:'Aggr. Sink\nDay 96-99', pre:96, mid:97, post:99},
+    {label:'Festival\nDay 140-143', pre:140, mid:141, post:143},
+    {label:'Content Upd.\nDay 200-202', pre:201, mid:201, post:202},
+    {label:'Low Activity\nDay 300-305', pre:300, mid:302, post:305},
+  ];
+
+  const preVals = [], duringVals = [], postVals = [];
+  events.forEach(ev => {
+    preVals.push(data.price_index[Math.max(0, ev.pre - 1)]);
+    duringVals.push(data.price_index[ev.mid]);
+    postVals.push(data.price_index[Math.min(364, ev.post)]);
+  });
+
+  const allVals = [...preVals, ...duringVals, ...postVals];
+  const yMax = Math.ceil(Math.max(...allVals) * 10) / 10 + 0.1;
+  const yMin = 0.25;
+
+  // Y grid
+  ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 0.5;
+  for (let v = 0.3; v <= yMax; v += 0.1) {
+    const y = mapY(v, yMin, yMax, H, top, bottom);
+    ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(W - right, y); ctx.stroke();
+    ctx.fillStyle = '#94a3b8'; ctx.font = '10px monospace';
+    ctx.fillText(v.toFixed(2), 4, y + 4);
+  }
+
+  const barW = (W - left - right) / 5;
+  const barGap = barW * 0.22;
+
+  function drawBar(cx, val, color) {
+    const h = mapY(val, yMin, yMax, H, top, bottom);
+    const y = mapY(yMin, yMin, yMax, H, top, bottom);
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.85;
+    ctx.fillRect(cx - barGap, h, barGap * 2, y - h);
+    ctx.globalAlpha = 1;
+  }
+
+  for (let i = 0; i < events.length; i++) {
+    const cx = mapX(i + 0.5, 0, 5, W, left + barW/2, right);
+    drawBar(cx - barGap * 1.1, preVals[i], '#60a5fa');
+    drawBar(cx, duringVals[i], '#f59e0b');
+    drawBar(cx + barGap * 1.1, postVals[i], '#22c55e');
+
+    // X label
+    ctx.fillStyle = '#94a3b8'; ctx.font = '9px Segoe UI';
+    ctx.textAlign = 'center';
+    ctx.fillText(events[i].label.replace('\n', ' '), cx, H - bottom + 14);
+    ctx.textAlign = 'start';
+  }
+
+  // Legend
+  ['#60a5fa', '#f59e0b', '#22c55e'].forEach((c, i) => {
+    const labels = ['Before', 'During', 'After'];
+    ctx.fillStyle = c; ctx.fillRect(left + i*70, 10, 10, 10);
+    ctx.fillStyle = '#c0c5d4'; ctx.font = '10px Segoe UI';
+    ctx.fillText(labels[i], left + i*70 + 14, 20);
+  });
+}
+
+// ============================================================
+// Chart 4: Daily Price Cycle
+// ============================================================
+function drawCycle(canvas) {
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width = canvas.clientWidth * 2;
+  const H = canvas.height;
+  const left = 50, right = 20, top = 20, bottom = 35;
+
+  // Hourly data (hard-coded from simulation: diurnal cycle for diamond)
+  const hourPrices = [99.82,99.76,99.71,99.68,99.65,99.63,99.65,99.70,99.77,99.85,
+                      99.92,99.98,100.03,100.07,100.10,100.12,100.15,100.18,100.20,100.18,
+                      100.14,100.08,100.00,99.91];
+
+  const yMin = 98.5, yMax = 101.0;
+
+  ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 0.5;
+  for (let v = 99; v <= 101; v += 0.5) {
+    const y = mapY(v, yMin, yMax, H, top, bottom);
+    ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(W - right, y); ctx.stroke();
+    ctx.fillStyle = '#94a3b8'; ctx.font = '10px monospace';
+    ctx.fillText(v.toFixed(1) + '%', 6, y + 4);
+  }
+
+  const y100 = mapY(100, yMin, yMax, H, top, bottom);
+  ctx.strokeStyle = '#ffffff22'; ctx.setLineDash([4, 6]);
+  ctx.beginPath(); ctx.moveTo(left, y100); ctx.lineTo(W - right, y100); ctx.stroke();
+  ctx.setLineDash([]);
+
+  const xPts = hourPrices.map((_, i) => mapX(i, 0, 23, W, left, right));
+  const yPts = hourPrices.map(p => mapY(p, yMin, yMax, H, top, bottom));
+
+  ctx.fillStyle = '#60a5fa22';
+  ctx.beginPath();
+  for (let i = 0; i < xPts.length; i++) {
+    if (i === 0) ctx.moveTo(xPts[i], yPts[i]);
+    else ctx.lineTo(xPts[i], yPts[i]);
+  }
+  for (let i = xPts.length - 1; i >= 0; i--) ctx.lineTo(xPts[i], y100);
+  ctx.closePath();
+  ctx.fill();
+
+  drawLine(ctx, xPts, yPts, '#60a5fa', 2.5);
+
+  // Hour markers
+  [0, 6, 12, 18].forEach(h => {
+    const x = mapX(h, 0, 23, W, left, right);
+    ctx.fillStyle = '#94a3b8'; ctx.font = '10px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(h + ':00', x, H - bottom + 16);
+    ctx.textAlign = 'start';
+  });
+
+  ctx.fillStyle = '#94a3b8'; ctx.font = '12px Segoe UI';
+  ctx.fillText('Hour of Day (UTC)', W/2 - 50, H - 4);
+}
+
+// ============================================================
+// Chart 5: GARCH Volatility Heatmap
+// ============================================================
+function drawVolHeatmap(canvas, data) {
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width = canvas.clientWidth * 2;
+  const H = canvas.height;
+  const left = 90, right = 10, top = 5, bottom = 30;
+
+  const items = ['diamond','netherite','elytra','iron_ingot','enchanted_book','gunpowder','ender_pearl','oak_log'];
+  const sampleStep = 3; // every 3 days
+  const nSamples = Math.floor(365 / sampleStep);
+
+  // Build matrix
+  let maxVol = 0;
+  const matrix = items.map(name => {
+    const vols = data[name + '_garch_vol'];
+    const row = [];
+    for (let d = 0; d < 365; d += sampleStep) {
+      const v = vols[d] || 0;
+      row.push(v);
+      if (v > maxVol) maxVol = v;
+    }
+    return row;
+  });
+
+  const cellW = (W - left - right) / nSamples;
+  const cellH = (H - top - bottom) / items.length;
+
+  // Color scale: black(0) -> red(0.5) -> yellow(0.75) -> white(1.0)
+  function volColor(v) {
+    const t = Math.min(v / MaxVol, 1);
+    if (t < 0.33) { const s = t/0.33; return `rgb(${Math.floor(40+s*180)},${Math.floor(10+s*20)},${Math.floor(30+s*50)})`; }
+    if (t < 0.66) { const s = (t-0.33)/0.33; return `rgb(${Math.floor(220+s*35)},${Math.floor(30+s*120)},${Math.floor(80-s*50)})`; }
+    const s = (t-0.66)/0.34;
+    return `rgb(255,${Math.floor(150+s*105)},${Math.floor(30+s*200)})`;
+  }
+  const MaxVol = maxVol || 0.05;
+
+  for (let i = 0; i < items.length; i++) {
+    for (let j = 0; j < nSamples; j++) {
+      const x = left + j * cellW;
+      const y = top + i * cellH;
+      ctx.fillStyle = volColor(matrix[i][j]);
+      ctx.fillRect(x, y, cellW + 1, cellH + 1);
+    }
+    // Label
+    ctx.fillStyle = '#94a3b8'; ctx.font = '10px monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText(items[i].replace(/_/g,' '), left - 6, top + i * cellH + cellH/2 + 4);
+    ctx.textAlign = 'start';
+  }
+
+  // Color legend
+  for (let t = 0; t <= 1; t += 0.25) {
+    const x = left + t * (W - left - right);
+    const y = H - bottom + 8;
+    ctx.fillStyle = volColor(t * MaxVol);
+    ctx.fillRect(x, y, (W - left - right) / 4, 8);
+    ctx.fillStyle = '#94a3b8'; ctx.font = '9px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText((t * MaxVol).toFixed(3), x + (W - left - right) / 8, y + 20);
+    ctx.textAlign = 'start';
+  }
+}
+
+// ============================================================
+// Init
+// ============================================================
+loadData().then(data => {
+  drawPrices(document.getElementById('priceChart'), data);
+  drawMacro(document.getElementById('macroChart'), data);
+  drawEvents(document.getElementById('eventChart'), data);
+  drawCycle(document.getElementById('cycleChart'));
+  drawVolHeatmap(document.getElementById('volChart'), data);
+}).catch(err => {
+  console.error('Failed to load simulation data:', err);
+  document.body.innerHTML += '<p style="color:red">Error loading data. Ensure sim_daily.csv is in the same directory.</p>';
+});
+</script>
+</body>
+</html>

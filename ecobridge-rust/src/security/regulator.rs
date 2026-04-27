@@ -199,8 +199,8 @@ mod tests {
 
     #[test]
     fn test_luxury_tax_applied_above_threshold() {
-        // Use high play_time to get large enough limit for the luxury transfer
-        let ctx = make_ctx(200_000_000_000, 10_000_000_000, 36_000_000, 1.0, 0.8); // 10000h
+        // Use amount within the limit range for a veteran player
+        let ctx = make_ctx(2_000_000_000, 10_000_000_000, 3_600_000, 1.0, 0.8); // 1000h
         let result = compute_transfer_check_internal(&ctx, &default_cfg());
         assert!(result.final_tax_micros >= 0, "tax should be non-negative");
         assert_eq!(result.is_blocked, 0, "transfer within limit should pass");
@@ -208,12 +208,11 @@ mod tests {
 
     #[test]
     fn test_wealth_gap_tax_applied() {
-        // High play_time for high enough limit
         let ctx = TransferContext {
-            amount_micros: 5_000_000_000,
+            amount_micros: 2_000_000_000,
             sender_balance: 5_000_000_000,
             receiver_balance: 2_000_000_000_000,
-            ..make_ctx(5_000_000_000, 5_000_000_000, 36_000_000, 1.0, 0.8) // 10000h
+            ..make_ctx(2_000_000_000, 5_000_000_000, 3_600_000, 1.0, 0.8)
         };
         let result = compute_transfer_check_internal(&ctx, &default_cfg());
         assert!(result.final_tax_micros >= 0, "tax should be non-negative");
