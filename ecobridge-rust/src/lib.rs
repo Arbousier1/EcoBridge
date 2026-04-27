@@ -737,3 +737,149 @@ pub unsafe extern "C" fn ecobridge_garch_free(
         EconStatus::Ok
     })
 }
+
+// -----------------------------------------------------------------------------
+// 8. 卡尔曼滤波
+// -----------------------------------------------------------------------------
+
+#[no_mangle]
+pub unsafe extern "C" fn ecobridge_kalman_init(
+    key_ptr: *const c_char,
+) -> c_int {
+    ffi_guard!(|| {
+        let key = if key_ptr.is_null() {
+            "__global__".to_string()
+        } else {
+            CStr::from_ptr(key_ptr).to_string_lossy().into_owned()
+        };
+        economy::kalman::kalman_init(&key);
+        EconStatus::Ok
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ecobridge_kalman_filter(
+    key_ptr: *const c_char,
+    measurement: c_double,
+    dt: c_double,
+    out_filtered: *mut c_double,
+) -> c_int {
+    ffi_guard!(|| {
+        if out_filtered.is_null() {
+            return EconStatus::NullPointer;
+        }
+        let key = if key_ptr.is_null() {
+            "__global__".to_string()
+        } else {
+            CStr::from_ptr(key_ptr).to_string_lossy().into_owned()
+        };
+        *out_filtered = economy::kalman::kalman_filter(&key, measurement, dt);
+        EconStatus::Ok
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ecobridge_kalman_velocity(
+    key_ptr: *const c_char,
+    out_vel: *mut c_double,
+) -> c_int {
+    ffi_guard!(|| {
+        if out_vel.is_null() {
+            return EconStatus::NullPointer;
+        }
+        let key = if key_ptr.is_null() {
+            "__global__".to_string()
+        } else {
+            CStr::from_ptr(key_ptr).to_string_lossy().into_owned()
+        };
+        *out_vel = economy::kalman::kalman_velocity(&key);
+        EconStatus::Ok
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ecobridge_kalman_free(
+    key_ptr: *const c_char,
+) -> c_int {
+    ffi_guard!(|| {
+        let key = if key_ptr.is_null() {
+            "__global__".to_string()
+        } else {
+            CStr::from_ptr(key_ptr).to_string_lossy().into_owned()
+        };
+        economy::kalman::kalman_free(&key);
+        EconStatus::Ok
+    })
+}
+
+// -----------------------------------------------------------------------------
+// 9. ARIMA 时序预测
+// -----------------------------------------------------------------------------
+
+#[no_mangle]
+pub unsafe extern "C" fn ecobridge_arima_init(
+    key_ptr: *const c_char,
+    p: c_int,
+    d: c_int,
+) -> c_int {
+    ffi_guard!(|| {
+        let key = if key_ptr.is_null() {
+            "__global__".to_string()
+        } else {
+            CStr::from_ptr(key_ptr).to_string_lossy().into_owned()
+        };
+        economy::forecast::arima_init(&key, p as usize, d as usize);
+        EconStatus::Ok
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ecobridge_arima_add_obs(
+    key_ptr: *const c_char,
+    value: c_double,
+) -> c_int {
+    ffi_guard!(|| {
+        let key = if key_ptr.is_null() {
+            "__global__".to_string()
+        } else {
+            CStr::from_ptr(key_ptr).to_string_lossy().into_owned()
+        };
+        economy::forecast::arima_add_observation(&key, value);
+        EconStatus::Ok
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ecobridge_arima_predict(
+    key_ptr: *const c_char,
+    horizon: c_int,
+    out_pred: *mut c_double,
+) -> c_int {
+    ffi_guard!(|| {
+        if out_pred.is_null() {
+            return EconStatus::NullPointer;
+        }
+        let key = if key_ptr.is_null() {
+            "__global__".to_string()
+        } else {
+            CStr::from_ptr(key_ptr).to_string_lossy().into_owned()
+        };
+        *out_pred = economy::forecast::arima_predict_single(&key, horizon as usize);
+        EconStatus::Ok
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ecobridge_arima_free(
+    key_ptr: *const c_char,
+) -> c_int {
+    ffi_guard!(|| {
+        let key = if key_ptr.is_null() {
+            "__global__".to_string()
+        } else {
+            CStr::from_ptr(key_ptr).to_string_lossy().into_owned()
+        };
+        economy::forecast::arima_free(&key);
+        EconStatus::Ok
+    })
+}

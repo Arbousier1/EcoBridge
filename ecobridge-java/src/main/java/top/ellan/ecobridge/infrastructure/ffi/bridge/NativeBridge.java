@@ -136,6 +136,14 @@ public class NativeBridge {
     private static volatile MethodHandle garchForecastMH;
     private static volatile MethodHandle garchMultiplierMH;
     private static volatile MethodHandle garchFreeMH;
+    private static volatile MethodHandle kalmanInitMH;
+    private static volatile MethodHandle kalmanFilterMH;
+    private static volatile MethodHandle kalmanVelocityMH;
+    private static volatile MethodHandle kalmanFreeMH;
+    private static volatile MethodHandle arimaInitMH;
+    private static volatile MethodHandle arimaAddObsMH;
+    private static volatile MethodHandle arimaPredictMH;
+    private static volatile MethodHandle arimaFreeMH;
 
     static {
         try {
@@ -275,6 +283,16 @@ public class NativeBridge {
         garchForecastMH = bind(linker, "ecobridge_garch_forecast", FunctionDescriptor.of(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS));
         garchMultiplierMH = bind(linker, "ecobridge_garch_multiplier", FunctionDescriptor.of(JAVA_INT, ADDRESS, ADDRESS));
         garchFreeMH = bind(linker, "ecobridge_garch_free", FunctionDescriptor.of(JAVA_INT, ADDRESS));
+
+        kalmanInitMH = bind(linker, "ecobridge_kalman_init", FunctionDescriptor.of(JAVA_INT, ADDRESS));
+        kalmanFilterMH = bind(linker, "ecobridge_kalman_filter", FunctionDescriptor.of(JAVA_INT, ADDRESS, JAVA_DOUBLE, JAVA_DOUBLE, ADDRESS));
+        kalmanVelocityMH = bind(linker, "ecobridge_kalman_velocity", FunctionDescriptor.of(JAVA_INT, ADDRESS, ADDRESS));
+        kalmanFreeMH = bind(linker, "ecobridge_kalman_free", FunctionDescriptor.of(JAVA_INT, ADDRESS));
+
+        arimaInitMH = bind(linker, "ecobridge_arima_init", FunctionDescriptor.of(JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT));
+        arimaAddObsMH = bind(linker, "ecobridge_arima_add_obs", FunctionDescriptor.of(JAVA_INT, ADDRESS, JAVA_DOUBLE));
+        arimaPredictMH = bind(linker, "ecobridge_arima_predict", FunctionDescriptor.of(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS));
+        arimaFreeMH = bind(linker, "ecobridge_arima_free", FunctionDescriptor.of(JAVA_INT, ADDRESS));
     }
 
     private static MethodHandle bind(Linker linker, String name, FunctionDescriptor desc, Linker.Option... options) {
@@ -327,6 +345,8 @@ public class NativeBridge {
         moneyToMicrosMH = null; microsToMoneyMH = null; computeVolatilityFromStabilityMH = null;
         computeVelocityDecayMH = null; computeFallbackTaxMH = null; computeSettlementMH = null;
         garchInitMH = null; garchUpdateMH = null; garchForecastMH = null; garchMultiplierMH = null; garchFreeMH = null;
+        kalmanInitMH = null; kalmanFilterMH = null; kalmanVelocityMH = null; kalmanFreeMH = null;
+        arimaInitMH = null; arimaAddObsMH = null; arimaPredictMH = null; arimaFreeMH = null;
     }
 
     // --- 安全执行器 ---
@@ -675,6 +695,115 @@ public class NativeBridge {
         executeSafely(() -> {
             try (Arena arena = Arena.ofConfined()) {
                 garchFreeMH.invokeExact(arena.allocateFrom(finalKey));
+            }
+            return null;
+        }, null, false);
+    }
+
+    // ==================================================================================
+    // 8. 卡尔曼滤波
+    // ==================================================================================
+
+    public static void kalmanInit(String key) {
+        if (key == null) key = "__global__";
+        String finalKey = key;
+        executeSafely(() -> {
+            try (Arena arena = Arena.ofConfined()) {
+                kalmanInitMH.invokeExact(arena.allocateFrom(finalKey));
+            }
+            return null;
+        }, null, false);
+    }
+
+    /**
+     * Apply Kalman predict + update cycle.
+     * @return filtered (posterior) position estimate
+     */
+    public static double kalmanFilter(String key, double measurement, double dt) {
+        if (key == null) key = "__global__";
+        String finalKey = key;
+        return executeSafely(() -> {
+            try (Arena arena = Arena.ofConfined()) {
+                MemorySegment out = arena.allocate(JAVA_DOUBLE);
+                int status = (int) kalmanFilterMH.invokeExact(arena.allocateFrom(finalKey), measurement, dt, out);
+                return status == 0 ? out.get(JAVA_DOUBLE, 0L) : measurement;
+            }
+        }, measurement, false);
+    }
+
+    /**
+     * @return current filtered velocity (rate of change) estimate
+     */
+    public static double kalmanVelocity(String key) {
+        if (key == null) key = "__global__";
+        String finalKey = key;
+        return executeSafely(() -> {
+            try (Arena arena = Arena.ofConfined()) {
+                MemorySegment out = arena.allocate(JAVA_DOUBLE);
+                int status = (int) kalmanVelocityMH.invokeExact(arena.allocateFrom(finalKey), out);
+                return status == 0 ? out.get(JAVA_DOUBLE, 0L) : 0.0;
+            }
+        }, 0.0, false);
+    }
+
+    public static void kalmanFree(String key) {
+        if (key == null) key = "__global__";
+        String finalKey = key;
+        executeSafely(() -> {
+            try (Arena arena = Arena.ofConfined()) {
+                kalmanFreeMH.invokeExact(arena.allocateFrom(finalKey));
+            }
+            return null;
+        }, null, false);
+    }
+
+    // ==================================================================================
+    // 9. ARIMA 时序预测
+    // ==================================================================================
+
+    public static void arimaInit(String key, int p, int d) {
+        if (key == null) key = "__global__";
+        String finalKey = key;
+        executeSafely(() -> {
+            try (Arena arena = Arena.ofConfined()) {
+                arimaInitMH.invokeExact(arena.allocateFrom(finalKey), p, d);
+            }
+            return null;
+        }, null, false);
+    }
+
+    public static void arimaAddObservation(String key, double value) {
+        if (key == null) key = "__global__";
+        String finalKey = key;
+        executeSafely(() -> {
+            try (Arena arena = Arena.ofConfined()) {
+                arimaAddObsMH.invokeExact(arena.allocateFrom(finalKey), value);
+            }
+            return null;
+        }, null, false);
+    }
+
+    /**
+     * @return H-step ahead prediction
+     */
+    public static double arimaPredict(String key, int horizon) {
+        if (key == null) key = "__global__";
+        String finalKey = key;
+        return executeSafely(() -> {
+            try (Arena arena = Arena.ofConfined()) {
+                MemorySegment out = arena.allocate(JAVA_DOUBLE);
+                int status = (int) arimaPredictMH.invokeExact(arena.allocateFrom(finalKey), horizon, out);
+                return status == 0 ? out.get(JAVA_DOUBLE, 0L) : 0.0;
+            }
+        }, 0.0, false);
+    }
+
+    public static void arimaFree(String key) {
+        if (key == null) key = "__global__";
+        String finalKey = key;
+        executeSafely(() -> {
+            try (Arena arena = Arena.ofConfined()) {
+                arimaFreeMH.invokeExact(arena.allocateFrom(finalKey));
             }
             return null;
         }, null, false);

@@ -4,6 +4,8 @@
 
 pub mod control;
 pub mod environment;
+pub mod forecast;
+pub mod kalman;
 pub mod pricing;
 pub mod summation;
 pub mod volatility;
