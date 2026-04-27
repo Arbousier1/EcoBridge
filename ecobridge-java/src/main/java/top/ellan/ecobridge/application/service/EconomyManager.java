@@ -205,7 +205,7 @@ public class EconomyManager {
 
                 lastMacroUpdateTime = now;
             } catch (Throwable e) {
-                LogUtil.warn("Economy task error: " + e.getMessage());("鐎瑰繗顫囬悽璇插剼妤傛绨挎惔锔界川缁犳ぞ鎹㈤崝鈥崇磽鐢? " + e.getMessage());
+                LogUtil.warn("Economy task error: " + e.getMessage());
             }
         }, 1, 1, TimeUnit.SECONDS);
     }
