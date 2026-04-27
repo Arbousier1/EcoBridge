@@ -4,21 +4,19 @@ use std::collections::HashMap;
 use std::ops::Deref;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{OnceLock, RwLock};
+use std::sync::{OnceLock, RwLock, LazyLock};
 use std::thread;
 use libc::c_int;
-use lazy_static::lazy_static;
 use crate::models::HistoryRecord;
 
 // -----------------------------------------------------------------------------
 // 静态状态管理
 // -----------------------------------------------------------------------------
 
-lazy_static! {
-    // 全局内存历史 - 单一事实来源 (Single Source of Truth)
-    // 存储的是物品交易数量的 Micros 定点数，用于极致精度的 SIMD 演算
-    static ref GLOBAL_HISTORY: RwLock<Vec<HistoryRecord>> = RwLock::new(Vec::with_capacity(200_000));
-}
+// 全局内存历史 - 单一事实来源 (Single Source of Truth)
+// 存储的是物品交易数量的 Micros 定点数，用于极致精度的 SIMD 演算
+static GLOBAL_HISTORY: LazyLock<RwLock<Vec<HistoryRecord>>> =
+    LazyLock::new(|| RwLock::new(Vec::with_capacity(200_000)));
 
 static LOG_SENDER: OnceLock<Sender<LogEvent>> = OnceLock::new();
 static READ_POOL: OnceLock<ConnectionPool> = OnceLock::new();

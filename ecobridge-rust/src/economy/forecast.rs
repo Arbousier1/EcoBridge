@@ -16,8 +16,8 @@
 //! Coefficients are estimated using the Yule-Walker equations (method of moments).
 
 use std::sync::Mutex;
-use lazy_static::lazy_static;
 use std::collections::HashMap;
+use std::sync::LazyLock;
 
 /// ARIMA model state for a single forecast series.
 #[derive(Debug, Clone)]
@@ -54,9 +54,8 @@ impl ArimaState {
     }
 }
 
-lazy_static! {
-    static ref ARIMA_STATES: Mutex<HashMap<String, ArimaState>> = Mutex::new(HashMap::new());
-}
+static ARIMA_STATES: LazyLock<Mutex<HashMap<String, ArimaState>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
 
 /// Initialize ARIMA predictor for a given key.
 pub fn arima_init(key: &str, p: usize, d: usize) {

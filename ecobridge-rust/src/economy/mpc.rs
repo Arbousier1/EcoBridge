@@ -27,8 +27,8 @@
 //!   lambda ∈ [0.6, 2.2], sink/faucet ∈ [0.0, 1.0]
 
 use std::sync::Mutex;
-use lazy_static::lazy_static;
 use std::collections::HashMap;
+use std::sync::LazyLock;
 
 // ==================== MPC State ====================
 
@@ -66,9 +66,8 @@ pub struct MpcResult {
     pub cost: f64,                  // achieved cost value
 }
 
-lazy_static! {
-    static ref MPC_STATES: Mutex<HashMap<String, MpcState>> = Mutex::new(HashMap::new());
-}
+static MPC_STATES: LazyLock<Mutex<HashMap<String, MpcState>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
 
 const DEFAULT_KEY: &str = "__global__";
 

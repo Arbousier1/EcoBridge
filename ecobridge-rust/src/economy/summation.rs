@@ -13,8 +13,7 @@
 use crate::models::HistoryRecord;
 use crate::storage;
 use std::collections::HashMap;
-use std::sync::RwLock;
-use lazy_static::lazy_static;
+use std::sync::{RwLock, LazyLock};
 
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
@@ -36,9 +35,8 @@ const PRUNE_TO_SIZE: usize = 400_000;
 
 // ==================== 全局内存态 (Hot Memory Layer) ====================
 
-lazy_static! {
-    static ref HOT_HISTORY_BY_KEY: RwLock<HashMap<String, Vec<HistoryRecord>>> = RwLock::new(HashMap::new());
-}
+static HOT_HISTORY_BY_KEY: LazyLock<RwLock<HashMap<String, Vec<HistoryRecord>>>> =
+    LazyLock::new(|| RwLock::new(HashMap::new()));
 
 /// 初始化加载逻辑 (服务器启动时调用)
 pub fn hydrate_hot_store() {

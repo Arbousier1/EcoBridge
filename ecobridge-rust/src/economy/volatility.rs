@@ -15,8 +15,8 @@
 //! Constraints: alpha + beta < 1.0 (stationarity), omega > 0
 
 use std::sync::Mutex;
-use lazy_static::lazy_static;
 use std::collections::HashMap;
+use std::sync::LazyLock;
 
 /// GARCH(1,1) state for a single market or asset.
 #[derive(Debug, Clone)]
@@ -42,9 +42,8 @@ impl GarchState {
     }
 }
 
-lazy_static! {
-    static ref GARCH_STATES: Mutex<HashMap<String, GarchState>> = Mutex::new(HashMap::new());
-}
+static GARCH_STATES: LazyLock<Mutex<HashMap<String, GarchState>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
 
 /// Initialize or reset a GARCH state for a given key.
 pub fn garch_init(key: &str, alpha: f64, beta: f64, omega: f64) {

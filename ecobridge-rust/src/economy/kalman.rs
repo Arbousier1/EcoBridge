@@ -16,8 +16,8 @@
 //! state estimate that accounts for process and measurement noise.
 
 use std::sync::Mutex;
-use lazy_static::lazy_static;
 use std::collections::HashMap;
+use std::sync::LazyLock;
 
 /// 3-state Kalman filter (position, velocity, acceleration).
 /// Uses constant-acceleration kinematics model.
@@ -51,9 +51,8 @@ impl KalmanState {
     }
 }
 
-lazy_static! {
-    static ref KALMAN_STATES: Mutex<HashMap<String, KalmanState>> = Mutex::new(HashMap::new());
-}
+static KALMAN_STATES: LazyLock<Mutex<HashMap<String, KalmanState>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
 
 /// Initialize or reset a Kalman filter state for a given key.
 pub fn kalman_init(key: &str) {

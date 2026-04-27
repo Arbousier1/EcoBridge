@@ -10,7 +10,7 @@ use crate::economy::environment;
 use crate::economy::volatility;
 use std::sync::Mutex;
 use std::collections::HashMap;
-use lazy_static::lazy_static;
+use std::sync::LazyLock;
 
 /// 精度缩放常量 (1.0 = 1,000,000 Micros)
 const MICROS_SCALE: f64 = 1_000_000.0;
@@ -23,9 +23,8 @@ struct RecoveryIntegral {
     last_update_ts: i64,
 }
 
-lazy_static! {
-    static ref RECOVERY_STATES: Mutex<HashMap<String, RecoveryIntegral>> = Mutex::new(HashMap::new());
-}
+static RECOVERY_STATES: LazyLock<Mutex<HashMap<String, RecoveryIntegral>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
 
 /// Recovery parameter set (aligned with simulation-verified optimal values).
 const RECOVERY_ACTIVATION_RATIO: f64 = 0.85;  // activate when price < 85% of hist_avg
