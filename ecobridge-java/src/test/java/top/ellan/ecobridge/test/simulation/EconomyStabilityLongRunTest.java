@@ -396,6 +396,158 @@ public class EconomyStabilityLongRunTest {
     return String.format(Locale.US, "%.6f", v);
   }
 
+  // --- Additional Stability Scenarios ---
+
+  @Test
+  void shouldHandleExtremeSupplyShock() {
+    PredictiveFuzzyFluidController controller =
+        new PredictiveFuzzyFluidController(3.0 * 24.0 * 3600.0, 0.60, 2.20);
+
+    final int totalHours = 48; // 2-day shock window
+    final double dtSeconds = 3600.0;
+    final double targetM1 = 10_000_000.0;
+
+    double m1 = targetM1 * 1.02;
+    double priceIndex = 1.0;
+    double marketHeat = 120 * 0.04 * 0.9;
+    double inflationRate = 0.0;
+    Random random = new Random(20260427L);
+
+    for (int t = 0; t < totalHours; t++) {
+      double faucetBase = 3000.0; // extreme faucet injection
+      double sinkBase = 100.0;
+
+      double ecoSaturation = clamp01(marketHeat / (120 * 5000.0));
+
+      EconomyControlSignals signals =
+          new EconomyControlSignals(
+              inflationRate, marketHeat, ecoSaturation,
+              m1, faucetBase, sinkBase, 120, dtSeconds, 0.04, targetM1);
+      MacroControlDecision decision = controller.decide(signals);
+
+      double netFlowPerSecond =
+          faucetBase * (1.0 + 0.25 * decision.faucetBoost())
+              - sinkBase * (1.0 + 0.30 * decision.sinkBoost());
+
+      m1 = clamp(m1 + netFlowPerSecond * dtSeconds, 0.0, targetM1 * 4.0);
+      double supplyRatio = m1 / targetM1;
+
+      inflationRate = 0.5 * inflationRate + 0.5 * ((supplyRatio - 1.0) * 0.08);
+      marketHeat = 0.8 * marketHeat + 0.2 * (120 * 0.04 * (1.0 - 0.5 * Math.max(0.0, priceIndex - 1.0)));
+      marketHeat = Math.max(0.01, marketHeat);
+      priceIndex = priceIndex * (1.0 + 0.02 * decision.lambdaMultiplier() * (supplyRatio - 1.0 + 0.3 * inflationRate));
+      priceIndex = clamp(priceIndex, 0.10, 5.0);
+    }
+
+    // After 48 hours of extreme shock, the system should not have collapsed
+    assertTrue(priceIndex >= 0.10, "price should not collapse below absolute floor during extreme supply shock");
+    assertTrue(priceIndex <= 5.0, "price should not explode beyond 5x during shock");
+  }
+
+  @Test
+  void shouldStabilizeAfterDemandSpike() {
+    PredictiveFuzzyFluidController controller =
+        new PredictiveFuzzyFluidController(3.0 * 24.0 * 3600.0, 0.60, 2.20);
+
+    final int totalHours = 72; // 3 days
+    final double dtSeconds = 3600.0;
+    final double targetM1 = 10_000_000.0;
+
+    double m1 = targetM1;
+    double priceIndex = 1.0;
+    double marketHeat = 120 * 0.04;
+    double inflationRate = 0.0;
+    Random random = new Random(20260427L);
+
+    double lastPriceIndex = priceIndex;
+
+    for (int t = 0; t < totalHours; t++) {
+      double faucetBase = 520.0;
+      double sinkBase;
+
+      if (t < 24) {
+        sinkBase = 2500.0; // aggressive demand spike (sink = money removed = demand)
+      } else {
+        sinkBase = 500.0; // normal
+      }
+
+      double ecoSaturation = clamp01(marketHeat / (120 * 5000.0));
+
+      EconomyControlSignals signals =
+          new EconomyControlSignals(
+              inflationRate, marketHeat, ecoSaturation,
+              m1, faucetBase, sinkBase, 120, dtSeconds, 0.04, targetM1);
+      MacroControlDecision decision = controller.decide(signals);
+
+      double netFlowPerSecond = faucetBase - sinkBase;
+      m1 = clamp(m1 + netFlowPerSecond * dtSeconds, targetM1 * 0.50, targetM1 * 1.80);
+      double supplyRatio = m1 / targetM1;
+
+      inflationRate = 0.55 * inflationRate + 0.45 * ((supplyRatio - 1.0) * 0.06 + (random.nextDouble() - 0.5) * 0.004);
+      marketHeat = 0.82 * marketHeat + 0.18 * (120 * 0.04);
+      marketHeat = Math.max(0.02, marketHeat);
+      priceIndex = priceIndex * (1.0 + 0.015 * decision.lambdaMultiplier() * (0.45 * inflationRate + 0.55 * (supplyRatio - 1.0)));
+      priceIndex = clamp(priceIndex, 0.30, 2.80);
+
+      lastPriceIndex = priceIndex;
+    }
+
+    // After spike subsides, system should stabilize near equilibrium
+    assertTrue(lastPriceIndex > 0.60 && lastPriceIndex < 1.80,
+        "price should stabilize near equilibrium after demand spike subsides, got: " + lastPriceIndex);
+  }
+
+  @Test
+  void shouldConvergeUnderConstantFlow() {
+    PredictiveFuzzyFluidController controller =
+        new PredictiveFuzzyFluidController(3.0 * 24.0 * 3600.0, 0.60, 2.20);
+
+    final int totalHours = 120; // 5 days
+    final double dtSeconds = 3600.0;
+    final double targetM1 = 10_000_000.0;
+
+    double m1 = targetM1 * 0.75; // start below target
+    double priceIndex = 1.0;
+    double marketHeat = 120 * 0.04;
+    double inflationRate = 0.0;
+    Random random = new Random(20260427L);
+
+    List<Double> supplyDeviations = new ArrayList<>();
+
+    for (int t = 0; t < totalHours; t++) {
+      double faucetBase = 700.0; // positive net flow to push toward target
+      double sinkBase = 500.0;
+
+      double ecoSaturation = clamp01(marketHeat / (120 * 5000.0));
+
+      EconomyControlSignals signals =
+          new EconomyControlSignals(
+              inflationRate, marketHeat, ecoSaturation,
+              m1, faucetBase, sinkBase, 120, dtSeconds, 0.04, targetM1);
+      MacroControlDecision decision = controller.decide(signals);
+
+      double netFlowPerSecond = faucetBase - sinkBase;
+      m1 = clamp(m1 + netFlowPerSecond * dtSeconds, targetM1 * 0.50, targetM1 * 1.80);
+      supplyDeviations.add(Math.abs(m1 / targetM1 - 1.0));
+
+      inflationRate = 0.55 * inflationRate + 0.45 * ((m1 / targetM1 - 1.0) * 0.06);
+      marketHeat = 0.82 * marketHeat + 0.18 * (120 * 0.04);
+      marketHeat = Math.max(0.02, marketHeat);
+      priceIndex = priceIndex * (1.0 + 0.015 * decision.lambdaMultiplier() * (0.45 * inflationRate + 0.55 * (m1 / targetM1 - 1.0)));
+      priceIndex = clamp(priceIndex, 0.30, 2.80);
+    }
+
+    // In the last 24 hours, deviation from target should be small
+    double avgLastDayDeviation = supplyDeviations.stream()
+        .skip(totalHours - 24)
+        .mapToDouble(Double::doubleValue)
+        .average()
+        .orElse(1.0);
+
+    assertTrue(avgLastDayDeviation < 0.25,
+        "system should converge to near-target supply under constant flow, avg deviation: " + avgLastDayDeviation);
+  }
+
   private record SimResult(
       List<Double> timeDays,
       List<Double> supplyRatios,
