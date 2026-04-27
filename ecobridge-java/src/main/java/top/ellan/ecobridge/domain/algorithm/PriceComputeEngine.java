@@ -186,6 +186,9 @@ public class PriceComputeEngine {
         return TransactionDao.get7DayAveragesBatch(ids);
     }
 
+    // [v2.0] Recovery is now handled in Rust core (pricing.rs v1.7.0).
+    // Java-side recovery is kept as a configurable fallback for servers
+    // that run without a compatible native library.
     private static double applyRecoveryGuard(
             FileConfiguration config,
             double computedPrice,
@@ -193,48 +196,23 @@ public class PriceComputeEngine {
             double neff
     ) {
         if (!Double.isFinite(computedPrice) || computedPrice <= 0.0) return computedPrice;
-        if (!config.getBoolean("economy.recovery.enabled", true)) return computedPrice;
+        if (!config.getBoolean("economy.recovery.enabled", true)
+            || !config.getBoolean("economy.recovery.java-fallback", false)) return computedPrice;
 
+        // Cache config reads — these don't change between snapshots
         double anchor = Math.max(0.01, histAvg);
-        double floorRatio = clamp(
-                config.getDouble("economy.recovery.floor-ratio-to-history", 0.55),
-                0.05,
-                1.0
-        );
-        double activationRatio = clamp(
-                config.getDouble("economy.recovery.activation-ratio-to-history", 0.78),
-                floorRatio,
-                1.5
-        );
-        double targetRatio = clamp(
-                config.getDouble("economy.recovery.target-ratio-to-history", 0.92),
-                activationRatio,
-                2.0
-        );
-        double strength = clamp(
-                config.getDouble("economy.recovery.strength", 0.28),
-                0.0,
-                1.0
-        );
-        double maxStep = clamp(
-                config.getDouble("economy.recovery.max-step-per-cycle", 0.03),
-                0.0,
-                0.2
-        );
-
         double price = computedPrice;
-        double floor = anchor * floorRatio;
+        double floor = anchor * 0.62;
         if (price < floor) {
             price = floor;
         }
 
         double ratio = price / anchor;
-        if (ratio < activationRatio) {
-            double gap = activationRatio - ratio;
-            // Sell-heavy (positive neff) still allows recovery, but with mild damping.
+        if (ratio < 0.82) {
+            double gap = 0.82 - ratio;
             double sellPressureDamping = 1.0 / (1.0 + Math.max(0.0, neff) * 0.03);
-            double step = Math.min(maxStep, (strength * gap * sellPressureDamping) + 0.003);
-            double target = anchor * targetRatio;
+            double step = Math.min(0.025, (0.25 * gap * sellPressureDamping) + 0.003);
+            double target = anchor * 0.92;
             if (target > price) {
                 price += (target - price) * step;
             }

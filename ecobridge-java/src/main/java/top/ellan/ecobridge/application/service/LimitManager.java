@@ -25,6 +25,8 @@ public class LimitManager implements EcoLimitAPI {
 
     private final EcoBridge plugin;
     private final Map<String, ConfigurationSection> itemConfigCache = new HashMap<>();
+    // [v2.0] Secondary index: productId → full key(s) for O(1) lookup on cache miss
+    private final Map<String, String> productIdIndex = new HashMap<>();
 
     public LimitManager(EcoBridge plugin) {
         this.plugin = plugin;
@@ -33,7 +35,8 @@ public class LimitManager implements EcoLimitAPI {
 
     public void reloadCache() {
         itemConfigCache.clear();
-        
+        productIdIndex.clear();
+
         FileConfiguration itemsConfig = ItemConfigManager.get();
         if (itemsConfig == null) {
             LogUtil.warn("LimitManager: items.yml 尚未加载，无法构建缓存。");
@@ -49,8 +52,10 @@ public class LimitManager implements EcoLimitAPI {
             if (shopSection == null) continue;
 
             for (String productId : shopSection.getKeys(false)) {
-                // 使用 shopKey + "." + productId 作为组合键，防止跨商店物品 ID 冲突
-                itemConfigCache.put(shopKey + "." + productId, shopSection.getConfigurationSection(productId));
+                String fullKey = shopKey + "." + productId;
+                itemConfigCache.put(fullKey, shopSection.getConfigurationSection(productId));
+                // Index the last segment for O(1) reverse lookup
+                productIdIndex.putIfAbsent(productId, fullKey);
                 count++;
             }
         }
@@ -131,13 +136,13 @@ public class LimitManager implements EcoLimitAPI {
 
     private double getSpecificConfig(String id, String key, double def) {
         ConfigurationSection itemSection = itemConfigCache.get(id);
-        
+
         if (itemSection == null) {
-            itemSection = itemConfigCache.entrySet().stream()
-                .filter(e -> e.getKey().endsWith("." + id))
-                .map(Map.Entry::getValue)
-                .findFirst()
-                .orElse(null);
+            // [v2.0] O(1) reverse lookup via secondary index (was O(n) linear scan)
+            String indexedKey = productIdIndex.get(id);
+            if (indexedKey != null) {
+                itemSection = itemConfigCache.get(indexedKey);
+            }
         }
 
         if (itemSection != null) {

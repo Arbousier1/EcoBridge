@@ -37,7 +37,8 @@ pub const DERIVATIVE_FILTER_ALPHA: f64 = 0.3;
 
 pub const PANIC_THRESHOLD: f64 = 50.0;     // 触发恐慌抑制的加速度阈值
 pub const PANIC_DAMPING: f64 = 1.8;       // 恐慌状态下的微分项放大倍数
-pub const HEAT_SENSITIVITY: f64 = 0.5;    // 财富流速感应灵敏度
+// [v2.0] These are tuned defaults — overridable via economy.macro.* in config.yml
+pub const HEAT_SENSITIVITY: f64 = 0.5;    // 财富流速感应灵敏度 (config: economy.macro.heat-sensitivity)
 
 #[inline]
 fn sigmoid(x: f64) -> f64 {
