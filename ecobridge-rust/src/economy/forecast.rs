@@ -199,7 +199,6 @@ pub fn arima_predict(key: &str, horizon: usize) -> Vec<f64> {
         return vec![];
     }
 
-    let n = state.history.len();
     let p = state.p;
     let max_horizon = horizon.min(48);
     let mut forecasts = Vec::with_capacity(max_horizon);

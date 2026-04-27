@@ -46,8 +46,6 @@ lazy_static! {
     static ref GARCH_STATES: Mutex<HashMap<String, GarchState>> = Mutex::new(HashMap::new());
 }
 
-const DEFAULT_GARCH_KEY: &str = "__global__";
-
 /// Initialize or reset a GARCH state for a given key.
 pub fn garch_init(key: &str, alpha: f64, beta: f64, omega: f64) {
     if !alpha.is_finite() || !beta.is_finite() || !omega.is_finite() {
@@ -188,7 +186,7 @@ mod tests {
 
         // long-term forecast should approach unconditional variance
         let persistence = 0.05 + 0.90;
-        let expected_lr = (1e-6 / (1.0 - persistence)).sqrt();
+        let expected_lr = (1e-6_f64 / (1.0 - persistence)).sqrt();
         assert!((long_term - expected_lr).abs() < 0.01);
     }
 

@@ -246,7 +246,7 @@ mod tests {
 
         // Inject noisy measurements around 100
         let mut filtered = 100.0;
-        for _ in 0..20 {
+        for i in 0..20 {
             let noise = ((i as f64 * 7.0_f64).sin() - 0.5) * 10.0;
             filtered = kalman_filter("smooth", 100.0 + noise, 1.0);
         }
