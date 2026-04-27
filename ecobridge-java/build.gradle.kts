@@ -311,7 +311,7 @@ dependencies {
     compileOnly("me.clip:placeholderapi:2.11.6")
     compileOnly("su.nightexpress.nightcore:main:2.13.0")
     compileOnly("su.nightexpress.coinsengine:CoinsEngine:2.6.0")
-    compileOnly("cn.superiormc.ultimateshop:plugin:4.2.3")
+    compileOnly("cn.superiormc.ultimateshop:plugin:4.4.2")
     
     compileOnly("net.momirealms:craft-engine-core:0.0.66") 
     compileOnly("net.momirealms:craft-engine-bukkit:0.0.66")
