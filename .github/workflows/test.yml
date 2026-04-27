@@ -53,29 +53,17 @@ jobs:
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Restore Rust Native Cache
-        id: rust-native-cache
-        uses: actions/cache@v5
-        with:
-          path: ecobridge-rust/target/release
-          key: rust-native-linux-${{ hashFiles('ecobridge-rust/Cargo.toml', 'ecobridge-rust/Cargo.lock', 'ecobridge-rust/build.rs', 'ecobridge-rust/ecobridge_rust.h', 'ecobridge-rust/src/**') }}
-
       - name: Cache Rust Dependencies
         uses: swatinem/rust-cache@v2
         with:
           workspaces: ecobridge-rust
-          prefix-key: "ecobridge-rust-v1"
+          prefix-key: "ecobridge-rust-v2"
 
       - name: Build Rust Native Kernel
-        if: steps.rust-native-cache.outputs.cache-hit != 'true'
         working-directory: ./ecobridge-rust
         run: |
           cargo build --release
           ls -l target/release/libecobridge_rust.so
-
-      - name: Reuse Cached Rust Native Kernel
-        if: steps.rust-native-cache.outputs.cache-hit == 'true'
-        run: ls -l ecobridge-rust/target/release/libecobridge_rust.so
 
       - name: Inject Native Lib
         run: |
