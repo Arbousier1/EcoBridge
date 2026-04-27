@@ -94,17 +94,23 @@ public class PriceComputeEngine {
         double stability = EconomyManager.getInstance().getMarketStability();
         double activeVolatility = NativeBridge.computeVolatilityFromStability(stability);
 
-        // 5. FFM 资源安全封装
+        // 5. FFM 资源安全封装 — [v2.0] Pre-allocate batch arrays
         try (Arena arena = Arena.ofConfined()) {
-            // 6. Per-item keyed calculation
+            MemorySegment ctxArr = arena.allocate(Layouts.TRADE_CONTEXT, count);
+            MemorySegment cfgArr = arena.allocate(Layouts.MARKET_CONFIG, count);
+            MemorySegment histArr = arena.allocate(java.lang.foreign.ValueLayout.JAVA_DOUBLE, count);
+            MemorySegment lambdaArr = arena.allocate(java.lang.foreign.ValueLayout.JAVA_DOUBLE, count);
+            MemorySegment resultArr = arena.allocate(java.lang.foreign.ValueLayout.JAVA_DOUBLE, count);
+
             for (int i = 0; i < count; i++) {
                 ItemMeta meta = activeItems.get(i);
+                long ctxOffset = (long) i * Layouts.TRADE_CONTEXT.byteSize();
+                long cfgOffset = (long) i * Layouts.MARKET_CONFIG.byteSize();
 
-                MemorySegment ctxSeg = arena.allocate(Layouts.TRADE_CONTEXT);
-                MemorySegment cfgSeg = arena.allocate(Layouts.MARKET_CONFIG);
+                MemorySegment ctxSeg = ctxArr.asSlice(ctxOffset, Layouts.TRADE_CONTEXT);
+                MemorySegment cfgSeg = cfgArr.asSlice(cfgOffset, Layouts.MARKET_CONFIG);
 
                 NativeContextBuilder.fillGlobalContext(ctxSeg, now, 1.0);
-                // Conversion math is delegated to Rust to keep numeric rules centralized.
                 long basePriceMicros = NativeBridge.moneyToMicros(meta.basePrice());
                 NativeBridge.VH_CTX_BASE_PRICE_MICROS.set(ctxSeg, 0L, basePriceMicros);
 
@@ -115,16 +121,19 @@ public class PriceComputeEngine {
                 fillMarketConfigAtOffset(cfgSeg, 0L, itemConfig, config, meta.lambda(), activeVolatility);
 
                 double histAvg = histAvgMap.getOrDefault(meta.uniqueKey(), meta.basePrice());
-                double neff = NativeBridge.queryNeffForKey(now, configTau, meta.uniqueKey());
-                double epsilon = NativeBridge.calculateEpsilon(ctxSeg, cfgSeg);
-                double computedPrice = NativeBridge.computePriceBounded(
-                    meta.basePrice(),
-                    neff,
-                    0.0,
-                    meta.lambda(),
-                    epsilon,
-                    histAvg
-                );
+                histArr.set(java.lang.foreign.ValueLayout.JAVA_DOUBLE, (long) i * 8, histAvg);
+                lambdaArr.set(java.lang.foreign.ValueLayout.JAVA_DOUBLE, (long) i * 8, meta.lambda());
+            }
+
+            // [v2.0] Single batch FFI call instead of per-item loop
+            double neff = NativeBridge.queryNeffVectorized(now, configTau);
+            NativeBridge.computeBatchPrices(count, neff, ctxArr, cfgArr, histArr, lambdaArr, resultArr);
+
+            // Read results and apply recovery
+            for (int i = 0; i < count; i++) {
+                ItemMeta meta = activeItems.get(i);
+                double histAvg = histArr.get(java.lang.foreign.ValueLayout.JAVA_DOUBLE, (long) i * 8);
+                double computedPrice = resultArr.get(java.lang.foreign.ValueLayout.JAVA_DOUBLE, (long) i * 8);
                 computedPrice = applyRecoveryGuard(config, computedPrice, histAvg, neff);
 
                 resultMap.put(

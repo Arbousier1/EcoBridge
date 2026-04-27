@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -35,6 +36,7 @@ public class MacroEngine {
     private final EcoBridge plugin;
     private final AtomicReference<Map<String, Double>> priceSnapshot = new AtomicReference<>(Collections.emptyMap());
     private final AtomicReference<MacroSnapshot> metadataMirror = new AtomicReference<>(null);
+    private final AtomicInteger onlinePlayersMirror = new AtomicInteger(0);
 
     private final ScheduledExecutorService scheduler;
     private volatile BukkitTask metadataSyncTask;
@@ -131,7 +133,13 @@ public class MacroEngine {
     }
 
     private void syncMetadataFromMain() {
+        // [v2.0] Only read online count on main thread.
+        // Heavy ItemConfigManager.get() is deferred to the async runCycle.
         int online = Bukkit.getOnlinePlayers().size();
+        onlinePlayersMirror.set(online);
+    }
+
+    private void refreshItemMetadata() {
         FileConfiguration itemsConfig = ItemConfigManager.get();
         if (itemsConfig == null) return;
 
@@ -155,6 +163,7 @@ public class MacroEngine {
             }
         }
 
+        int online = onlinePlayersMirror.get();
         metadataMirror.set(new MacroSnapshot(online, items));
     }
 
@@ -167,8 +176,17 @@ public class MacroEngine {
         return MemorySegment.NULL;
     }
 
+    private long lastMetadataRefresh;
+
     private void runCycle() {
         if (!plugin.isEnabled() || !NativeBridge.isLoaded()) return;
+
+        // [v2.0] Refresh item metadata off main thread every 30s
+        long now = System.currentTimeMillis();
+        if (now - lastMetadataRefresh > 30_000) {
+            refreshItemMetadata();
+            lastMetadataRefresh = now;
+        }
 
         MacroSnapshot snapshot = metadataMirror.get();
         if (snapshot == null) return;
