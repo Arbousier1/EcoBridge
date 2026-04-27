@@ -1,5 +1,5 @@
 // ==================================================
-// FILE: ecobridge-rust/src/economy/mod.rs
+// FILE: ecobridge-rust/src/economy/mod.rs (v1.7.0)
 // ==================================================
 
 pub mod control;
@@ -9,6 +9,9 @@ pub mod kalman;
 pub mod pricing;
 pub mod summation;
 pub mod volatility;
+
+// Re-export stateful modules for cross-module usage
+pub use volatility::garch_volatility_multiplier;
 
 // 重新导出数据模型 (SSoT v1.6.0 - Precision Hardened)
 pub use crate::models::{PidState, MarketConfig, TradeContext, HistoryRecord};
