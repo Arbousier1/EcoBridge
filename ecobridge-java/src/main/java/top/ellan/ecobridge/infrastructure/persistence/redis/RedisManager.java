@@ -151,6 +151,8 @@ public class RedisManager {
     private void flushLoop() {
         long startNano = System.nanoTime();
         try (Jedis jedis = jedisPool.getResource()) {
+            // [v2.0] Use pipeline for batch publish — single network round-trip
+            var pipeline = jedis.pipelined();
             int processed = 0;
             while (!offlineQueue.isEmpty() && active.get() && processed < 100) {
                 TradePacket packet = offlineQueue.poll();
@@ -158,11 +160,14 @@ public class RedisManager {
 
                 try {
                     String json = mapper.writeValueAsString(packet);
-                    jedis.publish(tradeChannel, json);
+                    pipeline.publish(tradeChannel, json);
                     processed++;
                 } catch (JacksonException e) {
                     LogUtil.error("坏包丢弃: " + packet.productId, e);
                 }
+            }
+            if (processed > 0) {
+                pipeline.sync();
             }
             lastTransferLatency.set(System.nanoTime() - startNano);
         } catch (Exception e) {

@@ -22,6 +22,7 @@ import top.ellan.ecobridge.infrastructure.i18n.I18n;
 import top.ellan.ecobridge.integration.platform.console.StartupBanner;
 import top.ellan.ecobridge.integration.platform.listener.CommandHijacker;
 import top.ellan.ecobridge.infrastructure.persistence.storage.ActivityCollector;
+import top.ellan.ecobridge.util.ConfigMigrator;
 import top.ellan.ecobridge.util.LogUtil;
 
 import java.util.concurrent.ExecutorService;
@@ -66,11 +67,9 @@ public final class EcoBridge extends JavaPlugin implements Listener {
             if (!new java.io.File(getDataFolder(), "config.yml").exists()) {
                 saveDefaultConfig();
             }
-            
 
-
-            
-
+            // Migrate config from older versions
+            ConfigMigrator.checkAndMigrate(this);
 
             // Initialize dedicated items.yml loader.
             ItemConfigManager.init(this);

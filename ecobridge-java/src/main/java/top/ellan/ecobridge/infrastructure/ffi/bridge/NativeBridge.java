@@ -119,6 +119,7 @@ public class NativeBridge {
     private static volatile MethodHandle calcStabilityMH;
     private static volatile MethodHandle calcDecayMH;
     private static volatile MethodHandle computeTierPriceMH;
+    private static volatile MethodHandle computePriceFinalMH;
     private static volatile MethodHandle computePriceBoundedMH;
     private static volatile MethodHandle computeBatchPricesMH;
     private static volatile MethodHandle injectRemoteTradeMH;
@@ -265,6 +266,7 @@ public class NativeBridge {
         calcStabilityMH = bind(linker, "ecobridge_calc_stability", FunctionDescriptor.of(JAVA_INT, JAVA_LONG, JAVA_LONG, ADDRESS), Linker.Option.critical(true));
         calcDecayMH = bind(linker, "ecobridge_calc_decay", FunctionDescriptor.of(JAVA_INT, JAVA_DOUBLE, JAVA_DOUBLE, ADDRESS), Linker.Option.critical(true));
         computeTierPriceMH = bind(linker, "ecobridge_compute_tier_price", FunctionDescriptor.of(JAVA_INT, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_INT, ADDRESS), Linker.Option.critical(true));
+        computePriceFinalMH = bind(linker, "ecobridge_compute_price_final", FunctionDescriptor.of(JAVA_INT, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, ADDRESS));
         computePriceBoundedMH = bind(linker, "ecobridge_compute_price_bounded", FunctionDescriptor.of(JAVA_INT, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, ADDRESS), Linker.Option.critical(true));
         
         checkTransferMH = bind(linker, "ecobridge_compute_transfer_check", FunctionDescriptor.of(JAVA_INT, ADDRESS, ADDRESS, ADDRESS));
@@ -346,7 +348,7 @@ public class NativeBridge {
         queryNeffVectorizedMH = null; computePriceMH = null; calculateEpsilonMH = null;
         checkTransferMH = null; computePidMH = null; resetPidMH = null;
         calcInflationMH = null; calcStabilityMH = null; calcDecayMH = null;
-        computeTierPriceMH = null; computePriceBoundedMH = null; computeBatchPricesMH = null;
+        computePriceFinalMH = null; computeTierPriceMH = null; computePriceBoundedMH = null; computeBatchPricesMH = null;
         injectRemoteTradeMH = null; getDynamicLimitMH = null;
         injectRemoteTradeForKeyMH = null; queryNeffForKeyMH = null;
         moneyToMicrosMH = null; microsToMoneyMH = null; computeVolatilityFromStabilityMH = null;
@@ -417,6 +419,16 @@ public class NativeBridge {
             try (Arena arena = Arena.ofConfined()) {
                 MemorySegment out = arena.allocate(JAVA_DOUBLE);
                 int status = (int) computePriceMH.invokeExact(base, nEff, amount, lambda, epsilon, out);
+                return status == 0 ? out.get(JAVA_DOUBLE, 0) : base;
+            }
+        }, base, false);
+    }
+
+    public static double computePriceFinal(double base, double nEff, double lambda, double epsilon) {
+        return executeSafely(() -> {
+            try (Arena arena = Arena.ofConfined()) {
+                MemorySegment out = arena.allocate(JAVA_DOUBLE);
+                int status = (int) computePriceFinalMH.invokeExact(base, nEff, lambda, epsilon, out);
                 return status == 0 ? out.get(JAVA_DOUBLE, 0) : base;
             }
         }, base, false);
