@@ -36,19 +36,22 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ecobridge-rust/target/release
-          key: rust-native-${{ matrix.os }}-${{ hashFiles('ecobridge-rust/Cargo.toml', 'ecobridge-rust/Cargo.lock', 'ecobridge-rust/build.rs', 'ecobridge-rust/ecobridge_rust.h', 'ecobridge-rust/src/**') }}
+          key: rust-native-v2-${{ matrix.os }}-${{ hashFiles('ecobridge-rust/Cargo.toml', 'ecobridge-rust/Cargo.lock', 'ecobridge-rust/build.rs', 'ecobridge-rust/ecobridge_rust.h', 'ecobridge-rust/src/**') }}
 
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: "ecobridge-rust"
-          prefix-key: "v2-rust-${{ matrix.os }}"
+          prefix-key: "v3-rust-${{ matrix.os }}"
 
       - name: Build Rust Library (Release)
         if: steps.rust-native-cache.outputs.cache-hit != 'true'
         shell: bash
         run: |
           cd ecobridge-rust
+          echo "=== Verifying source files ==="
+          ls -la src/economy/volatility.rs src/economy/kalman.rs src/economy/forecast.rs 2>&1 || true
+          echo "=== Building ==="
           export RUSTFLAGS="${{ matrix.rust_flags }}"
           cargo build --release
 
