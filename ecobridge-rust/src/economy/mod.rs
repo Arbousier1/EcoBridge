@@ -4,10 +4,19 @@
 
 pub mod control;
 pub mod environment;
+
+#[path = "forecast.rs"]
 pub mod forecast;
+
+#[path = "kalman.rs"]
 pub mod kalman;
+
 pub mod pricing;
+
+#[path = "summation.rs"]
 pub mod summation;
+
+#[path = "volatility.rs"]
 pub mod volatility;
 
 // Re-export stateful modules for cross-module usage
