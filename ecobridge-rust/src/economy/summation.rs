@@ -154,10 +154,10 @@ pub fn calculate_volume_in_memory(
     if result.is_finite() { result } else { 0.0 }
 }
 
-/// [v2.0] Cold path: stores dropped logs counter, should not pollute instruction cache.
+/// [v2.0] Cold path: placeholder for future metric export.
 #[cold]
+#[allow(dead_code)]
 fn record_dropped_log(count: u64) {
-    // placeholder for future metric export
     let _ = count;
 }
 

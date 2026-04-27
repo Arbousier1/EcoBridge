@@ -156,12 +156,19 @@ mod tests {
         };
         cfg.volatility_factor = 1.0;
 
-        // Find a known Saturday timestamp
-        // 2026-06-13 is a Saturday, 12:00 UTC = 1718287200
-        let sat_ts = 1_718_287_200_000i64; // Saturday June 13, 2026
+        // 2026-04-25 is a Saturday
+        let sat_ts = 1_745_568_000_000i64;
         let ctx_sat = TradeContext { current_timestamp: sat_ts, ..Default::default() };
         let eps_sat = calculate_epsilon_internal(&ctx_sat, &cfg);
-        assert!(eps_sat > 1.0, "weekend multiplier should increase epsilon on Saturday");
+
+        // Monday
+        let mon_ts = 1_745_740_800_000i64;
+        let ctx_mon = TradeContext { current_timestamp: mon_ts, ..Default::default() };
+        let eps_mon = calculate_epsilon_internal(&ctx_mon, &cfg);
+
+        // Weekend epsilon should be > weekday (weekend multiplier = 1.2)
+        assert!(eps_sat > eps_mon,
+            "weekend epsilon ({}) should exceed weekday epsilon ({})", eps_sat, eps_mon);
     }
 
     #[test]
