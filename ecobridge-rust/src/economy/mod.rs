@@ -11,6 +11,11 @@ pub mod forecast;
 #[path = "kalman.rs"]
 pub mod kalman;
 
+pub mod macro_eco;
+
+#[path = "mpc.rs"]
+pub mod mpc;
+
 pub mod pricing;
 
 #[path = "summation.rs"]

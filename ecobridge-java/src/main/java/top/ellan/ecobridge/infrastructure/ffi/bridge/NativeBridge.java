@@ -144,6 +144,9 @@ public class NativeBridge {
     private static volatile MethodHandle arimaAddObsMH;
     private static volatile MethodHandle arimaPredictMH;
     private static volatile MethodHandle arimaFreeMH;
+    private static volatile MethodHandle mpcInitMH;
+    private static volatile MethodHandle mpcOptimizeMH;
+    private static volatile MethodHandle mpcFreeMH;
 
     static {
         try {
@@ -293,6 +296,10 @@ public class NativeBridge {
         arimaAddObsMH = bind(linker, "ecobridge_arima_add_obs", FunctionDescriptor.of(JAVA_INT, ADDRESS, JAVA_DOUBLE));
         arimaPredictMH = bind(linker, "ecobridge_arima_predict", FunctionDescriptor.of(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS));
         arimaFreeMH = bind(linker, "ecobridge_arima_free", FunctionDescriptor.of(JAVA_INT, ADDRESS));
+
+        mpcInitMH = bind(linker, "ecobridge_mpc_init", FunctionDescriptor.of(JAVA_INT, ADDRESS, JAVA_INT));
+        mpcOptimizeMH = bind(linker, "ecobridge_mpc_optimize", FunctionDescriptor.of(JAVA_INT, ADDRESS, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, ADDRESS, ADDRESS, ADDRESS, ADDRESS));
+        mpcFreeMH = bind(linker, "ecobridge_mpc_free", FunctionDescriptor.of(JAVA_INT, ADDRESS));
     }
 
     private static MethodHandle bind(Linker linker, String name, FunctionDescriptor desc, Linker.Option... options) {
@@ -347,6 +354,7 @@ public class NativeBridge {
         garchInitMH = null; garchUpdateMH = null; garchForecastMH = null; garchMultiplierMH = null; garchFreeMH = null;
         kalmanInitMH = null; kalmanFilterMH = null; kalmanVelocityMH = null; kalmanFreeMH = null;
         arimaInitMH = null; arimaAddObsMH = null; arimaPredictMH = null; arimaFreeMH = null;
+        mpcInitMH = null; mpcOptimizeMH = null; mpcFreeMH = null;
     }
 
     // --- 安全执行器 ---
@@ -804,6 +812,69 @@ public class NativeBridge {
         executeSafely(() -> {
             try (Arena arena = Arena.ofConfined()) {
                 arimaFreeMH.invokeExact(arena.allocateFrom(finalKey));
+            }
+            return null;
+        }, null, false);
+    }
+
+    // ==================================================================================
+    // 10. MPC 模型预测控制
+    // ==================================================================================
+
+    public static void mpcInit(String key, int horizon) {
+        if (key == null) key = "__global__";
+        String finalKey = key;
+        executeSafely(() -> {
+            try (Arena arena = Arena.ofConfined()) {
+                mpcInitMH.invokeExact(arena.allocateFrom(finalKey), horizon);
+            }
+            return null;
+        }, null, false);
+    }
+
+    /**
+     * Optimize macro controls via MPC rolling-horizon constrained optimization.
+     * @return [lambdaMultiplier, sinkBoost, faucetBoost, predictedM1Ratio]
+     */
+    public static double[] mpcOptimize(String key,
+            double m1Ratio, double priceIndex, double inflationRate,
+            double marketHeat, double netFlowRate,
+            double targetM1, double dtSeconds) {
+        if (key == null) key = "__global__";
+        String finalKey = key;
+        return executeSafely(() -> {
+            try (Arena arena = Arena.ofConfined()) {
+                MemorySegment outLambda = arena.allocate(JAVA_DOUBLE);
+                MemorySegment outSink = arena.allocate(JAVA_DOUBLE);
+                MemorySegment outFaucet = arena.allocate(JAVA_DOUBLE);
+                MemorySegment outPredM1 = arena.allocate(JAVA_DOUBLE);
+
+                int status = (int) mpcOptimizeMH.invokeExact(
+                    arena.allocateFrom(finalKey),
+                    m1Ratio, priceIndex, inflationRate,
+                    marketHeat, netFlowRate, targetM1, dtSeconds,
+                    outLambda, outSink, outFaucet, outPredM1
+                );
+
+                if (status == 0) {
+                    return new double[] {
+                        outLambda.get(JAVA_DOUBLE, 0L),
+                        outSink.get(JAVA_DOUBLE, 0L),
+                        outFaucet.get(JAVA_DOUBLE, 0L),
+                        outPredM1.get(JAVA_DOUBLE, 0L),
+                    };
+                }
+                return new double[] {1.0, 0.0, 0.0, m1Ratio}; // fallback: neutral
+            }
+        }, new double[] {1.0, 0.0, 0.0, m1Ratio}, false);
+    }
+
+    public static void mpcFree(String key) {
+        if (key == null) key = "__global__";
+        String finalKey = key;
+        executeSafely(() -> {
+            try (Arena arena = Arena.ofConfined()) {
+                mpcFreeMH.invokeExact(arena.allocateFrom(finalKey));
             }
             return null;
         }, null, false);

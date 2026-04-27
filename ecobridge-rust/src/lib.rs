@@ -21,6 +21,7 @@ pub mod economy {
     pub mod forecast;
     pub mod kalman;
     pub mod macro_eco;
+    pub mod mpc;
     pub mod pricing;
     pub mod summation;
     pub mod volatility;
@@ -883,6 +884,77 @@ pub unsafe extern "C" fn ecobridge_arima_free(
             CStr::from_ptr(key_ptr).to_string_lossy().into_owned()
         };
         economy::forecast::arima_free(&key);
+        EconStatus::Ok
+    })
+}
+
+// -----------------------------------------------------------------------------
+// 10. MPC 模型预测控制
+// -----------------------------------------------------------------------------
+
+#[no_mangle]
+pub unsafe extern "C" fn ecobridge_mpc_init(
+    key_ptr: *const c_char,
+    horizon: c_int,
+) -> c_int {
+    ffi_guard!(|| {
+        let key = if key_ptr.is_null() {
+            "__global__".to_string()
+        } else {
+            CStr::from_ptr(key_ptr).to_string_lossy().into_owned()
+        };
+        economy::mpc::mpc_init(&key, horizon as usize);
+        EconStatus::Ok
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ecobridge_mpc_optimize(
+    key_ptr: *const c_char,
+    m1_ratio: c_double,
+    price_index: c_double,
+    inflation_rate: c_double,
+    market_heat: c_double,
+    net_flow_rate: c_double,
+    target_m1: c_double,
+    dt_seconds: c_double,
+    out_lambda: *mut c_double,
+    out_sink: *mut c_double,
+    out_faucet: *mut c_double,
+    out_pred_m1: *mut c_double,
+) -> c_int {
+    ffi_guard!(|| {
+        if out_lambda.is_null() || out_sink.is_null() || out_faucet.is_null() || out_pred_m1.is_null() {
+            return EconStatus::NullPointer;
+        }
+        let key = if key_ptr.is_null() {
+            "__global__".to_string()
+        } else {
+            CStr::from_ptr(key_ptr).to_string_lossy().into_owned()
+        };
+        let result = economy::mpc::mpc_optimize(
+            &key, m1_ratio, price_index, inflation_rate,
+            market_heat, net_flow_rate, target_m1, dt_seconds,
+        );
+        *out_lambda = result.lambda_multiplier;
+        *out_sink = result.sink_boost;
+        *out_faucet = result.faucet_boost;
+        *out_pred_m1 = result.predicted_m1_ratio;
+        EconStatus::Ok
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ecobridge_mpc_free(
+    key_ptr: *const c_char,
+) -> c_int {
+    ffi_guard!(|| {
+        let key = if key_ptr.is_null() {
+            "__global__".to_string()
+        } else {
+            CStr::from_ptr(key_ptr).to_string_lossy().into_owned()
+        };
+        economy::mpc::mpc_free(&key);
         EconStatus::Ok
     })
 }
