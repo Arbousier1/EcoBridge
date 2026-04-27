@@ -199,25 +199,25 @@ mod tests {
 
     #[test]
     fn test_luxury_tax_applied_above_threshold() {
-        let ctx = make_ctx(200_000_000_000, 10_000_000_000, 500_000, 1.0, 0.8);
+        // Use high play_time to get large enough limit for the luxury transfer
+        let ctx = make_ctx(200_000_000_000, 10_000_000_000, 36_000_000, 1.0, 0.8); // 10000h
         let result = compute_transfer_check_internal(&ctx, &default_cfg());
-        // With luxury threshold at 100k and amount at 200k, tax computation should produce a valid result
         assert!(result.final_tax_micros >= 0, "tax should be non-negative");
-        assert_eq!(result.is_blocked, 0, "normal large transfer should not be blocked if within limits");
+        assert_eq!(result.is_blocked, 0, "transfer within limit should pass");
     }
 
     #[test]
     fn test_wealth_gap_tax_applied() {
+        // High play_time for high enough limit
         let ctx = TransferContext {
             amount_micros: 5_000_000_000,
             sender_balance: 5_000_000_000,
             receiver_balance: 2_000_000_000_000,
-            ..make_ctx(5_000_000_000, 5_000_000_000, 500_000, 1.0, 0.8)
+            ..make_ctx(5_000_000_000, 5_000_000_000, 36_000_000, 1.0, 0.8) // 10000h
         };
         let result = compute_transfer_check_internal(&ctx, &default_cfg());
-        // Poor-to-rich transfer should not be blocked but tax should be computed
         assert!(result.final_tax_micros >= 0, "tax should be non-negative");
-        assert_eq!(result.is_blocked, 0, "poor-to-rich transfer should not be blocked");
+        assert_eq!(result.is_blocked, 0, "poor-to-rich transfer within limits should not be blocked");
     }
 
     #[test]
