@@ -66,6 +66,9 @@ public class ConfigValidator {
         // --- 5. 密钥安全审计 ---
         validateSecrets(config);
 
+        // --- 5b. AI Co-Pilot 配置审计 ---
+        validateAiCoPilot(config);
+
         // --- 6. 系统设置 ---
         healthy &= checkRange(config, "system.log-sample-rate", 0, 100, 100);
 
@@ -112,6 +115,26 @@ public class ConfigValidator {
             if (redisPassword != null && redisPassword.isEmpty()) {
                 LogUtil.info("security: Redis 密码为空，若需要认证请设置 ECOBRIDGE_REDIS_PASSWORD 环境变量");
             }
+        }
+    }
+
+    /**
+     * AI Co-Pilot 配置审计
+     */
+    private static void validateAiCoPilot(FileConfiguration config) {
+        if (config.getBoolean("ai-co-pilot.enabled", false)) {
+            double weight = config.getDouble("ai-co-pilot.weight", 0.30);
+            if (weight < 0.0 || weight > 1.0) {
+                LogUtil.warn("ai-co-pilot.weight 必须在 [0.0, 1.0] 之间，已重置为 0.30");
+                config.set("ai-co-pilot.weight", 0.30);
+            }
+            int timeout = config.getInt("ai-co-pilot.timeout-seconds", 5);
+            if (timeout < 3 || timeout > 15) {
+                LogUtil.warn("ai-co-pilot.timeout-seconds 必须在 [3, 15] 之间，已重置为 5");
+                config.set("ai-co-pilot.timeout-seconds", 5);
+            }
+            LogUtil.info("<gradient:blue:purple>AI Co-Pilot 已启用 (weight="
+                + String.format("%.0f%%", weight * 100) + ")");
         }
     }
 

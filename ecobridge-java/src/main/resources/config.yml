@@ -112,6 +112,19 @@ economy:
 holiday-api:
   url-template: "https://holiday.ailcc.com/api/holiday/year/{year}"
 
+# ====================================================================
+# AI Co-Pilot — 大模型经济调控 (v1.7.0)
+# 启用后，AI 将与原有算法协同调控经济。
+# 关闭时，系统使用纯算法控制 (PredictiveFuzzyFluid + PID)。
+# ====================================================================
+ai-co-pilot:
+  enabled: false
+  provider: "claude"                 # claude | openai | custom
+  api-key: ""                        # 或设环境变量 ANTHROPIC_API_KEY
+  model: "claude-haiku-4-5-20251001" # 推荐 haiku: 快速+低成本
+  base-url: "https://api.anthropic.com"
+  timeout-seconds: 5
+  weight: 0.30                       # AI权重: 0=纯算法, 0.3=30%AI, 1.0=纯AI
 
 internal:
   economy-heat: 0.0

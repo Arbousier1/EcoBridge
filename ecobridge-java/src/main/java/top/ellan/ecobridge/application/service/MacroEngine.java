@@ -9,6 +9,7 @@ import top.ellan.ecobridge.application.control.DefaultEconomySignalCollector;
 import top.ellan.ecobridge.application.control.EconomyControlSignals;
 import top.ellan.ecobridge.application.control.EconomySignalCollector;
 import top.ellan.ecobridge.application.control.MacroControlDecision;
+import top.ellan.ecobridge.application.control.CompositeMacroController;
 import top.ellan.ecobridge.application.control.MacroControlEngine;
 import top.ellan.ecobridge.application.control.PredictiveFuzzyFluidController;
 import top.ellan.ecobridge.domain.algorithm.PriceComputeEngine;
@@ -79,10 +80,12 @@ public class MacroEngine {
             this.signalCollector = new DefaultEconomySignalCollector(economyManager, targetM1Supply);
         }
 
-        this.macroController = new PredictiveFuzzyFluidController(
+        this.macroController = new CompositeMacroController(
+            new PredictiveFuzzyFluidController(
                 controlHorizonSeconds,
                 controlLambdaMin,
                 controlLambdaMax
+            )
         );
     }
 

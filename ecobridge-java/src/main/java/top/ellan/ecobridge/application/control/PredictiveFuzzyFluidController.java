@@ -23,6 +23,12 @@ public class PredictiveFuzzyFluidController implements MacroControlEngine {
         double predictedM1 = s.m1Supply() + netFlowRate * horizonSeconds;
         double supplyRatio = safeRatio(predictedM1, s.targetM1Supply());
 
+        // [v1.7.0] Direct M1 delta feedback — the strongest signal for economic stability.
+        // When M1 deviates from target, the controller directly adjusts faucet/sink
+        // rather than relying solely on fuzzy inference of derived indicators.
+        double m1Deviation = supplyRatio - 1.0; // positive = oversupply, negative = undersupply
+        double m1FeedbackStrength = 0.40; // how strongly M1 deviation drives correction
+
         double inflationHigh = membershipRise(s.inflationRate(), 0.03, 0.18);
         double heatHigh = membershipRise(s.marketHeat(), targetHeat * 0.9, targetHeat * 2.4);
         double overflowHigh = membershipRise(supplyRatio, 1.03, 1.45);
@@ -43,6 +49,15 @@ public class PredictiveFuzzyFluidController implements MacroControlEngine {
                 Math.max(deflationHigh * 0.9 + heatLow * 0.4, (1.0 - s.ecoSaturation()) * 0.35)
         ));
 
+        // [v1.7.0] Direct M1 target correction.
+        // Oversupply (supplyRatio > 1): increase sink, decrease faucet
+        // Undersupply (supplyRatio < 1): increase faucet, decrease sink
+        if (m1Deviation > 0) {
+            sinkBoost = clamp01(sinkBoost + m1Deviation * m1FeedbackStrength);
+        } else {
+            faucetBoost = clamp01(faucetBoost - m1Deviation * m1FeedbackStrength);
+        }
+
         double lambdaMultiplier = 1.0 + sinkBoost * 0.85 - faucetBoost * 0.55;
         lambdaMultiplier = clamp(lambdaMultiplier, minLambdaMultiplier, maxLambdaMultiplier);
 
@@ -50,7 +65,8 @@ public class PredictiveFuzzyFluidController implements MacroControlEngine {
                 + ", infl=" + format(s.inflationRate())
                 + ", heat=" + format(s.marketHeat())
                 + ", sink=" + format(sinkBoost)
-                + ", faucet=" + format(faucetBoost);
+                + ", faucet=" + format(faucetBoost)
+                + ", m1Dev=" + format(m1Deviation);
 
         return new MacroControlDecision(lambdaMultiplier, sinkBoost, faucetBoost, reason);
     }

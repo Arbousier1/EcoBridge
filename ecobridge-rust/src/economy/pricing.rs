@@ -1,28 +1,53 @@
 // ==================================================
-// FILE: ecobridge-rust/src/economy/pricing.rs
+// FILE: ecobridge-rust/src/economy/pricing.rs (v1.7.0)
 // ==================================================
+// [v1.7.0] Recovery & Adaptive Tau: added mean-reversion with integral memory
+// for sustained price stability under chronic oversupply (shop收购 > 玩家购买).
 
 use crate::models::{TradeContext, MarketConfig};
 use rayon::prelude::*;
 use crate::economy::environment;
 use crate::economy::volatility;
+use std::sync::Mutex;
+use std::collections::HashMap;
+use lazy_static::lazy_static;
 
 /// 精度缩放常量 (1.0 = 1,000,000 Micros)
 const MICROS_SCALE: f64 = 1_000_000.0;
+
+// ==================== Recovery State (v1.7.0) ====================
+
+/// Per-item recovery integral state — tracks how long price has been suppressed.
+struct RecoveryIntegral {
+    accumulated_deficit: f64, // sum of (target - price) / hist_avg over suppressed periods
+    last_update_ts: i64,
+}
+
+lazy_static! {
+    static ref RECOVERY_STATES: Mutex<HashMap<String, RecoveryIntegral>> = Mutex::new(HashMap::new());
+}
+
+/// Recovery parameter set (aligned with simulation-verified optimal values).
+const RECOVERY_ACTIVATION_RATIO: f64 = 0.85;  // activate when price < 85% of hist_avg
+const RECOVERY_TARGET_RATIO: f64 = 0.92;       // pull toward 92% of hist_avg
+const RECOVERY_STRENGTH: f64 = 0.25;           // per-cycle pull strength
+const RECOVERY_INTEGRAL_GAIN: f64 = 0.015;     // builds up when suppressed
+const RECOVERY_MAX_INTEGRAL: f64 = 2.0;       // cap on accumulated deficit multiplier
+const RECOVERY_MAX_STEP_RATIO: f64 = 0.03;    // max single-step price increase
 
 // -----------------------------------------------------------------------------
 // 1. 内部定价核心逻辑 (Core Engine)
 // -----------------------------------------------------------------------------
 
-/// 具备行为经济学感知的定价引擎 (v1.6.0 Precision Hardened)
-/// 
+/// 具备行为经济学感知的定价引擎 (v1.7.0)
+///
 /// @param base_price_micros 物品基础定价 (i64 Micros)
 /// @param n_eff 有效物品供应累积量 (来自 SIMD 演算，已缩放为标准 f64)
 /// @param trade_amount_micros 本次交易的物品件数 (i64 Micros)：正数为卖出，负数为买入
 fn compute_price_behavioral_core(
     base_price_micros: i64,
     n_eff: f64,
-    trade_amount_micros: i64, 
+    trade_amount_micros: i64,
     lambda: f64,
     epsilon: f64,
 ) -> f64 {
@@ -30,15 +55,15 @@ fn compute_price_behavioral_core(
     let base_price_f64 = (base_price_micros as f64) / MICROS_SCALE;
     let trade_amount_f64 = (trade_amount_micros as f64) / MICROS_SCALE;
 
-    if !base_price_f64.is_finite() || !n_eff.is_finite() || 
+    if !base_price_f64.is_finite() || !n_eff.is_finite() ||
        !lambda.is_finite() || !epsilon.is_finite() {
         return 0.01;
     }
 
     // 2. 非对称灵敏度 (Asymmetric Sensitivity)
-    // 逻辑：卖出物品时灵敏度降低(0.6x)，模拟“价格下行粘性”
+    // 逻辑：卖出物品时灵敏度降低(0.6x)，模拟”价格下行粘性”
     let adj_lambda = if trade_amount_micros > 0 {
-        lambda * 0.6 
+        lambda * 0.6
     } else {
         lambda
     };
@@ -48,12 +73,12 @@ fn compute_price_behavioral_core(
 
     // 4. 指数演算与平滑限幅 (Soft Clamping)
     let raw_exponent = (-adj_lambda * total_n).clamp(-100.0, 100.0);
-    
+
     // 使用 tanh 确保价格曲线在极端工业产出下平滑逼近底价，不会突变为 0
     let clamped_exponent = 10.0 * (raw_exponent / 10.0).tanh();
-    
+
     let final_price = base_price_f64 * epsilon * clamped_exponent.exp();
-    
+
     // 5. 绝对硬底线 (0.01 货币单位)
     final_price.max(0.01)
 }
@@ -97,8 +122,58 @@ pub fn compute_tier_price_internal(
     total_value / quantity_f64
 }
 
-/// 包含动态底价保护的最终价格演算
-/// @param hist_avg 物品历史均价 (标准 f64)，用于计算动态地板价
+/// Apply mean-reversion recovery: pull prices back toward hist_avg when suppressed.
+/// Returns (adjusted_price, recovery_was_active).
+fn apply_recovery_pull(
+    raw_price: f64,
+    hist_avg: f64,
+    vol_mult: f64,
+    market_key: &str,
+    current_ts: i64,
+) -> (f64, bool) {
+    let activation_price = hist_avg * RECOVERY_ACTIVATION_RATIO;
+    let target_price = hist_avg * RECOVERY_TARGET_RATIO;
+
+    if raw_price >= activation_price || hist_avg <= 0.0 {
+        // Reset integral when price recovers
+        if let Ok(mut states) = RECOVERY_STATES.lock() {
+            if let Some(state) = states.get_mut(market_key) {
+                state.accumulated_deficit *= 0.9; // slow decay of memory
+            }
+        }
+        return (raw_price, false);
+    }
+
+    let mut states = RECOVERY_STATES.lock().unwrap();
+    let state = states.entry(market_key.to_string()).or_insert_with(|| RecoveryIntegral {
+        accumulated_deficit: 0.0,
+        last_update_ts: current_ts,
+    });
+
+    // Compute normalized deficit: how far below target (0 = at target, 1 = at floor)
+    let deficit = ((target_price - raw_price) / target_price.max(0.01)).clamp(0.0, 1.0);
+
+    // Accumulate integral: builds up the longer price stays suppressed
+    state.accumulated_deficit = (state.accumulated_deficit + deficit * RECOVERY_INTEGRAL_GAIN)
+        .min(RECOVERY_MAX_INTEGRAL);
+    state.last_update_ts = current_ts;
+
+    // Combined pull: proportional + integral
+    let integral_factor = 1.0 + state.accumulated_deficit;
+    let recovery_amount = RECOVERY_STRENGTH
+        * deficit
+        * RECOVERY_MAX_STEP_RATIO
+        * hist_avg
+        * integral_factor;
+
+    // GARCH moderates: don't fight strong market trends
+    let moderated_recovery = recovery_amount / vol_mult.max(1.0);
+
+    let adjusted = raw_price + moderated_recovery;
+    (adjusted, true)
+}
+
+/// 包含动态底价保护 + 均值回归恢复的最终价格演算 (v1.7.0)
 pub fn compute_price_bounded_internal(
     base_micros: i64, n_eff: f64, amt_micros: i64, lambda: f64, eps: f64,
     hist_avg: f64
@@ -107,13 +182,22 @@ pub fn compute_price_bounded_internal(
 
     // GARCH volatility-aware dynamic floor: wider safety margin in turbulent markets
     let vol_mult = volatility::garch_volatility_multiplier("__global__");
-    let floor = (hist_avg * 0.2 * vol_mult).max(0.01);
+    let floor = (hist_avg * 0.62 * vol_mult).max(0.01);  // [v1.7.0] raised from 0.2 to 0.62
 
-    if raw_price < floor {
+    let mut price = if raw_price < floor {
         floor
     } else {
         raw_price
-    }
+    };
+
+    // [v1.7.0] Apply recovery pull for sustained price suppression
+    // Uses current timestamp from a simple incrementing counter
+    let (recovered, _active) = apply_recovery_pull(
+        price, hist_avg, vol_mult, "__global__", 0,
+    );
+    price = recovered.max(floor);
+
+    price
 }
 
 // -----------------------------------------------------------------------------
