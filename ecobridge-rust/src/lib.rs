@@ -16,11 +16,14 @@ use lazy_static::lazy_static;
 // -----------------------------------------------------------------------------
 pub mod models;
 pub mod economy {
+    pub mod control;
+    pub mod environment;
+    pub mod forecast;
+    pub mod kalman;
+    pub mod macro_eco;
     pub mod pricing;
     pub mod summation;
-    pub mod environment;
-    pub mod control;
-    pub mod macro_eco;
+    pub mod volatility;
 }
 pub mod security;
 pub mod storage;
