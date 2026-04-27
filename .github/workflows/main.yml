@@ -77,7 +77,7 @@ jobs:
           fi
 
       - name: Upload Native Binary & Header
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.os }}-assets
           path: dist/
@@ -130,7 +130,7 @@ jobs:
           ORG_GRADLE_PROJECT_version: ${{ github.ref_name }}
 
       - name: Upload Plugin JAR
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: EcoBridge-Plugin
           path: ecobridge-java/build/libs/*.jar
