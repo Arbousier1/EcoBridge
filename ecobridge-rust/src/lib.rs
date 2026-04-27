@@ -642,3 +642,98 @@ pub unsafe extern "C" fn ecobridge_reset_pid_state(pid_ptr: *mut PidState) -> c_
         }
     })
 }
+
+// -----------------------------------------------------------------------------
+// 7. GARCH 波动率建模
+// -----------------------------------------------------------------------------
+
+#[no_mangle]
+pub unsafe extern "C" fn ecobridge_garch_init(
+    key_ptr: *const c_char,
+    alpha: c_double,
+    beta: c_double,
+    omega: c_double,
+) -> c_int {
+    ffi_guard!(|| {
+        if key_ptr.is_null() {
+            return EconStatus::NullPointer;
+        }
+        let key = CStr::from_ptr(key_ptr).to_string_lossy();
+        economy::volatility::garch_init(&key, alpha, beta, omega);
+        EconStatus::Ok
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ecobridge_garch_update(
+    key_ptr: *const c_char,
+    return_val: c_double,
+    out_vol: *mut c_double,
+) -> c_int {
+    ffi_guard!(|| {
+        if out_vol.is_null() {
+            return EconStatus::NullPointer;
+        }
+        let key = if key_ptr.is_null() {
+            "__global__".to_string()
+        } else {
+            CStr::from_ptr(key_ptr).to_string_lossy().into_owned()
+        };
+        *out_vol = economy::volatility::garch_update(&key, return_val);
+        EconStatus::Ok
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ecobridge_garch_forecast(
+    key_ptr: *const c_char,
+    steps: c_int,
+    out_vol: *mut c_double,
+) -> c_int {
+    ffi_guard!(|| {
+        if out_vol.is_null() {
+            return EconStatus::NullPointer;
+        }
+        let key = if key_ptr.is_null() {
+            "__global__".to_string()
+        } else {
+            CStr::from_ptr(key_ptr).to_string_lossy().into_owned()
+        };
+        *out_vol = economy::volatility::garch_forecast(&key, steps as u32);
+        EconStatus::Ok
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ecobridge_garch_multiplier(
+    key_ptr: *const c_char,
+    out_mult: *mut c_double,
+) -> c_int {
+    ffi_guard!(|| {
+        if out_mult.is_null() {
+            return EconStatus::NullPointer;
+        }
+        let key = if key_ptr.is_null() {
+            "__global__".to_string()
+        } else {
+            CStr::from_ptr(key_ptr).to_string_lossy().into_owned()
+        };
+        *out_mult = economy::volatility::garch_volatility_multiplier(&key);
+        EconStatus::Ok
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ecobridge_garch_free(
+    key_ptr: *const c_char,
+) -> c_int {
+    ffi_guard!(|| {
+        let key = if key_ptr.is_null() {
+            "__global__".to_string()
+        } else {
+            CStr::from_ptr(key_ptr).to_string_lossy().into_owned()
+        };
+        economy::volatility::garch_free(&key);
+        EconStatus::Ok
+    })
+}

@@ -15,6 +15,7 @@ import redis.clients.jedis.args.FlushMode;
 
 import top.ellan.ecobridge.EcoBridge;
 import top.ellan.ecobridge.application.service.PricingManager;
+import top.ellan.ecobridge.infrastructure.SecurityConfig;
 import top.ellan.ecobridge.util.LogUtil;
 
 import java.util.concurrent.CompletableFuture;
@@ -95,7 +96,9 @@ public class RedisManager {
                 .clientName("EcoBridge-Win-WSL")
                 .connectionTimeoutMillis(2000)
                 .socketTimeoutMillis(2000)
-                .password(plugin.getConfig().getString("redis.password", null))
+                .ssl(true)
+                .password(SecurityConfig.resolvePassword(
+                    "redis.password", "ECOBRIDGE_REDIS_PASSWORD", null))
                 .build();
 
         // ✅ 修复：将单独的 host, port 封装进 HostAndPort 对象

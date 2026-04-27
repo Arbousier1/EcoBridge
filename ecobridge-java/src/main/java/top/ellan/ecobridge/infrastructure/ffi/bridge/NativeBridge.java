@@ -131,6 +131,11 @@ public class NativeBridge {
     private static volatile MethodHandle computeVelocityDecayMH;
     private static volatile MethodHandle computeFallbackTaxMH;
     private static volatile MethodHandle computeSettlementMH;
+    private static volatile MethodHandle garchInitMH;
+    private static volatile MethodHandle garchUpdateMH;
+    private static volatile MethodHandle garchForecastMH;
+    private static volatile MethodHandle garchMultiplierMH;
+    private static volatile MethodHandle garchFreeMH;
 
     static {
         try {
@@ -264,6 +269,12 @@ public class NativeBridge {
         computeVelocityDecayMH = bind(linker, "ecobridge_compute_velocity_decay", FunctionDescriptor.of(JAVA_INT, JAVA_DOUBLE, JAVA_LONG, JAVA_DOUBLE, ADDRESS));
         computeFallbackTaxMH = bind(linker, "ecobridge_compute_fallback_tax", FunctionDescriptor.of(JAVA_INT, JAVA_DOUBLE, ADDRESS));
         computeSettlementMH = bind(linker, "ecobridge_compute_settlement", FunctionDescriptor.of(JAVA_INT, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_INT, ADDRESS, ADDRESS));
+
+        garchInitMH = bind(linker, "ecobridge_garch_init", FunctionDescriptor.of(JAVA_INT, ADDRESS, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE));
+        garchUpdateMH = bind(linker, "ecobridge_garch_update", FunctionDescriptor.of(JAVA_INT, ADDRESS, JAVA_DOUBLE, ADDRESS));
+        garchForecastMH = bind(linker, "ecobridge_garch_forecast", FunctionDescriptor.of(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS));
+        garchMultiplierMH = bind(linker, "ecobridge_garch_multiplier", FunctionDescriptor.of(JAVA_INT, ADDRESS, ADDRESS));
+        garchFreeMH = bind(linker, "ecobridge_garch_free", FunctionDescriptor.of(JAVA_INT, ADDRESS));
     }
 
     private static MethodHandle bind(Linker linker, String name, FunctionDescriptor desc, Linker.Option... options) {
@@ -315,6 +326,7 @@ public class NativeBridge {
         injectRemoteTradeForKeyMH = null; queryNeffForKeyMH = null;
         moneyToMicrosMH = null; microsToMoneyMH = null; computeVolatilityFromStabilityMH = null;
         computeVelocityDecayMH = null; computeFallbackTaxMH = null; computeSettlementMH = null;
+        garchInitMH = null; garchUpdateMH = null; garchForecastMH = null; garchMultiplierMH = null; garchFreeMH = null;
     }
 
     // --- 安全执行器 ---
@@ -602,6 +614,68 @@ public class NativeBridge {
     public static void resetPidState(MemorySegment pidPtr) {
         executeSafely(() -> {
             resetPidMH.invokeExact(pidPtr);
+            return null;
+        }, null, false);
+    }
+
+    // ==================================================================================
+    // 7. GARCH 波动率建模
+    // ==================================================================================
+
+    public static void garchInit(String key, double alpha, double beta, double omega) {
+        if (key == null) key = "__global__";
+        String finalKey = key;
+        executeSafely(() -> {
+            try (Arena arena = Arena.ofConfined()) {
+                garchInitMH.invokeExact(arena.allocateFrom(finalKey), alpha, beta, omega);
+            }
+            return null;
+        }, null, false);
+    }
+
+    public static double garchUpdate(String key, double returnVal) {
+        if (key == null) key = "__global__";
+        String finalKey = key;
+        return executeSafely(() -> {
+            try (Arena arena = Arena.ofConfined()) {
+                MemorySegment out = arena.allocate(JAVA_DOUBLE);
+                int status = (int) garchUpdateMH.invokeExact(arena.allocateFrom(finalKey), returnVal, out);
+                return status == 0 ? out.get(JAVA_DOUBLE, 0L) : 0.0;
+            }
+        }, 0.0, false);
+    }
+
+    public static double garchForecast(String key, int steps) {
+        if (key == null) key = "__global__";
+        String finalKey = key;
+        return executeSafely(() -> {
+            try (Arena arena = Arena.ofConfined()) {
+                MemorySegment out = arena.allocate(JAVA_DOUBLE);
+                int status = (int) garchForecastMH.invokeExact(arena.allocateFrom(finalKey), steps, out);
+                return status == 0 ? out.get(JAVA_DOUBLE, 0L) : 0.0;
+            }
+        }, 0.0, false);
+    }
+
+    public static double garchVolatilityMultiplier(String key) {
+        if (key == null) key = "__global__";
+        String finalKey = key;
+        return executeSafely(() -> {
+            try (Arena arena = Arena.ofConfined()) {
+                MemorySegment out = arena.allocate(JAVA_DOUBLE);
+                int status = (int) garchMultiplierMH.invokeExact(arena.allocateFrom(finalKey), out);
+                return status == 0 ? out.get(JAVA_DOUBLE, 0L) : 1.0;
+            }
+        }, 1.0, false);
+    }
+
+    public static void garchFree(String key) {
+        if (key == null) key = "__global__";
+        String finalKey = key;
+        executeSafely(() -> {
+            try (Arena arena = Arena.ofConfined()) {
+                garchFreeMH.invokeExact(arena.allocateFrom(finalKey));
+            }
             return null;
         }, null, false);
     }

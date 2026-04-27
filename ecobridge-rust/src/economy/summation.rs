@@ -231,3 +231,78 @@ unsafe fn compute_partial_simd(
 
     total
 }
+
+// ==================== 单元测试 ====================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::HistoryRecord;
+
+    fn make_record(ts: i64, amount_micros: i64) -> HistoryRecord {
+        HistoryRecord { timestamp: ts, amount_micros }
+    }
+
+    #[test]
+    fn test_empty_history_returns_zero() {
+        let history: Vec<HistoryRecord> = vec![];
+        let result = calculate_volume_in_memory(&history, 1_000_000_000, 7.0);
+        assert!((result - 0.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_tau_zero_returns_zero() {
+        let history = vec![make_record(1_000_000_000, 1_000_000)];
+        let result = calculate_volume_in_memory(&history, 1_000_100_000, 0.0);
+        assert!((result - 0.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_exp_decay_basic() {
+        let history = vec![make_record(1_000_000_000, 1_000_000)];
+        let result = calculate_volume_in_memory(&history, 1_000_100_000, 7.0);
+        assert!(result > 0.0, "recent trade should contribute to n_eff");
+    }
+
+    #[test]
+    fn test_old_records_decay_to_zero() {
+        let old_ts = 1_000_000_000;
+        let now = old_ts + (90 * 86_400_000); // 90 days later
+        let history = vec![make_record(old_ts, 1_000_000_000)];
+        let result = calculate_volume_in_memory(&history, now, 7.0);
+        assert!(result < 0.001, "90-day-old record should have decayed to near zero");
+    }
+
+    #[test]
+    fn test_window_bounds_filtering() {
+        let now = 2_000_000_000i64;
+        let history = vec![
+            make_record(1_000_000_000, 1_000_000),   // old
+            make_record(1_999_000_000, 2_000_000),   // recent
+            make_record(3_000_000_000, 3_000_000),   // future (should be filtered)
+        ];
+        let result = calculate_volume_in_memory(&history, now, 7.0);
+        assert!(result > 0.0);
+    }
+
+    #[test]
+    fn test_binary_search_start_finds_correct_index() {
+        let now = 2_000_000_000i64;
+        let history = vec![
+            make_record(0, 1_000_000),
+            make_record(500_000_000, 1_000_000),
+            make_record(1_000_000_000, 1_000_000),
+            make_record(1_950_000_000, 5_000_000), // recent enough
+        ];
+        let result = calculate_volume_in_memory(&history, now, 30.0);
+        assert!(result > 0.0, "should find valid records");
+    }
+
+    #[test]
+    fn test_non_finite_result_clamped_to_zero() {
+        // given a very small tau, lambda becomes huge, potentially causing overflow
+        let history = vec![make_record(1_000_000_000, i64::MAX)];
+        let result = calculate_volume_in_memory(&history, 1_000_001_000, 0.0001);
+        assert!(result.is_finite(), "result should always be finite");
+    }
+}

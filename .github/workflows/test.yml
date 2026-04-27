@@ -12,12 +12,15 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      ECOBRIDGE_DB_PASSWORD: ${{ secrets.ECOBRIDGE_DB_PASSWORD }}
+      ECOBRIDGE_REDIS_PASSWORD: ${{ secrets.ECOBRIDGE_REDIS_PASSWORD }}
 
     services:
       mysql:
         image: mariadb:latest
         env:
-          MARIADB_ROOT_PASSWORD: root
+          MARIADB_ROOT_PASSWORD: ${{ secrets.ECOBRIDGE_DB_PASSWORD }}
           MARIADB_DATABASE: ecobridge
         ports:
           - 3306:3306
@@ -157,12 +160,13 @@ jobs:
             port: 3306
             database: ecobridge
             username: root
-            password: root
+            password: ${ECOBRIDGE_DB_PASSWORD}
             pool-size: 5
           redis:
             enabled: true
             host: 127.0.0.1
             port: 6379
+            password: ${ECOBRIDGE_REDIS_PASSWORD}
             server-id: "github-ci-runner"
           economy:
             currency-id: "coins"

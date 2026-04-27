@@ -3,6 +3,7 @@ package top.ellan.ecobridge.infrastructure.persistence.database;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import top.ellan.ecobridge.EcoBridge;
+import top.ellan.ecobridge.infrastructure.SecurityConfig;
 import top.ellan.ecobridge.util.LogUtil;
 
 import java.sql.Connection;
@@ -55,11 +56,12 @@ public class DatabaseManager {
         int port = config.getInt("database.port", 3306);
         String dbName = config.getString("database.database", "ecobridge");
         String user = config.getString("database.username", "root");
-        String pass = config.getString("database.password", "");
+        String pass = SecurityConfig.resolvePassword(
+            "database.password", "ECOBRIDGE_DB_PASSWORD", "change_me_to_real_password"
+        );
 
-        // 预设优化参数：开启批处理重写、统一时区并禁用不必要的 SSL 握手
         String jdbcUrl = String.format(
-            "jdbc:mysql://%s:%d/%s?useSSL=false&serverTimezone=UTC&rewriteBatchedStatements=true&allowPublicKeyRetrieval=true",
+            "jdbc:mysql://%s:%d/%s?useSSL=true&requireSSL=true&serverTimezone=UTC&rewriteBatchedStatements=true&allowPublicKeyRetrieval=true",
             host, port, dbName
         );
 

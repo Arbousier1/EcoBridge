@@ -132,7 +132,138 @@ pub fn compute_transfer_check_internal(
 
 /// 判断演算结果是否属于高风险或拦截交易
 pub fn is_high_risk_transfer(result: &crate::models::TransferResult) -> bool {
-    result.is_blocked == 1 
-    || result.warning_code == CODE_WARNING_HIGH_RISK 
+    result.is_blocked == 1
+    || result.warning_code == CODE_WARNING_HIGH_RISK
     || result.warning_code == CODE_BLOCK_QUANTITY_LIMIT
+}
+
+// ==================== 单元测试 ====================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_ctx(amount_micros: i64, sender_balance: i64, sender_play_time: i64,
+                 sender_velocity: f64, sender_activity: f64) -> TransferContext {
+        TransferContext {
+            amount_micros,
+            sender_balance,
+            receiver_balance: 500_000_000_000,
+            inflation_rate: 0.02,
+            item_base_limit: 2_364_000_000,
+            item_growth_rate: 16.0,
+            item_max_limit: 4_728_000_000,
+            sender_play_time,
+            receiver_play_time: 100_000,
+            sender_activity_score: sender_activity,
+            sender_velocity,
+            ..Default::default()
+        }
+    }
+
+    fn default_cfg() -> RegulatorConfig {
+        RegulatorConfig::default()
+    }
+
+    #[test]
+    fn test_normal_transfer_passes() {
+        let ctx = make_ctx(1_000_000_000, 10_000_000_000, 500_000, 1.0, 0.8);
+        let result = compute_transfer_check_internal(&ctx, &default_cfg());
+        assert_eq!(result.is_blocked, 0, "normal transfer should not be blocked");
+        assert_eq!(result.warning_code, CODE_NORMAL);
+    }
+
+    #[test]
+    fn test_quantity_limit_blocked() {
+        let ctx = make_ctx(100_000_000_000_000, 10_000_000_000, 500_000, 1.0, 0.8);
+        let result = compute_transfer_check_internal(&ctx, &default_cfg());
+        assert_eq!(result.is_blocked, 1);
+        assert_eq!(result.warning_code, CODE_BLOCK_QUANTITY_LIMIT);
+    }
+
+    #[test]
+    fn test_quantity_limit_respects_playtime_growth() {
+        let ctx_veteran = make_ctx(4_500_000_000, 10_000_000_000, 3_600_000, 1.0, 0.8);
+        let result_veteran = compute_transfer_check_internal(&ctx_veteran, &default_cfg());
+        assert_eq!(result_veteran.is_blocked, 0, "veteran with 1000h should have higher limit");
+
+        let ctx_newbie = make_ctx(4_500_000_000, 10_000_000_000, 36_000, 1.0, 0.8);
+        let result_newbie = compute_transfer_check_internal(&ctx_newbie, &default_cfg());
+        assert_eq!(result_newbie.is_blocked, 1, "newbie with 10h should be blocked at same amount");
+    }
+
+    #[test]
+    fn test_puppet_detection_high_frequency() {
+        let ctx = make_ctx(1_000_000_000, 10_000_000_000, 500_000, 50.0, 0.05);
+        let result = compute_transfer_check_internal(&ctx, &default_cfg());
+        assert_eq!(result.is_blocked, 1, "puppet-like behavior should be blocked");
+        assert_eq!(result.warning_code, CODE_BLOCK_VELOCITY_LIMIT);
+    }
+
+    #[test]
+    fn test_normal_user_not_puppet_flagged() {
+        let ctx = make_ctx(1_000_000_000, 10_000_000_000, 500_000, 5.0, 1.0);
+        let result = compute_transfer_check_internal(&ctx, &default_cfg());
+        assert_eq!(result.warning_code, CODE_NORMAL, "normal user should not be flagged");
+    }
+
+    #[test]
+    fn test_luxury_tax_applied_above_threshold() {
+        let ctx = make_ctx(200_000_000_000, 10_000_000_000, 500_000, 1.0, 0.8);
+        let result = compute_transfer_check_internal(&ctx, &default_cfg());
+        assert!(result.final_tax_micros > 0, "luxury tax should be applied");
+    }
+
+    #[test]
+    fn test_wealth_gap_tax_applied() {
+        let ctx = TransferContext {
+            amount_micros: 5_000_000_000,
+            sender_balance: 5_000_000_000,
+            receiver_balance: 2_000_000_000_000,
+            ..make_ctx(5_000_000_000, 5_000_000_000, 500_000, 1.0, 0.8)
+        };
+        let result = compute_transfer_check_internal(&ctx, &default_cfg());
+        assert!(result.final_tax_micros > 0, "wealth gap tax should be applied");
+    }
+
+    #[test]
+    fn test_tax_capped_at_80_percent() {
+        let mut cfg = default_cfg();
+        cfg.base_tax_rate = 2.0;
+        cfg.luxury_tax_rate = 2.0;
+        let ctx = make_ctx(200_000_000_000, 10_000_000_000, 500_000, 100.0, 0.01);
+        let result = compute_transfer_check_internal(&ctx, &cfg);
+        let tax_f64 = (result.final_tax_micros as f64) / MICROS_SCALE;
+        let amount_f64 = (ctx.amount_micros as f64) / MICROS_SCALE;
+        assert!(tax_f64 <= amount_f64 * 0.8 + 1e-6, "tax must be capped at 80% of transfer amount");
+    }
+
+    #[test]
+    fn test_high_risk_warning_near_limit() {
+        let ctx = make_ctx(2_000_000_000, 10_000_000_000, 500_000, 1.0, 0.8);
+        let result = compute_transfer_check_internal(&ctx, &default_cfg());
+        if result.warning_code == CODE_WARNING_HIGH_RISK {
+            assert!(is_high_risk_transfer(&result));
+        }
+    }
+
+    #[test]
+    fn test_transfer_result_codes() {
+        assert_eq!(CODE_NORMAL, 0);
+        assert_eq!(CODE_WARNING_HIGH_RISK, 1);
+    }
+
+    #[test]
+    fn test_to_micros_saturating_normal() {
+        assert_eq!(to_micros_saturating(1.0), 1_000_000);
+        assert_eq!(to_micros_saturating(0.5), 500_000);
+        assert_eq!(to_micros_saturating(0.0), 0);
+    }
+
+    #[test]
+    fn test_to_micros_saturating_nan_and_inf() {
+        assert_eq!(to_micros_saturating(f64::NAN), 0);
+        assert_eq!(to_micros_saturating(f64::INFINITY), i64::MAX);
+        assert_eq!(to_micros_saturating(f64::NEG_INFINITY), i64::MIN);
+    }
 }

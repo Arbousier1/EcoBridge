@@ -63,7 +63,10 @@ public class ConfigValidator {
         healthy &= checkRange(config, "economy.audit-settings.base-tax-rate", 0.0, 1.0, 0.05);
         healthy &= checkRange(config, "economy.audit-settings.luxury-tax-rate", 0.0, 1.0, 0.1);
 
-        // --- 5. 系统设置 ---
+        // --- 5. 密钥安全审计 ---
+        validateSecrets(config);
+
+        // --- 6. 系统设置 ---
         healthy &= checkRange(config, "system.log-sample-rate", 0, 100, 100);
 
         if (!healthy) {
@@ -92,6 +95,24 @@ public class ConfigValidator {
             return false;
         }
         return true;
+    }
+
+    /**
+     * 密钥安全审计：检测明文密码是否为默认占位值。
+     */
+    private static void validateSecrets(FileConfiguration config) {
+        String dbPassword = config.getString("database.password", "");
+        if (dbPassword.equals("change_me_to_real_password") || dbPassword.isEmpty()) {
+            LogUtil.warn("security: database.password 未配置！请设置 ECOBRIDGE_DB_PASSWORD 环境变量或修改 config.yml");
+        }
+
+        boolean redisEnabled = config.getBoolean("redis.enabled", false);
+        if (redisEnabled) {
+            String redisPassword = config.getString("redis.password", "");
+            if (redisPassword != null && redisPassword.isEmpty()) {
+                LogUtil.info("security: Redis 密码为空，若需要认证请设置 ECOBRIDGE_REDIS_PASSWORD 环境变量");
+            }
+        }
     }
 
     /**

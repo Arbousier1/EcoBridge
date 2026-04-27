@@ -17,3 +17,9 @@ exported_code.txt
 a.py
 b.py
 local.properties
+
+# 敏感密钥文件
+secrets.yml
+*.pem
+*.key
+*.crt

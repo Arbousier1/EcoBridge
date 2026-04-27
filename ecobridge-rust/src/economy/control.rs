@@ -181,4 +181,52 @@ mod tests {
         let out = compute_pid_adjustment_internal(&mut pid, 10.0, 80.0, 0.1, 0.0, 1.0);
         assert!(out < OUTPUT_BASELINE, "恐慌状态下 D项应产生强力反向压制输出");
     }
+
+    #[test]
+    fn test_pid_zero_error_steady_state() {
+        let mut pid = PidState::default();
+        // target == current -> error = 0, output should converge to baseline
+        let out = compute_pid_adjustment_internal(&mut pid, 5.0, 5.0, 0.1, 0.02, 0.5);
+        assert!(out.is_finite() && out > 0.0, "steady state should produce valid output");
+    }
+
+    #[test]
+    fn test_pid_step_response_bounded() {
+        let mut pid = PidState::default();
+        let out = compute_pid_adjustment_internal(&mut pid, 100.0, 0.0, 0.1, 0.0, 0.5);
+        assert!(out >= OUTPUT_MIN_CLAMP && out <= OUTPUT_MAX_CLAMP, "output must stay within clamp bounds");
+    }
+
+    #[test]
+    fn test_gain_scheduling_continuity() {
+        let pid = PidState::default();
+        let (kp1, ki1) = compute_adaptive_gain(&pid, 0.0);
+        let (kp2, ki2) = compute_adaptive_gain(&pid, 0.5);
+        let (kp3, ki3) = compute_adaptive_gain(&pid, 5.0);
+        assert!(kp3 > kp2 && kp2 > kp1, "Kp should increase monotonically with heat");
+        assert!(ki3 < ki2 && ki2 < ki1, "Ki should decrease monotonically with heat (anti-windup)");
+    }
+
+    #[test]
+    fn test_pid_non_finite_input_returns_baseline() {
+        let mut pid = PidState::default();
+        let out = compute_pid_adjustment_internal(&mut pid, f64::NAN, 5.0, 0.1, 0.0, 0.5);
+        assert!((out - OUTPUT_BASELINE).abs() < 1e-6, "NaN input should return baseline");
+
+        let out2 = compute_pid_adjustment_internal(&mut pid, 5.0, 5.0, -1.0, 0.0, 0.5);
+        assert!((out2 - OUTPUT_BASELINE).abs() < 1e-6, "negative dt should return baseline");
+    }
+
+    #[test]
+    fn test_validate_pid_params_accepts_default() {
+        let pid = PidState::default();
+        assert!(validate_pid_params(&pid));
+    }
+
+    #[test]
+    fn test_validate_pid_params_rejects_bad_lambda() {
+        let mut pid = PidState::default();
+        pid.lambda = 1.5;
+        assert!(!validate_pid_params(&pid));
+    }
 }

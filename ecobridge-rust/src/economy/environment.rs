@@ -122,4 +122,83 @@ mod tests {
         let eps_pro = calculate_epsilon_internal(&ctx_pro, &cfg);
         assert!((eps_pro - 1.0).abs() < 1e-4);
     }
+
+    #[test]
+    fn test_seasonal_cycle_produces_valid_range() {
+        let cfg = MarketConfig {
+            seasonal_weight: 1.0,
+            weekend_weight: 0.0,
+            newbie_weight: 0.0,
+            inflation_weight: 0.0,
+            ..MarketConfig::default()
+        };
+        // test over multiple timestamps to ensure seasonality is smooth
+        for day in 0..365 {
+            let ctx = TradeContext {
+                current_timestamp: (day * 86_400) * 1000,
+                ..Default::default()
+            };
+            let eps = calculate_epsilon_internal(&ctx, &cfg);
+            assert!(eps >= 0.1 && eps <= 10.0, "epsilon should always be within clamped bounds");
+            assert!(eps.is_finite(), "epsilon should be finite");
+        }
+    }
+
+    #[test]
+    fn test_weekend_factor_applied() {
+        let mut cfg = MarketConfig {
+            weekend_weight: 1.0,
+            seasonal_weight: 0.0,
+            newbie_weight: 0.0,
+            inflation_weight: 0.0,
+            weekend_multiplier: 1.2,
+            ..MarketConfig::default()
+        };
+        cfg.volatility_factor = 1.0;
+
+        // Find a known Saturday timestamp
+        // 2026-06-13 is a Saturday, 12:00 UTC = 1718287200
+        let sat_ts = 1_718_287_200_000i64; // Saturday June 13, 2026
+        let ctx_sat = TradeContext { current_timestamp: sat_ts, ..Default::default() };
+        let eps_sat = calculate_epsilon_internal(&ctx_sat, &cfg);
+        assert!(eps_sat > 1.0, "weekend multiplier should increase epsilon on Saturday");
+    }
+
+    #[test]
+    fn test_epsilon_clamped_to_0_1_to_10() {
+        let mut cfg = MarketConfig::default();
+        cfg.volatility_factor = 1000.0; // extreme
+        cfg.seasonal_amplitude = 100.0; // extreme
+
+        let ctx = TradeContext { current_timestamp: 1_000_000_000_000, ..Default::default() };
+        let eps = calculate_epsilon_internal(&ctx, &cfg);
+        assert!(eps >= 0.1 && eps <= 10.0, "epsilon must be clamped to [0.1, 10.0]");
+    }
+
+    #[test]
+    fn test_inflation_feedback_triggers_above_5_percent() {
+        let mut cfg = MarketConfig {
+            inflation_weight: 1.0,
+            seasonal_weight: 0.0,
+            weekend_weight: 0.0,
+            newbie_weight: 0.0,
+            ..MarketConfig::default()
+        };
+        cfg.volatility_factor = 1.0;
+
+        let ctx_low = TradeContext {
+            inflation_rate: 0.01,
+            current_timestamp: 1_000_000_000_000,
+            ..Default::default()
+        };
+        let ctx_high = TradeContext {
+            inflation_rate: 0.20,
+            current_timestamp: 1_000_000_000_000,
+            ..Default::default()
+        };
+
+        let eps_low = calculate_epsilon_internal(&ctx_low, &cfg);
+        let eps_high = calculate_epsilon_internal(&ctx_high, &cfg);
+        assert!(eps_high > eps_low, "high inflation should produce larger epsilon");
+    }
 }

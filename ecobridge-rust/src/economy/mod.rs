@@ -6,6 +6,7 @@ pub mod control;
 pub mod environment;
 pub mod pricing;
 pub mod summation;
+pub mod volatility;
 
 // 重新导出数据模型 (SSoT v1.6.0 - Precision Hardened)
 pub use crate::models::{PidState, MarketConfig, TradeContext, HistoryRecord};

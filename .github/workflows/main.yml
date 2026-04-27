@@ -52,6 +52,12 @@ jobs:
           export RUSTFLAGS="${{ matrix.rust_flags }}"
           cargo build --release
 
+      - name: Run Rust Tests
+        shell: bash
+        run: |
+          cd ecobridge-rust
+          cargo test --release
+
       - name: Reuse Cached Rust Library
         if: steps.rust-native-cache.outputs.cache-hit == 'true'
         run: echo "Rust native cache hit, skip cargo build."

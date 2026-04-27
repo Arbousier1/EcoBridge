@@ -5,6 +5,7 @@
 use crate::models::{TradeContext, MarketConfig};
 use rayon::prelude::*;
 use crate::economy::environment;
+use crate::economy::volatility;
 
 /// 精度缩放常量 (1.0 = 1,000,000 Micros)
 const MICROS_SCALE: f64 = 1_000_000.0;
@@ -99,14 +100,15 @@ pub fn compute_tier_price_internal(
 /// 包含动态底价保护的最终价格演算
 /// @param hist_avg 物品历史均价 (标准 f64)，用于计算动态地板价
 pub fn compute_price_bounded_internal(
-    base_micros: i64, n_eff: f64, amt_micros: i64, lambda: f64, eps: f64, 
+    base_micros: i64, n_eff: f64, amt_micros: i64, lambda: f64, eps: f64,
     hist_avg: f64
 ) -> f64 {
     let raw_price = compute_price_behavioral_core(base_micros, n_eff, amt_micros, lambda, eps);
-    
-    // 动态地板价逻辑: 价格不得低于历史均价的 20%，防止市场彻底崩溃
-    let floor = (hist_avg * 0.2).max(0.01);
-    
+
+    // GARCH volatility-aware dynamic floor: wider safety margin in turbulent markets
+    let vol_mult = volatility::garch_volatility_multiplier("__global__");
+    let floor = (hist_avg * 0.2 * vol_mult).max(0.01);
+
     if raw_price < floor {
         floor
     } else {
@@ -157,11 +159,201 @@ pub unsafe fn compute_batch_prices_internal(
 
             *price_out = compute_price_bounded_internal(
                 ctx.base_price_micros, // 使用适配后的字段名
-                neff, 
-                0, 
-                lambda, 
-                epsilon, 
+                neff,
+                0,
+                lambda,
+                epsilon,
                 hist_avg
             );
         });
+}
+
+// ==================== 单元测试 ====================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // --- behavioral core ---
+
+    #[test]
+    fn test_normal_buy_scenario() {
+        let price = compute_price_behavioral_core(
+            1_000_000, // base = 1.0
+            500.0,      // n_eff
+            -10_000_000, // buy 10 items (negative = buy)
+            0.01,
+            1.0,
+        );
+        assert!(price > 0.01, "buy price should be above absolute floor");
+        assert!(price < 1.0, "price should decrease with positive n_eff");
+    }
+
+    #[test]
+    fn test_sell_asymmetry_lambda_reduced() {
+        // sell: lambda * 0.6; buy: lambda * 1.0
+        let price_sell = compute_price_behavioral_core(
+            1_000_000, // base = 1.0
+            100.0,
+            50_000_000, // sell 50 items (positive = sell)
+            0.01,
+            1.0,
+        );
+        let price_buy = compute_price_behavioral_core(
+            1_000_000,
+            100.0,
+            -50_000_000, // buy 50 items
+            0.01,
+            1.0,
+        );
+        // sell should have a HIGHER price (less sensitive lambda = 0.6x)
+        // sell adds to n_eff, so price should be lower, but asymmetry means sell is less affected
+        assert!(price_sell > price_buy,
+            "sell price should be higher than buy price due to asymmetric lambda (0.6x for sells)");
+    }
+
+    #[test]
+    fn test_non_finite_input_returns_floor() {
+        let price = compute_price_behavioral_core(1_000_000, f64::NAN, 0, 0.01, 1.0);
+        assert!((price - 0.01).abs() < 1e-6, "NaN input should return absolute floor 0.01");
+
+        let price2 = compute_price_behavioral_core(1_000_000, 100.0, 0, f64::INFINITY, 1.0);
+        assert!((price2 - 0.01).abs() < 1e-6, "Infinite lambda should return absolute floor 0.01");
+    }
+
+    #[test]
+    fn test_tanh_soft_clamping_limits_exponent() {
+        // With huge n_eff, the raw exponent would be massively negative,
+        // but tanh clamping prevents it from going below ~-10
+        let price = compute_price_behavioral_core(
+            1_000_000, // base = 1.0
+            1_000_000.0, // extremely large n_eff
+            0,
+            0.01,
+            1.0,
+        );
+        // tanh clamps the exponent so price won't be 0, just very small
+        assert!(price > 0.01, "tanh clamping must prevent price from hitting zero");
+    }
+
+    #[test]
+    fn test_zero_n_eff_epsilon_one_gives_base_price() {
+        let price = compute_price_behavioral_core(
+            2_000_000, // base = 2.0
+            0.0,
+            0,
+            0.01,
+            1.0,
+        );
+        // exp(0) * base * 1.0 = base = 2.0
+        assert!((price - 2.0).abs() < 0.01);
+    }
+
+    // --- tier pricing ---
+
+    #[test]
+    fn test_tier_price_normal_quantity_no_discount() {
+        let result = compute_tier_price_internal(10.0, 400.0, true);
+        assert!((result - 10.0).abs() < 1e-6, "<= 500 items should have no tier discount");
+    }
+
+    #[test]
+    fn test_tier_price_three_levels() {
+        let result = compute_tier_price_internal(10.0, 3000.0, true);
+        // tier 1: 500 * 10 = 5000
+        // tier 2: 1500 * 8.5 = 12750
+        // tier 3: 1000 * 6.0 = 6000
+        // total = 23750 / 3000 = 7.9166...
+        assert!(result < 10.0, "bulk sell should get tier discount");
+        assert!(result > 5.0, "tier price should not drop below deepest tier rate");
+        let expected = (500.0 * 10.0 + 1500.0 * 8.5 + 1000.0 * 6.0) / 3000.0;
+        assert!((result - expected).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_tier_price_buy_no_discount() {
+        let result = compute_tier_price_internal(10.0, 5000.0, false);
+        assert!((result - 10.0).abs() < 1e-6, "buy orders should never trigger tier discount");
+    }
+
+    #[test]
+    fn test_tier_price_zero_quantity() {
+        let result = compute_tier_price_internal(10.0, -1.0, true);
+        assert!((result - 10.0).abs() < 1e-6);
+    }
+
+    // --- bounded / floor ---
+
+    #[test]
+    fn test_dynamic_floor_from_hist_avg() {
+        let price = compute_price_bounded_internal(
+            1_000_000, // base = 1.0
+            1_000_000.0, // huge n_eff would make price very low
+            0,
+            0.01,
+            1.0,
+            5.0, // hist_avg = 5.0, floor = 5.0 * 0.2 = 1.0
+        );
+        assert!(price >= 1.0, "floor should be at least hist_avg * 0.2 = 1.0");
+    }
+
+    #[test]
+    fn test_absolute_floor_never_below_001() {
+        let price = compute_price_bounded_internal(
+            1_000_000,
+            1_000_000.0,
+            0,
+            100.0,
+            1.0,
+            0.001, // hist_avg so low that 20% = 0.0002, but absolute floor is 0.01
+        );
+        assert!(price >= 0.01, "absolute floor of 0.01 must be respected");
+    }
+
+    // --- batch ---
+
+    #[test]
+    fn test_batch_prices_produces_correct_count() {
+        let count = 5;
+        let ctx = vec![TradeContext {
+            base_price_micros: 1_000_000,
+            current_timestamp: 1_700_000_000_000,
+            ..Default::default()
+        }; count];
+        let cfg = vec![MarketConfig::default(); count];
+        let hist_avgs = vec![2.0; count];
+        let lambdas = vec![0.01; count];
+        let mut output = vec![0.0; count];
+
+        unsafe {
+            compute_batch_prices_internal(
+                count,
+                100.0,
+                ctx.as_ptr(),
+                cfg.as_ptr(),
+                hist_avgs.as_ptr(),
+                lambdas.as_ptr(),
+                output.as_mut_ptr(),
+            );
+        }
+
+        for &price in &output {
+            assert!(price.is_finite() && price > 0.0, "all batch prices should be finite and positive");
+        }
+    }
+
+    // --- final price (zero trade amount) ---
+
+    #[test]
+    fn test_compute_price_final_is_pure_query() {
+        let price = compute_price_final_internal(2_000_000, 100.0, 0.01, 1.0);
+        assert!(price > 0.01 && price.is_finite(), "final price query should return valid price");
+    }
+
+    #[test]
+    fn test_humane_price_includes_trade_impact() {
+        let base = compute_price_humane_internal(2_000_000, 100.0, 0, 0.01, 1.0);
+        let with_trade = compute_price_humane_internal(2_000_000, 100.0, 50_000_000, 0.01, 1.0);
+        assert!(with_trade < base, "selling should reduce price due to increased supply");
+    }
 }
