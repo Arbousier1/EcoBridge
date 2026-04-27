@@ -307,21 +307,21 @@ detekt {
 }
 
 dependencies {
-    compileOnly("io.papermc.paper:paper-api:1.21.1-R0.1-SNAPSHOT")
+    compileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
     compileOnly("me.clip:placeholderapi:2.11.6")
     compileOnly("su.nightexpress.nightcore:main:2.13.0")
     compileOnly("su.nightexpress.coinsengine:CoinsEngine:2.6.0")
     compileOnly("cn.superiormc.ultimateshop:plugin:4.2.3")
     
-    compileOnly("net.momirealms:craft-engine-core:0.0.66") 
-    compileOnly("net.momirealms:craft-engine-bukkit:0.0.66")
+    compileOnly("net.momirealms:craft-engine-core:0.0.67.11") 
+    compileOnly("net.momirealms:craft-engine-bukkit:0.0.67.11")
 
     compileOnly(fileTree(mapOf("dir" to "libs", "include" to listOf("**/*.jar"))))
 
     compileOnly(platform("tools.jackson:jackson-bom:3.0.0"))
     compileOnly("tools.jackson.core:jackson-databind")
 
-    compileOnly("org.mariadb.jdbc:mariadb-java-client:3.5.7")
+    compileOnly("org.mariadb.jdbc:mariadb-java-client:3.5.8")
     compileOnly("com.zaxxer:HikariCP:7.0.2")
     compileOnly("com.github.ben-manes.caffeine:caffeine:3.2.3")
     compileOnly("redis.clients:jedis:5.2.0")
@@ -335,7 +335,7 @@ dependencies {
 
     testImplementation(platform("org.junit:junit-bom:5.11.0"))
     testImplementation("org.junit.jupiter:junit-jupiter")
-    testImplementation("io.papermc.paper:paper-api:1.21.1-R0.1-SNAPSHOT")
+    testImplementation("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
     testImplementation("org.ow2.asm:asm:9.9.1")
     testImplementation("org.mockito:mockito-core:5.14.0")
     testImplementation("org.mockito:mockito-junit-jupiter:5.14.0")
