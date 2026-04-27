@@ -35,11 +35,12 @@ public class CompositeMacroController implements MacroControlEngine {
 
         if (enabled) {
             String provider = config.getString("ai-co-pilot.provider", "claude");
-            this.aiAdvisor = switch (provider) {
+            this.aiAdvisor = switch (provider.toLowerCase()) {
                 case "claude", "anthropic" -> new ClaudeEconomicAdvisor();
+                case "openai", "openai-compatible", "azure" -> new OpenAiEconomicAdvisor();
                 default -> {
-                    LogUtil.warn("AI Co-Pilot: unknown provider '" + provider + "', using Claude");
-                    yield new ClaudeEconomicAdvisor();
+                    LogUtil.warn("AI Co-Pilot: unknown provider '" + provider + "', trying OpenAI format");
+                    yield new OpenAiEconomicAdvisor();
                 }
             };
             this.aiWeight = clampWeight(config.getDouble("ai-co-pilot.weight", 0.30));
