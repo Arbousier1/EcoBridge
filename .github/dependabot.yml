@@ -1,0 +1,64 @@
+version: 2
+updates:
+  # --- Rust / Cargo dependencies ---
+  - package-ecosystem: "cargo"
+    directory: "/ecobridge-rust"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Shanghai"
+    commit-message:
+      prefix: "build(deps-rust)"
+    labels:
+      - "dependencies"
+      - "rust"
+    open-pull-requests-limit: 5
+    groups:
+      patch-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+    ignore:
+      # duckdb bundled feature pins its own libduckdb-sys version
+      - dependency-name: "duckdb"
+        update-types: ["version-update:semver-major"]
+
+  # --- Java / Gradle dependencies ---
+  - package-ecosystem: "gradle"
+    directory: "/ecobridge-java"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Shanghai"
+    commit-message:
+      prefix: "build(deps-java)"
+    labels:
+      - "dependencies"
+      - "java"
+    open-pull-requests-limit: 5
+    groups:
+      patch-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+    ignore:
+      # Paper API is pinned to a specific Minecraft version
+      - dependency-name: "io.papermc.paper:paper-api"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      # jextract / JDK early-access — manual upgrade only
+      - dependency-name: "org.openjdk.jextract:*"
+
+  # --- GitHub Actions ---
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    commit-message:
+      prefix: "ci"
+    labels:
+      - "dependencies"
+      - "ci"
