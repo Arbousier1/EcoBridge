@@ -337,8 +337,8 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter")
     testImplementation("io.papermc.paper:paper-api:1.21.1-R0.1-SNAPSHOT")
     testImplementation("org.ow2.asm:asm:9.9.1")
-    testImplementation("org.mockito:mockito-core:5.14.0")
-    testImplementation("org.mockito:mockito-junit-jupiter:5.14.0")
+    testImplementation("org.mockito:mockito-core:5.23.0")
+    testImplementation("org.mockito:mockito-junit-jupiter:5.23.0")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
