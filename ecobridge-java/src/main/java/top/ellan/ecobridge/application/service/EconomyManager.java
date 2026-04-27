@@ -65,7 +65,7 @@ public class EconomyManager {
         this.dataFile = new File(plugin.getDataFolder(), "data.yml");
 
         this.economicScheduler = Executors.newSingleThreadScheduledExecutor(
-            Thread.ofVirtual().name("EcoBridge-Economy-Worker").factory()
+            Thread.ofPlatform().name("EcoBridge-Economy-Worker").factory()
         );
         
         loadState();
@@ -204,8 +204,8 @@ public class EconomyManager {
                 }
 
                 lastMacroUpdateTime = now;
-            } catch (Exception e) {
-                LogUtil.warn("鐎瑰繗顫囬悽璇插剼妤傛绨挎惔锔界川缁犳ぞ鎹㈤崝鈥崇磽鐢? " + e.getMessage());
+            } catch (Throwable e) {
+                LogUtil.warn("Economy task error: " + e.getMessage());("鐎瑰繗顫囬悽璇插剼妤傛绨挎惔锔界川缁犳ぞ鎹㈤崝鈥崇磽鐢? " + e.getMessage());
             }
         }, 1, 1, TimeUnit.SECONDS);
     }

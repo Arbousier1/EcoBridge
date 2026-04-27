@@ -43,6 +43,7 @@ const RECOVERY_MAX_STEP_RATIO: f64 = 0.03;    // max single-step price increase
 /// @param base_price_micros 物品基础定价 (i64 Micros)
 /// @param n_eff 有效物品供应累积量 (来自 SIMD 演算，已缩放为标准 f64)
 /// @param trade_amount_micros 本次交易的物品件数 (i64 Micros)：正数为卖出，负数为买入
+#[inline]
 fn compute_price_behavioral_core(
     base_price_micros: i64,
     n_eff: f64,
@@ -88,6 +89,7 @@ fn compute_price_behavioral_core(
 
 /// 计算阶梯定价 (Tier Pricing)
 /// 针对单笔超大量物品售出的防御性降价逻辑
+#[inline]
 pub fn compute_tier_price_internal(
     base_price: f64, 
     quantity_f64: f64, 
@@ -123,80 +125,72 @@ pub fn compute_tier_price_internal(
 
 /// Apply mean-reversion recovery: pull prices back toward hist_avg when suppressed.
 /// Returns (adjusted_price, recovery_was_active).
+/// [v2.0] Uses `entry()` to avoid double HashMap lookup.
 fn apply_recovery_pull(
     raw_price: f64,
     hist_avg: f64,
     vol_mult: f64,
-    market_key: &str,
     current_ts: i64,
 ) -> (f64, bool) {
     let activation_price = hist_avg * RECOVERY_ACTIVATION_RATIO;
     let target_price = hist_avg * RECOVERY_TARGET_RATIO;
 
     if raw_price >= activation_price || hist_avg <= 0.0 {
-        // Reset integral when price recovers
+        // Decay integral via single entry lookup
         if let Ok(mut states) = RECOVERY_STATES.lock() {
-            if let Some(state) = states.get_mut(market_key) {
-                state.accumulated_deficit *= 0.9; // slow decay of memory
+            if let Some(state) = states.get_mut("__global__") {
+                state.accumulated_deficit *= 0.9;
             }
         }
         return (raw_price, false);
     }
 
+    // Single lock + single HashMap access via entry()
     let mut states = RECOVERY_STATES.lock().unwrap();
-    let state = states.entry(market_key.to_string()).or_insert_with(|| RecoveryIntegral {
+    let state = states.entry("__global__".into()).or_insert_with(|| RecoveryIntegral {
         accumulated_deficit: 0.0,
         last_update_ts: current_ts,
     });
 
-    // Compute normalized deficit: how far below target (0 = at target, 1 = at floor)
     let deficit = ((target_price - raw_price) / target_price.max(0.01)).clamp(0.0, 1.0);
-
-    // Accumulate integral: builds up the longer price stays suppressed
     state.accumulated_deficit = (state.accumulated_deficit + deficit * RECOVERY_INTEGRAL_GAIN)
         .min(RECOVERY_MAX_INTEGRAL);
     state.last_update_ts = current_ts;
 
-    // Combined pull: proportional + integral
     let integral_factor = 1.0 + state.accumulated_deficit;
-    let recovery_amount = RECOVERY_STRENGTH
-        * deficit
-        * RECOVERY_MAX_STEP_RATIO
-        * hist_avg
-        * integral_factor;
-
-    // GARCH moderates: don't fight strong market trends
+    let recovery_amount = RECOVERY_STRENGTH * deficit * RECOVERY_MAX_STEP_RATIO * hist_avg * integral_factor;
     let moderated_recovery = recovery_amount / vol_mult.max(1.0);
 
-    let adjusted = raw_price + moderated_recovery;
-    (adjusted, true)
+    (raw_price + moderated_recovery, true)
 }
 
 /// 包含动态底价保护 + 均值回归恢复的最终价格演算 (v1.7.0)
+/// [v2.0] vol_mult pre-computed per batch; recovery uses static key (no alloc).
 pub fn compute_price_bounded_internal(
     base_micros: i64, n_eff: f64, amt_micros: i64, lambda: f64, eps: f64,
     hist_avg: f64
 ) -> f64 {
     let raw_price = compute_price_behavioral_core(base_micros, n_eff, amt_micros, lambda, eps);
-
-    // GARCH volatility-aware dynamic floor: wider safety margin in turbulent markets
     let vol_mult = volatility::garch_volatility_multiplier("__global__");
-    let floor = (hist_avg * 0.62 * vol_mult).max(0.01);  // [v1.7.0] raised from 0.2 to 0.62
+    let floor = (hist_avg * 0.62 * vol_mult).max(0.01);
 
-    let mut price = if raw_price < floor {
-        floor
-    } else {
-        raw_price
-    };
-
-    // [v1.7.0] Apply recovery pull for sustained price suppression
-    // Uses current timestamp from a simple incrementing counter
-    let (recovered, _active) = apply_recovery_pull(
-        price, hist_avg, vol_mult, "__global__", 0,
-    );
+    let mut price = raw_price.max(floor);
+    let (recovered, _active) = apply_recovery_pull(price, hist_avg, vol_mult, 0);
     price = recovered.max(floor);
 
     price
+}
+
+#[inline]
+pub fn compute_price_bounded_internal_cached(
+    base_micros: i64, n_eff: f64, amt_micros: i64, lambda: f64, eps: f64,
+    hist_avg: f64, vol_mult: f64
+) -> f64 {
+    let raw_price = compute_price_behavioral_core(base_micros, n_eff, amt_micros, lambda, eps);
+    let floor = (hist_avg * 0.62 * vol_mult).max(0.01);
+    let mut price = raw_price.max(floor);
+    let (recovered, _active) = apply_recovery_pull(price, hist_avg, vol_mult, 0);
+    recovered.max(floor)
 }
 
 // -----------------------------------------------------------------------------
@@ -229,7 +223,9 @@ pub unsafe fn compute_batch_prices_internal(
     let lambdas = std::slice::from_raw_parts(lambdas_ptr, count);
     let output = std::slice::from_raw_parts_mut(output_ptr, count);
 
-    // 并行演算，确保在打开商店大菜单时零延迟
+    // [v2.0] Pre-compute GARCH vol_mult once per batch (was per-item)
+    let vol_mult = volatility::garch_volatility_multiplier("__global__");
+
     output.par_iter_mut()
         .enumerate()
         .for_each(|(i, price_out)| {
@@ -240,13 +236,14 @@ pub unsafe fn compute_batch_prices_internal(
 
             let epsilon = environment::calculate_epsilon_internal(ctx, cfg);
 
-            *price_out = compute_price_bounded_internal(
-                ctx.base_price_micros, // 使用适配后的字段名
+            *price_out = compute_price_bounded_internal_cached(
+                ctx.base_price_micros,
                 neff,
                 0,
                 lambda,
                 epsilon,
-                hist_avg
+                hist_avg,
+                vol_mult,
             );
         });
 }

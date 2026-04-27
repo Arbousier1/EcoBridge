@@ -98,6 +98,7 @@ pub fn query_neff_global_internal(current_ts: i64, tau: f64) -> f64 {
 
 // ==================== 内存计算实现 (Binary Search + SIMD) ====================
 
+#[inline]
 pub fn calculate_volume_in_memory(
     history: &[HistoryRecord],
     current_time: i64,

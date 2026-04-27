@@ -315,27 +315,37 @@ pub fn load_recent_history(days: i64) -> Vec<crate::models::HistoryRecord> {
         Ok(c) => c,
         Err(_) => return Vec::new(),
     };
-    
+
+    // Guard ensures connection is always returned to pool
+    let guard = DbConnectionGuard {
+        conn: Some(raw_conn),
+        pool_sender: pool.recycle.clone(),
+    };
+
     let ms_lookback = days * 86_400_000;
     let cutoff = chrono::Utc::now().timestamp_millis() - ms_lookback;
 
     let query = "SELECT ts, delta FROM economy_log WHERE ts > ? ORDER BY ts ASC";
-    let mut stmt = raw_conn.prepare(query).unwrap();
-    let record_iter = stmt.query_map(params![cutoff], |row| {
+    let mut stmt = match guard.prepare(query) {
+        Ok(s) => s,
+        Err(_) => return Vec::new(),
+    };
+    let record_iter = match stmt.query_map(params![cutoff], |row| {
         let amt_f64: f64 = row.get(1)?;
         Ok(crate::models::HistoryRecord {
             timestamp: row.get(0)?,
-            // [Precision Fix]: 字段重命名并转换单位
             amount_micros: (amt_f64 * 1_000_000.0) as i64,
         })
-    }).unwrap();
+    }) {
+        Ok(iter) => iter,
+        Err(_) => return Vec::new(),
+    };
 
     let mut history = Vec::new();
     for record in record_iter.flatten() {
         history.push(record);
     }
-    
-    let _ = pool.recycle.send(raw_conn);
+    // Guard drops here, connection returned to pool
     history
 }
 

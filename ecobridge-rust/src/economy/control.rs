@@ -49,6 +49,7 @@ fn sigmoid(x: f64) -> f64 {
 /// 根据市场热度（财富流速）动态计算自适应增益
 /// 
 /// 解决了传统机械调节在长周期货币沉淀时的滞后问题。
+#[inline]
 pub fn compute_adaptive_gain(cfg: &PidState, heat: f64) -> (f64, f64) {
     // 当流速(heat)越高，系统弹性越大，响应越灵敏
     let sensitivity = (heat * HEAT_SENSITIVITY).tanh(); 

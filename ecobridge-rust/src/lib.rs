@@ -64,7 +64,7 @@ fn extract_market_key(meta: &str) -> Option<&str> {
 }
 
 #[inline]
-fn to_micros_saturating(value: f64) -> i64 {
+pub(crate) fn to_micros_saturating(value: f64) -> i64 {
     if !value.is_finite() {
         return 0;
     }

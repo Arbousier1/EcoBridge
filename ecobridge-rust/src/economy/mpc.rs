@@ -115,7 +115,10 @@ pub fn mpc_optimize(
 
     // Initialize control sequence: [lambda, sink, faucet] × horizon
     // Start from neutral: lambda=1.0, sink=0, faucet=0
-    let mut controls = vec![1.0_f64, 0.0, 0.0; h];
+    let mut controls = vec![0.0_f64; h * 3];
+    for i in 0..h {
+        controls[i * 3] = 1.0; // lambda starts at 1.0 (neutral)
+    }
     let mut cost = f64::MAX;
 
     // Gradient descent

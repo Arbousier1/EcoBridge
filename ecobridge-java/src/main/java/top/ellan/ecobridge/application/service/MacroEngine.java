@@ -54,7 +54,7 @@ public class MacroEngine {
     public MacroEngine(EcoBridge plugin) {
         this.plugin = plugin;
         this.scheduler = Executors.newSingleThreadScheduledExecutor(
-                Thread.ofVirtual().name("EcoBridge-Macro-Scheduler").factory()
+                Thread.ofPlatform().name("EcoBridge-Macro-Scheduler").factory()
         );
     }
 
