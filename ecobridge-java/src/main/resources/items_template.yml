@@ -1,0 +1,7018 @@
+# EcoBridge items.yml template
+# Generated from 1397 items via mc-toolkit recipe analysis
+# Source: https://gist.github.com/queengooborg/92d08120f0d6d25175f6c7a30e3ccac7
+#
+# Each item has:
+#   base-price — derived from Minecraft crafting recipes
+#   lambda — price sensitivity (lower = more stable)
+#   sell-ratio — optional per-item sell multiplier
+#   daily-limit — optional per-player daily sell cap (high-volume items only)
+#
+# Difficulty tiers:
+#   徒手可得       ( 283 items) λ=0.0300
+#   基础合成       ( 601 items) λ=0.0200
+#   铁器时代       ( 374 items) λ=0.0120
+#   钻石装备       (  78 items) λ=0.0060
+#   稀有掉落       (  53 items) λ=0.0030
+#   终极物品       (   8 items) λ=0.0015
+
+item-settings:
+  # === 徒手可得 (λ=0.0300) ===
+    # Acaciasapling
+    default.acaciasapling:
+      base-price: 1.80
+      lambda: 0.0300
+
+    # Acaciaslab
+    default.acaciaslab:
+      base-price: 1.11
+      lambda: 0.0300
+
+    # Andesite
+    default.andesite:
+      base-price: 1.70
+      lambda: 0.0300
+
+    # Andesiteslab
+    default.andesiteslab:
+      base-price: 0.83
+      lambda: 0.0300
+
+    # Andesitewall
+    default.andesitewall:
+      base-price: 1.61
+      lambda: 0.0300
+
+    # Arrow
+    default.arrow:
+      base-price: 0.54
+      lambda: 0.0300
+
+    # Azalea
+    default.azalea:
+      base-price: 1.80
+      lambda: 0.0300
+
+    # Azurebluet
+    default.azurebluet:
+      base-price: 1.93
+      lambda: 0.0300
+
+    # Bakedpotato
+    default.bakedpotato:
+      base-price: 0.69
+      lambda: 0.0300
+
+    # Bamboo
+    default.bamboo:
+      base-price: 0.81
+      lambda: 0.0300
+      daily-limit: 512
+
+    # Bamboomosaicslab
+    default.bamboomosaicslab:
+      base-price: 1.59
+      lambda: 0.0300
+
+    # Bambooslab
+    default.bambooslab:
+      base-price: 1.64
+      lambda: 0.0300
+
+    # Basalt
+    default.basalt:
+      base-price: 0.26
+      lambda: 0.0300
+
+    # Beetroot
+    default.beetroot:
+      base-price: 0.66
+      lambda: 0.0300
+
+    # Beetrootseeds
+    default.beetrootseeds:
+      base-price: 0.22
+      lambda: 0.0300
+
+    # Birchsapling
+    default.birchsapling:
+      base-price: 1.80
+      lambda: 0.0300
+
+    # Birchslab
+    default.birchslab:
+      base-price: 1.11
+      lambda: 0.0300
+
+    # Blackconcrete
+    default.blackconcrete:
+      base-price: 0.89
+      lambda: 0.0300
+
+    # Blackconcretepowder
+    default.blackconcretepowder:
+      base-price: 0.89
+      lambda: 0.0300
+
+    # Blackstainedglass
+    default.blackstainedglass:
+      base-price: 1.01
+      lambda: 0.0300
+
+    # Blackstainedglasspane
+    default.blackstainedglasspane:
+      base-price: 0.36
+      lambda: 0.0300
+
+    # Blackstone
+    default.blackstone:
+      base-price: 1.54
+      lambda: 0.0300
+
+    # Blackstoneslab
+    default.blackstoneslab:
+      base-price: 0.75
+      lambda: 0.0300
+
+    # Blackstonewall
+    default.blackstonewall:
+      base-price: 1.46
+      lambda: 0.0300
+
+    # Blueegg
+    default.blueegg:
+      base-price: 0.76
+      lambda: 0.0300
+
+    # Blueorchid
+    default.blueorchid:
+      base-price: 1.10
+      lambda: 0.0300
+
+    # Bluestainedglasspane
+    default.bluestainedglasspane:
+      base-price: 0.77
+      lambda: 0.0300
+
+    # Bone
+    default.bone:
+      base-price: 1.75
+      lambda: 0.0300
+
+    # Bonemeal
+    default.bonemeal:
+      base-price: 0.58
+      lambda: 0.0300
+
+    # Bowl
+    default.bowl:
+      base-price: 1.67
+      lambda: 0.0300
+
+    # Brownconcrete
+    default.brownconcrete:
+      base-price: 1.03
+      lambda: 0.0300
+
+    # Brownconcretepowder
+    default.brownconcretepowder:
+      base-price: 1.03
+      lambda: 0.0300
+
+    # Brownegg
+    default.brownegg:
+      base-price: 0.76
+      lambda: 0.0300
+
+    # Brownmushroom
+    default.brownmushroom:
+      base-price: 1.10
+      lambda: 0.0300
+
+    # Brownstainedglass
+    default.brownstainedglass:
+      base-price: 1.16
+      lambda: 0.0300
+
+    # Brownstainedglasspane
+    default.brownstainedglasspane:
+      base-price: 0.41
+      lambda: 0.0300
+
+    # Bush
+    default.bush:
+      base-price: 0.02
+      lambda: 0.0300
+
+    # Calcite
+    default.calcite:
+      base-price: 1.10
+      lambda: 0.0300
+
+    # Carrot
+    default.carrot:
+      base-price: 0.83
+      lambda: 0.0300
+
+    # Cherrysapling
+    default.cherrysapling:
+      base-price: 1.80
+      lambda: 0.0300
+
+    # Cherryslab
+    default.cherryslab:
+      base-price: 1.27
+      lambda: 0.0300
+
+    # Chiseledtuff
+    default.chiseledtuff:
+      base-price: 0.51
+      lambda: 0.0300
+
+    # Chiseledtuffbricks
+    default.chiseledtuffbricks:
+      base-price: 0.48
+      lambda: 0.0300
+
+    # Coarsedirt
+    default.coarsedirt:
+      base-price: 0.58
+      lambda: 0.0300
+
+    # Cobbleddeepslate
+    default.cobbleddeepslate:
+      base-price: 1.32
+      lambda: 0.0300
+
+    # Cobbleddeepslateslab
+    default.cobbleddeepslateslab:
+      base-price: 0.65
+      lambda: 0.0300
+
+    # Cobbleddeepslatestairs
+    default.cobbleddeepslatestairs:
+      base-price: 1.88
+      lambda: 0.0300
+
+    # Cobbleddeepslatewall
+    default.cobbleddeepslatewall:
+      base-price: 1.25
+      lambda: 0.0300
+
+    # Cobblestone
+    default.cobblestone:
+      base-price: 1.10
+      lambda: 0.0300
+      daily-limit: 512
+
+    # Cobblestoneslab
+    default.cobblestoneslab:
+      base-price: 0.54
+      lambda: 0.0300
+
+    # Cobblestonestairs
+    default.cobblestonestairs:
+      base-price: 1.57
+      lambda: 0.0300
+
+    # Cobblestonewall
+    default.cobblestonewall:
+      base-price: 1.05
+      lambda: 0.0300
+
+    # Cobweb
+    default.cobweb:
+      base-price: 0.01
+      lambda: 0.0300
+
+    # Cookedmutton
+    default.cookedmutton:
+      base-price: 1.38
+      lambda: 0.0300
+
+    # Cookie
+    default.cookie:
+      base-price: 1.37
+      lambda: 0.0300
+
+    # Coppernugget
+    default.coppernugget:
+      base-price: 1.43
+      lambda: 0.0300
+
+    # Crackeddeepslatebricks
+    default.crackeddeepslatebricks:
+      base-price: 1.55
+      lambda: 0.0300
+
+    # Crackeddeepslatetiles
+    default.crackeddeepslatetiles:
+      base-price: 1.50
+      lambda: 0.0300
+
+    # Crackedpolishedblackstonebricks
+    default.crackedpolishedblackstonebricks:
+      base-price: 1.81
+      lambda: 0.0300
+
+    # Crackedstonebricks
+    default.crackedstonebricks:
+      base-price: 1.68
+      lambda: 0.0300
+
+    # Crimsonfungus
+    default.crimsonfungus:
+      base-price: 1.32
+      lambda: 0.0300
+
+    # Crimsonroots
+    default.crimsonroots:
+      base-price: 0.03
+      lambda: 0.0300
+
+    # Crimsonslab
+    default.crimsonslab:
+      base-price: 1.45
+      lambda: 0.0300
+
+    # Cutsandstoneslab
+    default.cutsandstoneslab:
+      base-price: 1.01
+      lambda: 0.0300
+
+    # Cyanconcrete
+    default.cyanconcrete:
+      base-price: 1.65
+      lambda: 0.0300
+
+    # Cyanconcretepowder
+    default.cyanconcretepowder:
+      base-price: 1.65
+      lambda: 0.0300
+
+    # Cyanstainedglass
+    default.cyanstainedglass:
+      base-price: 1.78
+      lambda: 0.0300
+
+    # Cyanstainedglasspane
+    default.cyanstainedglasspane:
+      base-price: 0.63
+      lambda: 0.0300
+
+    # Dandelion
+    default.dandelion:
+      base-price: 1.32
+      lambda: 0.0300
+
+    # Darkoaksapling
+    default.darkoaksapling:
+      base-price: 1.80
+      lambda: 0.0300
+
+    # Darkoakslab
+    default.darkoakslab:
+      base-price: 1.11
+      lambda: 0.0300
+
+    # Deadbraincoral
+    default.deadbraincoral:
+      base-price: 0.01
+      lambda: 0.0300
+
+    # Deadbraincoralblock
+    default.deadbraincoralblock:
+      base-price: 0.03
+      lambda: 0.0300
+
+    # Deadbraincoralfan
+    default.deadbraincoralfan:
+      base-price: 0.03
+      lambda: 0.0300
+
+    # Deadbubblecoral
+    default.deadbubblecoral:
+      base-price: 0.01
+      lambda: 0.0300
+
+    # Deadbubblecoralblock
+    default.deadbubblecoralblock:
+      base-price: 0.03
+      lambda: 0.0300
+
+    # Deadbubblecoralfan
+    default.deadbubblecoralfan:
+      base-price: 0.03
+      lambda: 0.0300
+
+    # Deadbush
+    default.deadbush:
+      base-price: 0.01
+      lambda: 0.0300
+
+    # Deadfirecoral
+    default.deadfirecoral:
+      base-price: 0.01
+      lambda: 0.0300
+
+    # Deadfirecoralblock
+    default.deadfirecoralblock:
+      base-price: 0.03
+      lambda: 0.0300
+
+    # Deadfirecoralfan
+    default.deadfirecoralfan:
+      base-price: 0.03
+      lambda: 0.0300
+
+    # Deadhorncoral
+    default.deadhorncoral:
+      base-price: 0.01
+      lambda: 0.0300
+
+    # Deadhorncoralblock
+    default.deadhorncoralblock:
+      base-price: 0.03
+      lambda: 0.0300
+
+    # Deadhorncoralfan
+    default.deadhorncoralfan:
+      base-price: 0.03
+      lambda: 0.0300
+
+    # Deadtubecoral
+    default.deadtubecoral:
+      base-price: 0.01
+      lambda: 0.0300
+
+    # Deadtubecoralblock
+    default.deadtubecoralblock:
+      base-price: 0.03
+      lambda: 0.0300
+
+    # Deadtubecoralfan
+    default.deadtubecoralfan:
+      base-price: 0.03
+      lambda: 0.0300
+
+    # Deepslatebricks
+    default.deepslatebricks:
+      base-price: 1.24
+      lambda: 0.0300
+
+    # Deepslatebrickslab
+    default.deepslatebrickslab:
+      base-price: 0.61
+      lambda: 0.0300
+
+    # Deepslatebrickstairs
+    default.deepslatebrickstairs:
+      base-price: 1.77
+      lambda: 0.0300
+
+    # Deepslatebrickwall
+    default.deepslatebrickwall:
+      base-price: 1.18
+      lambda: 0.0300
+
+    # Deepslatetiles
+    default.deepslatetiles:
+      base-price: 1.20
+      lambda: 0.0300
+
+    # Deepslatetileslab
+    default.deepslatetileslab:
+      base-price: 0.59
+      lambda: 0.0300
+
+    # Deepslatetilestairs
+    default.deepslatetilestairs:
+      base-price: 1.71
+      lambda: 0.0300
+
+    # Deepslatetilewall
+    default.deepslatetilewall:
+      base-price: 1.14
+      lambda: 0.0300
+
+    # Diorite
+    default.diorite:
+      base-price: 1.50
+      lambda: 0.0300
+
+    # Dioriteslab
+    default.dioriteslab:
+      base-price: 0.73
+      lambda: 0.0300
+
+    # Dioritewall
+    default.dioritewall:
+      base-price: 1.42
+      lambda: 0.0300
+
+    # Dirt
+    default.dirt:
+      base-price: 0.53
+      lambda: 0.0300
+      daily-limit: 512
+
+    # Dirtpath
+    default.dirtpath:
+      base-price: 0.48
+      lambda: 0.0300
+
+    # Dryshortgrass
+    default.dryshortgrass:
+      base-price: 0.01
+      lambda: 0.0300
+
+    # Drytallgrass
+    default.drytallgrass:
+      base-price: 0.01
+      lambda: 0.0300
+
+    # Egg
+    default.egg:
+      base-price: 0.55
+      lambda: 0.0300
+
+    # Farmland
+    default.farmland:
+      base-price: 0.48
+      lambda: 0.0300
+
+    # Feather
+    default.feather:
+      base-price: 0.55
+      lambda: 0.0300
+
+    # Fern
+    default.fern:
+      base-price: 0.01
+      lambda: 0.0300
+
+    # Fireflybush
+    default.fireflybush:
+      base-price: 0.04
+      lambda: 0.0300
+
+    # Flint
+    default.flint:
+      base-price: 0.55
+      lambda: 0.0300
+
+    # Floweringazalea
+    default.floweringazalea:
+      base-price: 1.80
+      lambda: 0.0300
+
+    # Glass
+    default.glass:
+      base-price: 0.69
+      lambda: 0.0300
+
+    # Glassbottle
+    default.glassbottle:
+      base-price: 0.68
+      lambda: 0.0300
+
+    # Glasspane
+    default.glasspane:
+      base-price: 0.25
+      lambda: 0.0300
+
+    # Granite
+    default.granite:
+      base-price: 1.90
+      lambda: 0.0300
+
+    # Graniteslab
+    default.graniteslab:
+      base-price: 0.93
+      lambda: 0.0300
+
+    # Granitewall
+    default.granitewall:
+      base-price: 1.80
+      lambda: 0.0300
+
+    # Grass
+    default.grass:
+      base-price: 0.01
+      lambda: 0.0300
+
+    # Grassblock
+    default.grassblock:
+      base-price: 0.63
+      lambda: 0.0300
+
+    # Gravel
+    default.gravel:
+      base-price: 0.55
+      lambda: 0.0300
+      daily-limit: 512
+
+    # Grayconcrete
+    default.grayconcrete:
+      base-price: 0.73
+      lambda: 0.0300
+
+    # Grayconcretepowder
+    default.grayconcretepowder:
+      base-price: 0.73
+      lambda: 0.0300
+
+    # Graydye
+    default.graydye:
+      base-price: 1.92
+      lambda: 0.0300
+
+    # Graystainedglass
+    default.graystainedglass:
+      base-price: 0.86
+      lambda: 0.0300
+
+    # Graystainedglasspane
+    default.graystainedglasspane:
+      base-price: 0.31
+      lambda: 0.0300
+
+    # Greenconcrete
+    default.greenconcrete:
+      base-price: 1.30
+      lambda: 0.0300
+
+    # Greenconcretepowder
+    default.greenconcretepowder:
+      base-price: 1.30
+      lambda: 0.0300
+
+    # Greenstainedglass
+    default.greenstainedglass:
+      base-price: 1.43
+      lambda: 0.0300
+
+    # Greenstainedglasspane
+    default.greenstainedglasspane:
+      base-price: 0.51
+      lambda: 0.0300
+
+    # Hangingroots
+    default.hangingroots:
+      base-price: 0.03
+      lambda: 0.0300
+
+    # Ice
+    default.ice:
+      base-price: 1.70
+      lambda: 0.0300
+
+    # Junglesapling
+    default.junglesapling:
+      base-price: 1.80
+      lambda: 0.0300
+
+    # Jungleslab
+    default.jungleslab:
+      base-price: 1.11
+      lambda: 0.0300
+
+    # Largefern
+    default.largefern:
+      base-price: 0.01
+      lambda: 0.0300
+
+    # Lightblueconcrete
+    default.lightblueconcrete:
+      base-price: 0.63
+      lambda: 0.0300
+
+    # Lightblueconcretepowder
+    default.lightblueconcretepowder:
+      base-price: 0.63
+      lambda: 0.0300
+
+    # Lightbluedye
+    default.lightbluedye:
+      base-price: 1.10
+      lambda: 0.0300
+
+    # Lightbluestainedglass
+    default.lightbluestainedglass:
+      base-price: 0.76
+      lambda: 0.0300
+
+    # Lightbluestainedglasspane
+    default.lightbluestainedglasspane:
+      base-price: 0.27
+      lambda: 0.0300
+
+    # Lightgrayconcrete
+    default.lightgrayconcrete:
+      base-price: 0.73
+      lambda: 0.0300
+
+    # Lightgrayconcretepowder
+    default.lightgrayconcretepowder:
+      base-price: 0.73
+      lambda: 0.0300
+
+    # Lightgraydye
+    default.lightgraydye:
+      base-price: 1.93
+      lambda: 0.0300
+
+    # Lightgraystainedglass
+    default.lightgraystainedglass:
+      base-price: 0.86
+      lambda: 0.0300
+
+    # Lightgraystainedglasspane
+    default.lightgraystainedglasspane:
+      base-price: 0.31
+      lambda: 0.0300
+
+    # Limeconcrete
+    default.limeconcrete:
+      base-price: 0.93
+      lambda: 0.0300
+
+    # Limeconcretepowder
+    default.limeconcretepowder:
+      base-price: 0.93
+      lambda: 0.0300
+
+    # Limestainedglass
+    default.limestainedglass:
+      base-price: 1.06
+      lambda: 0.0300
+
+    # Limestainedglasspane
+    default.limestainedglasspane:
+      base-price: 0.38
+      lambda: 0.0300
+
+    # Magentaconcrete
+    default.magentaconcrete:
+      base-price: 1.14
+      lambda: 0.0300
+
+    # Magentaconcretepowder
+    default.magentaconcretepowder:
+      base-price: 1.14
+      lambda: 0.0300
+
+    # Magentastainedglass
+    default.magentastainedglass:
+      base-price: 1.27
+      lambda: 0.0300
+
+    # Magentastainedglasspane
+    default.magentastainedglasspane:
+      base-price: 0.45
+      lambda: 0.0300
+
+    # Mangrovepropagule
+    default.mangrovepropagule:
+      base-price: 1.80
+      lambda: 0.0300
+
+    # Mangroveroots
+    default.mangroveroots:
+      base-price: 0.09
+      lambda: 0.0300
+
+    # Mangroveslab
+    default.mangroveslab:
+      base-price: 1.11
+      lambda: 0.0300
+
+    # Mosscarpet
+    default.mosscarpet:
+      base-price: 1.45
+      lambda: 0.0300
+
+    # Mud
+    default.mud:
+      base-price: 0.58
+      lambda: 0.0300
+
+    # Mudbrickslab
+    default.mudbrickslab:
+      base-price: 1.82
+      lambda: 0.0300
+
+    # Muddymangroveroots
+    default.muddymangroveroots:
+      base-price: 0.05
+      lambda: 0.0300
+
+    # Mutton
+    default.mutton:
+      base-price: 1.10
+      lambda: 0.0300
+
+    # Netherrack
+    default.netherrack:
+      base-price: 1.75
+      lambda: 0.0300
+      daily-limit: 512
+
+    # Nethersprouts
+    default.nethersprouts:
+      base-price: 0.02
+      lambda: 0.0300
+
+    # Oaksapling
+    default.oaksapling:
+      base-price: 1.80
+      lambda: 0.0300
+
+    # Oakslab
+    default.oakslab:
+      base-price: 1.11
+      lambda: 0.0300
+
+    # Orangeconcrete
+    default.orangeconcrete:
+      base-price: 0.73
+      lambda: 0.0300
+
+    # Orangeconcretepowder
+    default.orangeconcretepowder:
+      base-price: 0.73
+      lambda: 0.0300
+
+    # Orangedye
+    default.orangedye:
+      base-price: 1.93
+      lambda: 0.0300
+
+    # Orangestainedglass
+    default.orangestainedglass:
+      base-price: 0.86
+      lambda: 0.0300
+
+    # Orangestainedglasspane
+    default.orangestainedglasspane:
+      base-price: 0.31
+      lambda: 0.0300
+
+    # Orangetulip
+    default.orangetulip:
+      base-price: 1.93
+      lambda: 0.0300
+
+    # Oxeyedaisy
+    default.oxeyedaisy:
+      base-price: 1.65
+      lambda: 0.0300
+
+    # Palehangingmoss
+    default.palehangingmoss:
+      base-price: 0.05
+      lambda: 0.0300
+
+    # Palemosscarpet
+    default.palemosscarpet:
+      base-price: 1.58
+      lambda: 0.0300
+
+    # Paleoaksapling
+    default.paleoaksapling:
+      base-price: 1.80
+      lambda: 0.0300
+
+    # Paleoakslab
+    default.paleoakslab:
+      base-price: 1.27
+      lambda: 0.0300
+
+    # Paper
+    default.paper:
+      base-price: 0.54
+      lambda: 0.0300
+
+    # Peony
+    default.peony:
+      base-price: 1.10
+      lambda: 0.0300
+
+    # Phantommembrane
+    default.phantommembrane:
+      base-price: 1.40
+      lambda: 0.0300
+
+    # Pinkconcrete
+    default.pinkconcrete:
+      base-price: 0.57
+      lambda: 0.0300
+
+    # Pinkconcretepowder
+    default.pinkconcretepowder:
+      base-price: 0.57
+      lambda: 0.0300
+
+    # Pinkdye
+    default.pinkdye:
+      base-price: 0.55
+      lambda: 0.0300
+
+    # Pinkstainedglass
+    default.pinkstainedglass:
+      base-price: 0.70
+      lambda: 0.0300
+
+    # Pinkstainedglasspane
+    default.pinkstainedglasspane:
+      base-price: 0.25
+      lambda: 0.0300
+
+    # Pinktulip
+    default.pinktulip:
+      base-price: 1.93
+      lambda: 0.0300
+
+    # Pitcherplant
+    default.pitcherplant:
+      base-price: 1.10
+      lambda: 0.0300
+
+    # Pitcherpod
+    default.pitcherpod:
+      base-price: 0.90
+      lambda: 0.0300
+
+    # Pointeddripstone
+    default.pointeddripstone:
+      base-price: 1.01
+      lambda: 0.0300
+
+    # Poisonouspotato
+    default.poisonouspotato:
+      base-price: 0.28
+      lambda: 0.0300
+
+    # Polishedandesite
+    default.polishedandesite:
+      base-price: 1.65
+      lambda: 0.0300
+
+    # Polishedandesiteslab
+    default.polishedandesiteslab:
+      base-price: 0.81
+      lambda: 0.0300
+
+    # Polishedbasalt
+    default.polishedbasalt:
+      base-price: 0.25
+      lambda: 0.0300
+
+    # Polishedblackstone
+    default.polishedblackstone:
+      base-price: 1.49
+      lambda: 0.0300
+
+    # Polishedblackstonebricks
+    default.polishedblackstonebricks:
+      base-price: 1.45
+      lambda: 0.0300
+
+    # Polishedblackstonebrickslab
+    default.polishedblackstonebrickslab:
+      base-price: 0.71
+      lambda: 0.0300
+
+    # Polishedblackstonebrickwall
+    default.polishedblackstonebrickwall:
+      base-price: 1.38
+      lambda: 0.0300
+
+    # Polishedblackstonebutton
+    default.polishedblackstonebutton:
+      base-price: 1.49
+      lambda: 0.0300
+
+    # Polishedblackstoneslab
+    default.polishedblackstoneslab:
+      base-price: 0.73
+      lambda: 0.0300
+
+    # Polishedblackstonewall
+    default.polishedblackstonewall:
+      base-price: 1.42
+      lambda: 0.0300
+
+    # Polisheddeepslate
+    default.polisheddeepslate:
+      base-price: 1.28
+      lambda: 0.0300
+
+    # Polisheddeepslateslab
+    default.polisheddeepslateslab:
+      base-price: 0.63
+      lambda: 0.0300
+
+    # Polisheddeepslatestairs
+    default.polisheddeepslatestairs:
+      base-price: 1.82
+      lambda: 0.0300
+
+    # Polisheddeepslatewall
+    default.polisheddeepslatewall:
+      base-price: 1.22
+      lambda: 0.0300
+
+    # Polisheddiorite
+    default.polisheddiorite:
+      base-price: 1.46
+      lambda: 0.0300
+
+    # Polisheddioriteslab
+    default.polisheddioriteslab:
+      base-price: 0.72
+      lambda: 0.0300
+
+    # Polishedgranite
+    default.polishedgranite:
+      base-price: 1.84
+      lambda: 0.0300
+
+    # Polishedgraniteslab
+    default.polishedgraniteslab:
+      base-price: 0.90
+      lambda: 0.0300
+
+    # Polishedtuff
+    default.polishedtuff:
+      base-price: 0.25
+      lambda: 0.0300
+
+    # Polishedtuffslab
+    default.polishedtuffslab:
+      base-price: 0.12
+      lambda: 0.0300
+
+    # Polishedtuffstairs
+    default.polishedtuffstairs:
+      base-price: 0.36
+      lambda: 0.0300
+
+    # Polishedtuffwall
+    default.polishedtuffwall:
+      base-price: 0.24
+      lambda: 0.0300
+
+    # Poppy
+    default.poppy:
+      base-price: 1.10
+      lambda: 0.0300
+
+    # Potato
+    default.potato:
+      base-price: 0.55
+      lambda: 0.0300
+
+    # Purpleconcrete
+    default.purpleconcrete:
+      base-price: 1.30
+      lambda: 0.0300
+
+    # Purpleconcretepowder
+    default.purpleconcretepowder:
+      base-price: 1.30
+      lambda: 0.0300
+
+    # Purplestainedglass
+    default.purplestainedglass:
+      base-price: 1.43
+      lambda: 0.0300
+
+    # Purplestainedglasspane
+    default.purplestainedglasspane:
+      base-price: 0.51
+      lambda: 0.0300
+
+    # Rabbit
+    default.rabbit:
+      base-price: 1.65
+      lambda: 0.0300
+
+    # Rabbithide
+    default.rabbithide:
+      base-price: 1.31
+      lambda: 0.0300
+
+    # Redconcrete
+    default.redconcrete:
+      base-price: 0.58
+      lambda: 0.0300
+
+    # Redconcretepowder
+    default.redconcretepowder:
+      base-price: 0.58
+      lambda: 0.0300
+
+    # Reddye
+    default.reddye:
+      base-price: 0.66
+      lambda: 0.0300
+
+    # Redmushroom
+    default.redmushroom:
+      base-price: 1.10
+      lambda: 0.0300
+
+    # Redsand
+    default.redsand:
+      base-price: 1.63
+      lambda: 0.0300
+
+    # Redstainedglass
+    default.redstainedglass:
+      base-price: 0.71
+      lambda: 0.0300
+
+    # Redstainedglasspane
+    default.redstainedglasspane:
+      base-price: 0.25
+      lambda: 0.0300
+
+    # Redtulip
+    default.redtulip:
+      base-price: 1.93
+      lambda: 0.0300
+
+    # Resinclump
+    default.resinclump:
+      base-price: 1.95
+      lambda: 0.0300
+
+    # Rooteddirt
+    default.rooteddirt:
+      base-price: 0.58
+      lambda: 0.0300
+
+    # Rosebush
+    default.rosebush:
+      base-price: 1.10
+      lambda: 0.0300
+
+    # Rottenflesh
+    default.rottenflesh:
+      base-price: 0.39
+      lambda: 0.0300
+
+    # Sand
+    default.sand:
+      base-price: 0.55
+      lambda: 0.0300
+      daily-limit: 512
+
+    # Sandstoneslab
+    default.sandstoneslab:
+      base-price: 1.04
+      lambda: 0.0300
+
+    # Scaffolding
+    default.scaffolding:
+      base-price: 1.02
+      lambda: 0.0300
+
+    # Scute
+    default.scute:
+      base-price: 1.10
+      lambda: 0.0300
+
+    # Seagrass
+    default.seagrass:
+      base-price: 0.02
+      lambda: 0.0300
+
+    # Shortgrass
+    default.shortgrass:
+      base-price: 0.01
+      lambda: 0.0300
+
+    # Smoothbasalt
+    default.smoothbasalt:
+      base-price: 0.33
+      lambda: 0.0300
+
+    # Smoothsandstoneslab
+    default.smoothsandstoneslab:
+      base-price: 1.30
+      lambda: 0.0300
+
+    # Smoothstone
+    default.smoothstone:
+      base-price: 1.72
+      lambda: 0.0300
+
+    # Smoothstoneslab
+    default.smoothstoneslab:
+      base-price: 0.84
+      lambda: 0.0300
+
+    # Snowball
+    default.snowball:
+      base-price: 1.10
+      lambda: 0.0300
+
+    # Sprucesapling
+    default.sprucesapling:
+      base-price: 1.80
+      lambda: 0.0300
+
+    # Spruceslab
+    default.spruceslab:
+      base-price: 1.11
+      lambda: 0.0300
+
+    # Stick
+    default.stick:
+      base-price: 1.12
+      lambda: 0.0300
+
+    # Stone
+    default.stone:
+      base-price: 1.38
+      lambda: 0.0300
+      daily-limit: 512
+
+    # Stonebricks
+    default.stonebricks:
+      base-price: 1.34
+      lambda: 0.0300
+
+    # Stonebrickslab
+    default.stonebrickslab:
+      base-price: 0.66
+      lambda: 0.0300
+
+    # Stonebrickstairs
+    default.stonebrickstairs:
+      base-price: 1.91
+      lambda: 0.0300
+
+    # Stonebrickwall
+    default.stonebrickwall:
+      base-price: 1.27
+      lambda: 0.0300
+
+    # Stonebutton
+    default.stonebutton:
+      base-price: 1.38
+      lambda: 0.0300
+
+    # Stoneslab
+    default.stoneslab:
+      base-price: 0.68
+      lambda: 0.0300
+
+    # Stonestairs
+    default.stonestairs:
+      base-price: 1.97
+      lambda: 0.0300
+
+    # String
+    default.string:
+      base-price: 1.65
+      lambda: 0.0300
+
+    # Sugar
+    default.sugar:
+      base-price: 0.55
+      lambda: 0.0300
+
+    # Sugarcane
+    default.sugarcane:
+      base-price: 0.55
+      lambda: 0.0300
+
+    # Tallgrass
+    default.tallgrass:
+      base-price: 0.01
+      lambda: 0.0300
+
+    # Torchflower
+    default.torchflower:
+      base-price: 1.80
+      lambda: 0.0300
+
+    # Torchflowerseeds
+    default.torchflowerseeds:
+      base-price: 0.12
+      lambda: 0.0300
+
+    # Tropicalfish
+    default.tropicalfish:
+      base-price: 1.65
+      lambda: 0.0300
+
+    # Tuff
+    default.tuff:
+      base-price: 0.26
+      lambda: 0.0300
+
+    # Tuffbricks
+    default.tuffbricks:
+      base-price: 0.24
+      lambda: 0.0300
+
+    # Tuffbrickslab
+    default.tuffbrickslab:
+      base-price: 0.12
+      lambda: 0.0300
+
+    # Tuffbrickstairs
+    default.tuffbrickstairs:
+      base-price: 0.34
+      lambda: 0.0300
+
+    # Tuffbrickwall
+    default.tuffbrickwall:
+      base-price: 0.23
+      lambda: 0.0300
+
+    # Tuffslab
+    default.tuffslab:
+      base-price: 0.13
+      lambda: 0.0300
+
+    # Tuffstairs
+    default.tuffstairs:
+      base-price: 0.37
+      lambda: 0.0300
+
+    # Tuffwall
+    default.tuffwall:
+      base-price: 0.25
+      lambda: 0.0300
+
+    # Turtlescute
+    default.turtlescute:
+      base-price: 1.10
+      lambda: 0.0300
+
+    # Warpedfungus
+    default.warpedfungus:
+      base-price: 1.32
+      lambda: 0.0300
+
+    # Warpedroots
+    default.warpedroots:
+      base-price: 0.03
+      lambda: 0.0300
+
+    # Warpedslab
+    default.warpedslab:
+      base-price: 1.45
+      lambda: 0.0300
+
+    # Web
+    default.web:
+      base-price: 0.01
+      lambda: 0.0300
+
+    # Wheatseeds
+    default.wheatseeds:
+      base-price: 1.10
+      lambda: 0.0300
+
+    # Whiteconcrete
+    default.whiteconcrete:
+      base-price: 0.57
+      lambda: 0.0300
+
+    # Whiteconcretepowder
+    default.whiteconcretepowder:
+      base-price: 0.57
+      lambda: 0.0300
+
+    # Whitedye
+    default.whitedye:
+      base-price: 0.58
+      lambda: 0.0300
+
+    # Whitestainedglass
+    default.whitestainedglass:
+      base-price: 0.70
+      lambda: 0.0300
+
+    # Whitestainedglasspane
+    default.whitestainedglasspane:
+      base-price: 0.25
+      lambda: 0.0300
+
+    # Whitetulip
+    default.whitetulip:
+      base-price: 1.93
+      lambda: 0.0300
+
+    # Wildflowers
+    default.wildflowers:
+      base-price: 0.24
+      lambda: 0.0300
+
+    # Yellowconcrete
+    default.yellowconcrete:
+      base-price: 0.66
+      lambda: 0.0300
+
+    # Yellowconcretepowder
+    default.yellowconcretepowder:
+      base-price: 0.66
+      lambda: 0.0300
+
+    # Yellowdye
+    default.yellowdye:
+      base-price: 1.32
+      lambda: 0.0300
+
+    # Yellowstainedglass
+    default.yellowstainedglass:
+      base-price: 0.79
+      lambda: 0.0300
+
+    # Yellowstainedglasspane
+    default.yellowstainedglasspane:
+      base-price: 0.28
+      lambda: 0.0300
+
+  # === 基础合成 (λ=0.0200) ===
+    # Acaciaboat
+    default.acaciaboat:
+      base-price: 10.90
+      lambda: 0.0200
+
+    # Acaciabutton
+    default.acaciabutton:
+      base-price: 2.27
+      lambda: 0.0200
+
+    # Acaciadoor
+    default.acaciadoor:
+      base-price: 4.31
+      lambda: 0.0200
+
+    # Acaciafence
+    default.acaciafence:
+      base-price: 10.75
+      lambda: 0.0200
+
+    # Acaciafencegate
+    default.acaciafencegate:
+      base-price: 8.57
+      lambda: 0.0200
+
+    # Acaciahangingsign
+    default.acaciahangingsign:
+      base-price: 16.49
+      lambda: 0.0200
+
+    # Acacialeaves
+    default.acacialeaves:
+      base-price: 2.20
+      lambda: 0.0200
+
+    # Acacialog
+    default.acacialog:
+      base-price: 9.06
+      lambda: 0.0200
+
+    # Acaciaplanks
+    default.acaciaplanks:
+      base-price: 2.27
+      lambda: 0.0200
+
+    # Acaciapressureplate
+    default.acaciapressureplate:
+      base-price: 4.49
+      lambda: 0.0200
+
+    # Acaciashelf
+    default.acaciashelf:
+      base-price: 9.83
+      lambda: 0.0200
+
+    # Acaciasign
+    default.acaciasign:
+      base-price: 4.62
+      lambda: 0.0200
+
+    # Acaciastairs
+    default.acaciastairs:
+      base-price: 3.23
+      lambda: 0.0200
+
+    # Acaciatrapdoor
+    default.acaciatrapdoor:
+      base-price: 6.47
+      lambda: 0.0200
+
+    # Acaciawood
+    default.acaciawood:
+      base-price: 11.72
+      lambda: 0.0200
+
+    # Activatorrail
+    default.activatorrail:
+      base-price: 18.02
+      lambda: 0.0200
+
+    # Allium
+    default.allium:
+      base-price: 5.50
+      lambda: 0.0200
+
+    # Amethystcluster
+    default.amethystcluster:
+      base-price: 8.58
+      lambda: 0.0200
+
+    # Amethystshard
+    default.amethystshard:
+      base-price: 9.00
+      lambda: 0.0200
+
+    # Andesitestairs
+    default.andesitestairs:
+      base-price: 2.42
+      lambda: 0.0200
+
+    # Apple
+    default.apple:
+      base-price: 3.30
+      lambda: 0.0200
+
+    # Armadilloscute
+    default.armadilloscute:
+      base-price: 2.56
+      lambda: 0.0200
+
+    # Armorstand
+    default.armorstand:
+      base-price: 7.11
+      lambda: 0.0200
+
+    # Azalealeaves
+    default.azalealeaves:
+      base-price: 2.20
+      lambda: 0.0200
+
+    # Azalealeavesflowers
+    default.azalealeavesflowers:
+      base-price: 2.60
+      lambda: 0.0200
+
+    # Bambooblock
+    default.bambooblock:
+      base-price: 6.71
+      lambda: 0.0200
+
+    # Bamboobutton
+    default.bamboobutton:
+      base-price: 3.35
+      lambda: 0.0200
+
+    # Bamboodoor
+    default.bamboodoor:
+      base-price: 6.36
+      lambda: 0.0200
+
+    # Bamboofence
+    default.bamboofence:
+      base-price: 14.86
+      lambda: 0.0200
+
+    # Bamboofencegate
+    default.bamboofencegate:
+      base-price: 10.62
+      lambda: 0.0200
+
+    # Bamboohangingsign
+    default.bamboohangingsign:
+      base-price: 12.48
+      lambda: 0.0200
+
+    # Bamboomosaic
+    default.bamboomosaic:
+      base-price: 3.25
+      lambda: 0.0200
+
+    # Bamboomosaicstairs
+    default.bamboomosaicstairs:
+      base-price: 4.63
+      lambda: 0.0200
+
+    # Bambooplanks
+    default.bambooplanks:
+      base-price: 3.35
+      lambda: 0.0200
+
+    # Bamboopressureplate
+    default.bamboopressureplate:
+      base-price: 6.63
+      lambda: 0.0200
+
+    # Bambooraft
+    default.bambooraft:
+      base-price: 16.08
+      lambda: 0.0200
+
+    # Bambooshelf
+    default.bambooshelf:
+      base-price: 5.74
+      lambda: 0.0200
+
+    # Bamboosign
+    default.bamboosign:
+      base-price: 6.65
+      lambda: 0.0200
+
+    # Bamboostairs
+    default.bamboostairs:
+      base-price: 4.77
+      lambda: 0.0200
+
+    # Bambootrapdoor
+    default.bambootrapdoor:
+      base-price: 9.55
+      lambda: 0.0200
+
+    # Barrel
+    default.barrel:
+      base-price: 14.73
+      lambda: 0.0200
+
+    # Beef
+    default.beef:
+      base-price: 5.50
+      lambda: 0.0200
+
+    # Beetrootsoup
+    default.beetrootsoup:
+      base-price: 5.29
+      lambda: 0.0200
+
+    # Bigdripleaf
+    default.bigdripleaf:
+      base-price: 3.50
+      lambda: 0.0200
+
+    # Birchboat
+    default.birchboat:
+      base-price: 10.90
+      lambda: 0.0200
+
+    # Birchbutton
+    default.birchbutton:
+      base-price: 2.27
+      lambda: 0.0200
+
+    # Birchdoor
+    default.birchdoor:
+      base-price: 4.31
+      lambda: 0.0200
+
+    # Birchfence
+    default.birchfence:
+      base-price: 10.75
+      lambda: 0.0200
+
+    # Birchfencegate
+    default.birchfencegate:
+      base-price: 8.57
+      lambda: 0.0200
+
+    # Birchhangingsign
+    default.birchhangingsign:
+      base-price: 16.49
+      lambda: 0.0200
+
+    # Birchleaves
+    default.birchleaves:
+      base-price: 2.20
+      lambda: 0.0200
+
+    # Birchlog
+    default.birchlog:
+      base-price: 9.06
+      lambda: 0.0200
+
+    # Birchplanks
+    default.birchplanks:
+      base-price: 2.27
+      lambda: 0.0200
+
+    # Birchpressureplate
+    default.birchpressureplate:
+      base-price: 4.49
+      lambda: 0.0200
+
+    # Birchshelf
+    default.birchshelf:
+      base-price: 9.83
+      lambda: 0.0200
+
+    # Birchsign
+    default.birchsign:
+      base-price: 4.62
+      lambda: 0.0200
+
+    # Birchstairs
+    default.birchstairs:
+      base-price: 3.23
+      lambda: 0.0200
+
+    # Birchtrapdoor
+    default.birchtrapdoor:
+      base-price: 6.47
+      lambda: 0.0200
+
+    # Birchwood
+    default.birchwood:
+      base-price: 11.72
+      lambda: 0.0200
+
+    # Blackbundle
+    default.blackbundle:
+      base-price: 13.21
+      lambda: 0.0200
+
+    # Blackcandle
+    default.blackcandle:
+      base-price: 13.70
+      lambda: 0.0200
+
+    # Blackcarpet
+    default.blackcarpet:
+      base-price: 6.34
+      lambda: 0.0200
+
+    # Blackdye
+    default.blackdye:
+      base-price: 3.30
+      lambda: 0.0200
+
+    # Blackglazedterracotta
+    default.blackglazedterracotta:
+      base-price: 18.88
+      lambda: 0.0200
+
+    # Blackstonestairs
+    default.blackstonestairs:
+      base-price: 2.19
+      lambda: 0.0200
+
+    # Blackterracotta
+    default.blackterracotta:
+      base-price: 15.10
+      lambda: 0.0200
+
+    # Blackwool
+    default.blackwool:
+      base-price: 9.60
+      lambda: 0.0200
+
+    # Blazepowder
+    default.blazepowder:
+      base-price: 7.00
+      lambda: 0.0200
+
+    # Blazerod
+    default.blazerod:
+      base-price: 14.00
+      lambda: 0.0200
+
+    # Bluecarpet
+    default.bluecarpet:
+      base-price: 12.84
+      lambda: 0.0200
+
+    # Blueconcrete
+    default.blueconcrete:
+      base-price: 2.03
+      lambda: 0.0200
+
+    # Blueconcretepowder
+    default.blueconcretepowder:
+      base-price: 2.03
+      lambda: 0.0200
+
+    # Bluedye
+    default.bluedye:
+      base-price: 13.25
+      lambda: 0.0200
+
+    # Bluestainedglass
+    default.bluestainedglass:
+      base-price: 2.16
+      lambda: 0.0200
+
+    # Blueterracotta
+    default.blueterracotta:
+      base-price: 16.24
+      lambda: 0.0200
+
+    # Bluewool
+    default.bluewool:
+      base-price: 19.45
+      lambda: 0.0200
+
+    # Boneblock
+    default.boneblock:
+      base-price: 4.80
+      lambda: 0.0200
+
+    # Book
+    default.book:
+      base-price: 6.50
+      lambda: 0.0200
+
+    # Bordureindentedbannerpattern
+    default.bordureindentedbannerpattern:
+      base-price: 5.98
+      lambda: 0.0200
+
+    # Bow
+    default.bow:
+      base-price: 7.89
+      lambda: 0.0200
+
+    # Braincoral
+    default.braincoral:
+      base-price: 2.87
+      lambda: 0.0200
+
+    # Braincoralblock
+    default.braincoralblock:
+      base-price: 3.43
+      lambda: 0.0200
+
+    # Braincoralfan
+    default.braincoralfan:
+      base-price: 3.17
+      lambda: 0.0200
+
+    # Bread
+    default.bread:
+      base-price: 9.70
+      lambda: 0.0200
+
+    # Brewingstand
+    default.brewingstand:
+      base-price: 16.78
+      lambda: 0.0200
+
+    # Brick
+    default.brick:
+      base-price: 4.12
+      lambda: 0.0200
+
+    # Bricks
+    default.bricks:
+      base-price: 15.99
+      lambda: 0.0200
+
+    # Brickslab
+    default.brickslab:
+      base-price: 7.84
+      lambda: 0.0200
+
+    # Brickwall
+    default.brickwall:
+      base-price: 15.19
+      lambda: 0.0200
+
+    # Brownbundle
+    default.brownbundle:
+      base-price: 14.45
+      lambda: 0.0200
+
+    # Browncandle
+    default.browncandle:
+      base-price: 14.95
+      lambda: 0.0200
+
+    # Browncarpet
+    default.browncarpet:
+      base-price: 7.16
+      lambda: 0.0200
+
+    # Browndye
+    default.browndye:
+      base-price: 4.56
+      lambda: 0.0200
+
+    # Brownglazedterracotta
+    default.brownglazedterracotta:
+      base-price: 19.05
+      lambda: 0.0200
+
+    # Brownmushroomblock
+    default.brownmushroomblock:
+      base-price: 2.20
+      lambda: 0.0200
+
+    # Brownterracotta
+    default.brownterracotta:
+      base-price: 15.24
+      lambda: 0.0200
+
+    # Brownwool
+    default.brownwool:
+      base-price: 10.85
+      lambda: 0.0200
+
+    # Brush
+    default.brush:
+      base-price: 14.21
+      lambda: 0.0200
+
+    # Bubblecoral
+    default.bubblecoral:
+      base-price: 2.87
+      lambda: 0.0200
+
+    # Bubblecoralblock
+    default.bubblecoralblock:
+      base-price: 3.43
+      lambda: 0.0200
+
+    # Bubblecoralfan
+    default.bubblecoralfan:
+      base-price: 3.17
+      lambda: 0.0200
+
+    # Bundle
+    default.bundle:
+      base-price: 10.04
+      lambda: 0.0200
+
+    # Cactus
+    default.cactus:
+      base-price: 5.50
+      lambda: 0.0200
+
+    # Cactusflower
+    default.cactusflower:
+      base-price: 2.14
+      lambda: 0.0200
+
+    # Candle
+    default.candle:
+      base-price: 10.54
+      lambda: 0.0200
+
+    # Carrotonastick
+    default.carrotonastick:
+      base-price: 7.15
+      lambda: 0.0200
+
+    # Cartographytable
+    default.cartographytable:
+      base-price: 9.65
+      lambda: 0.0200
+
+    # Carvedpumpkin
+    default.carvedpumpkin:
+      base-price: 12.69
+      lambda: 0.0200
+
+    # Charcoal
+    default.charcoal:
+      base-price: 11.33
+      lambda: 0.0200
+
+    # Cherryboat
+    default.cherryboat:
+      base-price: 12.48
+      lambda: 0.0200
+
+    # Cherrybutton
+    default.cherrybutton:
+      base-price: 2.60
+      lambda: 0.0200
+
+    # Cherrydoor
+    default.cherrydoor:
+      base-price: 4.94
+      lambda: 0.0200
+
+    # Cherryfence
+    default.cherryfence:
+      base-price: 12.01
+      lambda: 0.0200
+
+    # Cherryfencegate
+    default.cherryfencegate:
+      base-price: 9.20
+      lambda: 0.0200
+
+    # Cherryhangingsign
+    default.cherryhangingsign:
+      base-price: 16.49
+      lambda: 0.0200
+
+    # Cherryleaves
+    default.cherryleaves:
+      base-price: 2.20
+      lambda: 0.0200
+
+    # Cherrylog
+    default.cherrylog:
+      base-price: 10.42
+      lambda: 0.0200
+
+    # Cherryplanks
+    default.cherryplanks:
+      base-price: 2.60
+      lambda: 0.0200
+
+    # Cherrypressureplate
+    default.cherrypressureplate:
+      base-price: 5.15
+      lambda: 0.0200
+
+    # Cherryshelf
+    default.cherryshelf:
+      base-price: 9.83
+      lambda: 0.0200
+
+    # Cherrysign
+    default.cherrysign:
+      base-price: 5.24
+      lambda: 0.0200
+
+    # Cherrystairs
+    default.cherrystairs:
+      base-price: 3.71
+      lambda: 0.0200
+
+    # Cherrytrapdoor
+    default.cherrytrapdoor:
+      base-price: 7.41
+      lambda: 0.0200
+
+    # Cherrywood
+    default.cherrywood:
+      base-price: 13.48
+      lambda: 0.0200
+
+    # Chest
+    default.chest:
+      base-price: 16.89
+      lambda: 0.0200
+
+    # Chicken
+    default.chicken:
+      base-price: 2.75
+      lambda: 0.0200
+
+    # Chiseledbookshelf
+    default.chiseledbookshelf:
+      base-price: 15.59
+      lambda: 0.0200
+
+    # Chiseleddeepslate
+    default.chiseleddeepslate:
+      base-price: 2.61
+      lambda: 0.0200
+
+    # Chiselednetherbricks
+    default.chiselednetherbricks:
+      base-price: 16.83
+      lambda: 0.0200
+
+    # Chiseledpolishedblackstone
+    default.chiseledpolishedblackstone:
+      base-price: 2.95
+      lambda: 0.0200
+
+    # Chiseledredsandstone
+    default.chiseledredsandstone:
+      base-price: 12.51
+      lambda: 0.0200
+
+    # Chiseledresinbricks
+    default.chiseledresinbricks:
+      base-price: 18.75
+      lambda: 0.0200
+
+    # Chiseledsandstone
+    default.chiseledsandstone:
+      base-price: 4.22
+      lambda: 0.0200
+
+    # Chiseledstonebricks
+    default.chiseledstonebricks:
+      base-price: 2.65
+      lambda: 0.0200
+
+    # Chorusfruit
+    default.chorusfruit:
+      base-price: 5.50
+      lambda: 0.0200
+
+    # Clay
+    default.clay:
+      base-price: 12.80
+      lambda: 0.0200
+
+    # Clayball
+    default.clayball:
+      base-price: 3.30
+      lambda: 0.0200
+
+    # Closedeyeblossom
+    default.closedeyeblossom:
+      base-price: 3.50
+      lambda: 0.0200
+
+    # Coal
+    default.coal:
+      base-price: 8.80
+      lambda: 0.0200
+
+    # Coalore
+    default.coalore:
+      base-price: 6.60
+      lambda: 0.0200
+
+    # Cocoabeans
+    default.cocoabeans:
+      base-price: 4.56
+      lambda: 0.0200
+
+    # Cod
+    default.cod:
+      base-price: 3.30
+      lambda: 0.0200
+
+    # Composter
+    default.composter:
+      base-price: 7.30
+      lambda: 0.0200
+
+    # Cookedbeef
+    default.cookedbeef:
+      base-price: 6.88
+      lambda: 0.0200
+
+    # Cookedchicken
+    default.cookedchicken:
+      base-price: 3.44
+      lambda: 0.0200
+
+    # Cookedcod
+    default.cookedcod:
+      base-price: 4.12
+      lambda: 0.0200
+
+    # Cookedporkchop
+    default.cookedporkchop:
+      base-price: 5.50
+      lambda: 0.0200
+
+    # Cookedrabbit
+    default.cookedrabbit:
+      base-price: 2.06
+      lambda: 0.0200
+
+    # Cookedsalmon
+    default.cookedsalmon:
+      base-price: 4.47
+      lambda: 0.0200
+
+    # Copperbars
+    default.copperbars:
+      base-price: 4.57
+      lambda: 0.0200
+
+    # Copperchain
+    default.copperchain:
+      base-price: 15.38
+      lambda: 0.0200
+
+    # Copperingot
+    default.copperingot:
+      base-price: 12.83
+      lambda: 0.0200
+
+    # Copperlantern
+    default.copperlantern:
+      base-price: 13.08
+      lambda: 0.0200
+
+    # Copperore
+    default.copperore:
+      base-price: 7.70
+      lambda: 0.0200
+
+    # Coppershovel
+    default.coppershovel:
+      base-price: 14.77
+      lambda: 0.0200
+
+    # Copperspear
+    default.copperspear:
+      base-price: 14.77
+      lambda: 0.0200
+
+    # Coppertorch
+    default.coppertorch:
+      base-price: 2.78
+      lambda: 0.0200
+
+    # Cornflower
+    default.cornflower:
+      base-price: 2.75
+      lambda: 0.0200
+
+    # Crackednetherbricks
+    default.crackednetherbricks:
+      base-price: 10.62
+      lambda: 0.0200
+
+    # Craftingtable
+    default.craftingtable:
+      base-price: 8.81
+      lambda: 0.0200
+
+    # Crimsonbutton
+    default.crimsonbutton:
+      base-price: 2.96
+      lambda: 0.0200
+
+    # Crimsondoor
+    default.crimsondoor:
+      base-price: 5.62
+      lambda: 0.0200
+
+    # Crimsonfence
+    default.crimsonfence:
+      base-price: 13.38
+      lambda: 0.0200
+
+    # Crimsonfencegate
+    default.crimsonfencegate:
+      base-price: 9.88
+      lambda: 0.0200
+
+    # Crimsonhangingsign
+    default.crimsonhangingsign:
+      base-price: 18.41
+      lambda: 0.0200
+
+    # Crimsonhyphae
+    default.crimsonhyphae:
+      base-price: 15.30
+      lambda: 0.0200
+
+    # Crimsonnylium
+    default.crimsonnylium:
+      base-price: 2.25
+      lambda: 0.0200
+
+    # Crimsonplanks
+    default.crimsonplanks:
+      base-price: 2.96
+      lambda: 0.0200
+
+    # Crimsonpressureplate
+    default.crimsonpressureplate:
+      base-price: 5.86
+      lambda: 0.0200
+
+    # Crimsonshelf
+    default.crimsonshelf:
+      base-price: 11.80
+      lambda: 0.0200
+
+    # Crimsonsign
+    default.crimsonsign:
+      base-price: 5.92
+      lambda: 0.0200
+
+    # Crimsonstairs
+    default.crimsonstairs:
+      base-price: 4.22
+      lambda: 0.0200
+
+    # Crimsonstem
+    default.crimsonstem:
+      base-price: 11.83
+      lambda: 0.0200
+
+    # Crimsontrapdoor
+    default.crimsontrapdoor:
+      base-price: 8.44
+      lambda: 0.0200
+
+    # Cutredsandstone
+    default.cutredsandstone:
+      base-price: 6.13
+      lambda: 0.0200
+
+    # Cutredsandstoneslab
+    default.cutredsandstoneslab:
+      base-price: 3.00
+      lambda: 0.0200
+
+    # Cutsandstone
+    default.cutsandstone:
+      base-price: 2.07
+      lambda: 0.0200
+
+    # Cyanbundle
+    default.cyanbundle:
+      base-price: 19.80
+      lambda: 0.0200
+
+    # Cyancarpet
+    default.cyancarpet:
+      base-price: 10.69
+      lambda: 0.0200
+
+    # Cyandye
+    default.cyandye:
+      base-price: 9.96
+      lambda: 0.0200
+
+    # Cyanglazedterracotta
+    default.cyanglazedterracotta:
+      base-price: 19.84
+      lambda: 0.0200
+
+    # Cyanterracotta
+    default.cyanterracotta:
+      base-price: 15.87
+      lambda: 0.0200
+
+    # Cyanwool
+    default.cyanwool:
+      base-price: 16.20
+      lambda: 0.0200
+
+    # Darkoakboat
+    default.darkoakboat:
+      base-price: 10.90
+      lambda: 0.0200
+
+    # Darkoakbutton
+    default.darkoakbutton:
+      base-price: 2.27
+      lambda: 0.0200
+
+    # Darkoakdoor
+    default.darkoakdoor:
+      base-price: 4.31
+      lambda: 0.0200
+
+    # Darkoakfence
+    default.darkoakfence:
+      base-price: 10.75
+      lambda: 0.0200
+
+    # Darkoakfencegate
+    default.darkoakfencegate:
+      base-price: 8.57
+      lambda: 0.0200
+
+    # Darkoakhangingsign
+    default.darkoakhangingsign:
+      base-price: 16.49
+      lambda: 0.0200
+
+    # Darkoakleaves
+    default.darkoakleaves:
+      base-price: 2.20
+      lambda: 0.0200
+
+    # Darkoaklog
+    default.darkoaklog:
+      base-price: 9.06
+      lambda: 0.0200
+
+    # Darkoakplanks
+    default.darkoakplanks:
+      base-price: 2.27
+      lambda: 0.0200
+
+    # Darkoakpressureplate
+    default.darkoakpressureplate:
+      base-price: 4.49
+      lambda: 0.0200
+
+    # Darkoakshelf
+    default.darkoakshelf:
+      base-price: 9.83
+      lambda: 0.0200
+
+    # Darkoaksign
+    default.darkoaksign:
+      base-price: 4.62
+      lambda: 0.0200
+
+    # Darkoakstairs
+    default.darkoakstairs:
+      base-price: 3.23
+      lambda: 0.0200
+
+    # Darkoaktrapdoor
+    default.darkoaktrapdoor:
+      base-price: 6.47
+      lambda: 0.0200
+
+    # Darkoakwood
+    default.darkoakwood:
+      base-price: 11.72
+      lambda: 0.0200
+
+    # Decoratedpot
+    default.decoratedpot:
+      base-price: 15.99
+      lambda: 0.0200
+
+    # Deepslate
+    default.deepslate:
+      base-price: 2.77
+      lambda: 0.0200
+      daily-limit: 512
+
+    # Deepslatecoalore
+    default.deepslatecoalore:
+      base-price: 6.60
+      lambda: 0.0200
+
+    # Deepslatecopperore
+    default.deepslatecopperore:
+      base-price: 7.70
+      lambda: 0.0200
+
+    # Deepslateironore
+    default.deepslateironore:
+      base-price: 9.90
+      lambda: 0.0200
+
+    # Deepslatelapisore
+    default.deepslatelapisore:
+      base-price: 9.94
+      lambda: 0.0200
+
+    # Deepslateredstoneore
+    default.deepslateredstoneore:
+      base-price: 2.47
+      lambda: 0.0200
+
+    # Detectorrail
+    default.detectorrail:
+      base-price: 18.12
+      lambda: 0.0200
+
+    # Dioritestairs
+    default.dioritestairs:
+      base-price: 2.14
+      lambda: 0.0200
+
+    # Discfragment5
+    default.discfragment5:
+      base-price: 14.00
+      lambda: 0.0200
+
+    # Dispenser
+    default.dispenser:
+      base-price: 17.38
+      lambda: 0.0200
+
+    # Driedkelp
+    default.driedkelp:
+      base-price: 3.91
+      lambda: 0.0200
+
+    # Dripstoneblock
+    default.dripstoneblock:
+      base-price: 3.92
+      lambda: 0.0200
+
+    # Dropper
+    default.dropper:
+      base-price: 10.23
+      lambda: 0.0200
+
+    # Endrod
+    default.endrod:
+      base-price: 5.17
+      lambda: 0.0200
+
+    # Endstone
+    default.endstone:
+      base-price: 17.50
+      lambda: 0.0200
+
+    # Endstonebricks
+    default.endstonebricks:
+      base-price: 16.97
+      lambda: 0.0200
+
+    # Endstonebrickslab
+    default.endstonebrickslab:
+      base-price: 8.32
+      lambda: 0.0200
+
+    # Endstonebrickwall
+    default.endstonebrickwall:
+      base-price: 16.12
+      lambda: 0.0200
+
+    # Endstoneslab
+    default.endstoneslab:
+      base-price: 8.32
+      lambda: 0.0200
+
+    # Endstonewall
+    default.endstonewall:
+      base-price: 16.12
+      lambda: 0.0200
+
+    # Exposedcopperdoor
+    default.exposedcopperdoor:
+      base-price: 12.19
+      lambda: 0.0200
+
+    # Fermentedspidereye
+    default.fermentedspidereye:
+      base-price: 4.85
+      lambda: 0.0200
+
+    # Fieldmasonedbannerpattern
+    default.fieldmasonedbannerpattern:
+      base-price: 16.36
+      lambda: 0.0200
+
+    # Filledmap
+    default.filledmap:
+      base-price: 10.00
+      lambda: 0.0200
+
+    # Firecharge
+    default.firecharge:
+      base-price: 8.75
+      lambda: 0.0200
+
+    # Firecoral
+    default.firecoral:
+      base-price: 2.87
+      lambda: 0.0200
+
+    # Firecoralblock
+    default.firecoralblock:
+      base-price: 3.43
+      lambda: 0.0200
+
+    # Firecoralfan
+    default.firecoralfan:
+      base-price: 3.17
+      lambda: 0.0200
+
+    # Fireworkrocket
+    default.fireworkrocket:
+      base-price: 11.12
+      lambda: 0.0200
+
+    # Fishingrod
+    default.fishingrod:
+      base-price: 6.39
+      lambda: 0.0200
+
+    # Fletchingtable
+    default.fletchingtable:
+      base-price: 9.67
+      lambda: 0.0200
+
+    # Flintandsteel
+    default.flintandsteel:
+      base-price: 18.84
+      lambda: 0.0200
+
+    # Flowerbannerpattern
+    default.flowerbannerpattern:
+      base-price: 2.17
+      lambda: 0.0200
+
+    # Floweringazalealeaves
+    default.floweringazalealeaves:
+      base-price: 2.60
+      lambda: 0.0200
+
+    # Flowerpot
+    default.flowerpot:
+      base-price: 12.11
+      lambda: 0.0200
+
+    # Furnace
+    default.furnace:
+      base-price: 8.18
+      lambda: 0.0200
+
+    # Glowberries
+    default.glowberries:
+      base-price: 3.30
+      lambda: 0.0200
+
+    # Glowinksac
+    default.glowinksac:
+      base-price: 3.55
+      lambda: 0.0200
+
+    # Glowitemframe
+    default.glowitemframe:
+      base-price: 16.31
+      lambda: 0.0200
+
+    # Glowlichen
+    default.glowlichen:
+      base-price: 6.70
+      lambda: 0.0200
+
+    # Glowstonedust
+    default.glowstonedust:
+      base-price: 8.80
+      lambda: 0.0200
+
+    # Goathorn
+    default.goathorn:
+      base-price: 8.79
+      lambda: 0.0200
+
+    # Goldnugget
+    default.goldnugget:
+      base-price: 6.55
+      lambda: 0.0200
+
+    # Granitestairs
+    default.granitestairs:
+      base-price: 2.71
+      lambda: 0.0200
+
+    # Graybundle
+    default.graybundle:
+      base-price: 11.84
+      lambda: 0.0200
+
+    # Graycandle
+    default.graycandle:
+      base-price: 12.34
+      lambda: 0.0200
+
+    # Graycarpet
+    default.graycarpet:
+      base-price: 5.44
+      lambda: 0.0200
+
+    # Grayglazedterracotta
+    default.grayglazedterracotta:
+      base-price: 18.68
+      lambda: 0.0200
+
+    # Grayterracotta
+    default.grayterracotta:
+      base-price: 14.94
+      lambda: 0.0200
+
+    # Graywool
+    default.graywool:
+      base-price: 8.24
+      lambda: 0.0200
+
+    # Greenbundle
+    default.greenbundle:
+      base-price: 16.75
+      lambda: 0.0200
+
+    # Greencandle
+    default.greencandle:
+      base-price: 17.25
+      lambda: 0.0200
+
+    # Greencarpet
+    default.greencarpet:
+      base-price: 8.68
+      lambda: 0.0200
+
+    # Greendye
+    default.greendye:
+      base-price: 6.88
+      lambda: 0.0200
+
+    # Greenglazedterracotta
+    default.greenglazedterracotta:
+      base-price: 19.39
+      lambda: 0.0200
+
+    # Greenterracotta
+    default.greenterracotta:
+      base-price: 15.51
+      lambda: 0.0200
+
+    # Greenwool
+    default.greenwool:
+      base-price: 13.15
+      lambda: 0.0200
+
+    # Grindstone
+    default.grindstone:
+      base-price: 7.16
+      lambda: 0.0200
+
+    # Gunpowder
+    default.gunpowder:
+      base-price: 11.00
+      lambda: 0.0200
+
+    # Honeyblock
+    default.honeyblock:
+      base-price: 16.49
+      lambda: 0.0200
+
+    # Honeybottle
+    default.honeybottle:
+      base-price: 4.25
+      lambda: 0.0200
+
+    # Honeycomb
+    default.honeycomb:
+      base-price: 9.00
+      lambda: 0.0200
+
+    # Horncoral
+    default.horncoral:
+      base-price: 2.87
+      lambda: 0.0200
+
+    # Horncoralblock
+    default.horncoralblock:
+      base-price: 3.43
+      lambda: 0.0200
+
+    # Horncoralfan
+    default.horncoralfan:
+      base-price: 3.17
+      lambda: 0.0200
+
+    # Inksac
+    default.inksac:
+      base-price: 3.30
+      lambda: 0.0200
+
+    # Ironbars
+    default.ironbars:
+      base-price: 6.58
+      lambda: 0.0200
+
+    # Ironingot
+    default.ironingot:
+      base-price: 18.48
+      lambda: 0.0200
+
+    # Ironnugget
+    default.ironnugget:
+      base-price: 2.05
+      lambda: 0.0200
+
+    # Ironore
+    default.ironore:
+      base-price: 9.90
+      lambda: 0.0200
+
+    # Itemframe
+    default.itemframe:
+      base-price: 12.92
+      lambda: 0.0200
+
+    # Jackolantern
+    default.jackolantern:
+      base-price: 15.00
+      lambda: 0.0200
+
+    # Jungleboat
+    default.jungleboat:
+      base-price: 10.90
+      lambda: 0.0200
+
+    # Junglebutton
+    default.junglebutton:
+      base-price: 2.27
+      lambda: 0.0200
+
+    # Jungledoor
+    default.jungledoor:
+      base-price: 4.31
+      lambda: 0.0200
+
+    # Junglefence
+    default.junglefence:
+      base-price: 10.75
+      lambda: 0.0200
+
+    # Junglefencegate
+    default.junglefencegate:
+      base-price: 8.57
+      lambda: 0.0200
+
+    # Junglehangingsign
+    default.junglehangingsign:
+      base-price: 16.49
+      lambda: 0.0200
+
+    # Jungleleaves
+    default.jungleleaves:
+      base-price: 2.20
+      lambda: 0.0200
+
+    # Junglelog
+    default.junglelog:
+      base-price: 9.06
+      lambda: 0.0200
+
+    # Jungleplanks
+    default.jungleplanks:
+      base-price: 2.27
+      lambda: 0.0200
+
+    # Junglepressureplate
+    default.junglepressureplate:
+      base-price: 4.49
+      lambda: 0.0200
+
+    # Jungleshelf
+    default.jungleshelf:
+      base-price: 9.83
+      lambda: 0.0200
+
+    # Junglesign
+    default.junglesign:
+      base-price: 4.62
+      lambda: 0.0200
+
+    # Junglestairs
+    default.junglestairs:
+      base-price: 3.23
+      lambda: 0.0200
+
+    # Jungletrapdoor
+    default.jungletrapdoor:
+      base-price: 6.47
+      lambda: 0.0200
+
+    # Junglewood
+    default.junglewood:
+      base-price: 11.72
+      lambda: 0.0200
+
+    # Kelp
+    default.kelp:
+      base-price: 3.13
+      lambda: 0.0200
+      daily-limit: 512
+
+    # Ladder
+    default.ladder:
+      base-price: 2.46
+      lambda: 0.0200
+
+    # Lantern
+    default.lantern:
+      base-price: 17.35
+      lambda: 0.0200
+
+    # Lapislazuli
+    default.lapislazuli:
+      base-price: 13.25
+      lambda: 0.0200
+
+    # Lapisore
+    default.lapisore:
+      base-price: 9.94
+      lambda: 0.0200
+
+    # Largeamethystbud
+    default.largeamethystbud:
+      base-price: 7.17
+      lambda: 0.0200
+
+    # Lead
+    default.lead:
+      base-price: 3.96
+      lambda: 0.0200
+
+    # Leaflitter
+    default.leaflitter:
+      base-price: 2.75
+      lambda: 0.0200
+
+    # Leather
+    default.leather:
+      base-price: 5.08
+      lambda: 0.0200
+
+    # Leatherboots
+    default.leatherboots:
+      base-price: 19.71
+      lambda: 0.0200
+
+    # Lever
+    default.lever:
+      base-price: 2.20
+      lambda: 0.0200
+
+    # Lightbluebundle
+    default.lightbluebundle:
+      base-price: 11.03
+      lambda: 0.0200
+
+    # Lightbluecandle
+    default.lightbluecandle:
+      base-price: 11.52
+      lambda: 0.0200
+
+    # Lightbluecarpet
+    default.lightbluecarpet:
+      base-price: 4.90
+      lambda: 0.0200
+
+    # Lightblueglazedterracotta
+    default.lightblueglazedterracotta:
+      base-price: 18.56
+      lambda: 0.0200
+
+    # Lightblueterracotta
+    default.lightblueterracotta:
+      base-price: 14.85
+      lambda: 0.0200
+
+    # Lightbluewool
+    default.lightbluewool:
+      base-price: 7.42
+      lambda: 0.0200
+
+    # Lightgraybundle
+    default.lightgraybundle:
+      base-price: 11.85
+      lambda: 0.0200
+
+    # Lightgraycandle
+    default.lightgraycandle:
+      base-price: 12.35
+      lambda: 0.0200
+
+    # Lightgraycarpet
+    default.lightgraycarpet:
+      base-price: 5.45
+      lambda: 0.0200
+
+    # Lightgrayglazedterracotta
+    default.lightgrayglazedterracotta:
+      base-price: 18.68
+      lambda: 0.0200
+
+    # Lightgrayterracotta
+    default.lightgrayterracotta:
+      base-price: 14.94
+      lambda: 0.0200
+
+    # Lightgraywool
+    default.lightgraywool:
+      base-price: 8.25
+      lambda: 0.0200
+
+    # Lilac
+    default.lilac:
+      base-price: 2.75
+      lambda: 0.0200
+
+    # Lilyofthevalley
+    default.lilyofthevalley:
+      base-price: 2.75
+      lambda: 0.0200
+
+    # Lilypad
+    default.lilypad:
+      base-price: 3.30
+      lambda: 0.0200
+
+    # Limebundle
+    default.limebundle:
+      base-price: 13.59
+      lambda: 0.0200
+
+    # Limecandle
+    default.limecandle:
+      base-price: 14.09
+      lambda: 0.0200
+
+    # Limecarpet
+    default.limecarpet:
+      base-price: 6.59
+      lambda: 0.0200
+
+    # Limedye
+    default.limedye:
+      base-price: 3.69
+      lambda: 0.0200
+
+    # Limeglazedterracotta
+    default.limeglazedterracotta:
+      base-price: 18.93
+      lambda: 0.0200
+
+    # Limeterracotta
+    default.limeterracotta:
+      base-price: 15.14
+      lambda: 0.0200
+
+    # Limewool
+    default.limewool:
+      base-price: 9.99
+      lambda: 0.0200
+
+    # Loom
+    default.loom:
+      base-price: 7.60
+      lambda: 0.0200
+
+    # Magentabundle
+    default.magentabundle:
+      base-price: 15.38
+      lambda: 0.0200
+
+    # Magentacandle
+    default.magentacandle:
+      base-price: 15.88
+      lambda: 0.0200
+
+    # Magentacarpet
+    default.magentacarpet:
+      base-price: 7.77
+      lambda: 0.0200
+
+    # Magentadye
+    default.magentadye:
+      base-price: 5.50
+      lambda: 0.0200
+
+    # Magentaglazedterracotta
+    default.magentaglazedterracotta:
+      base-price: 19.19
+      lambda: 0.0200
+
+    # Magentaterracotta
+    default.magentaterracotta:
+      base-price: 15.35
+      lambda: 0.0200
+
+    # Magentawool
+    default.magentawool:
+      base-price: 11.78
+      lambda: 0.0200
+
+    # Magmacream
+    default.magmacream:
+      base-price: 17.82
+      lambda: 0.0200
+
+    # Mangroveboat
+    default.mangroveboat:
+      base-price: 10.90
+      lambda: 0.0200
+
+    # Mangrovebutton
+    default.mangrovebutton:
+      base-price: 2.27
+      lambda: 0.0200
+
+    # Mangrovedoor
+    default.mangrovedoor:
+      base-price: 4.31
+      lambda: 0.0200
+
+    # Mangrovefence
+    default.mangrovefence:
+      base-price: 10.75
+      lambda: 0.0200
+
+    # Mangrovefencegate
+    default.mangrovefencegate:
+      base-price: 8.57
+      lambda: 0.0200
+
+    # Mangrovehangingsign
+    default.mangrovehangingsign:
+      base-price: 16.49
+      lambda: 0.0200
+
+    # Mangroveleaves
+    default.mangroveleaves:
+      base-price: 2.20
+      lambda: 0.0200
+
+    # Mangrovelog
+    default.mangrovelog:
+      base-price: 9.06
+      lambda: 0.0200
+
+    # Mangroveplanks
+    default.mangroveplanks:
+      base-price: 2.27
+      lambda: 0.0200
+
+    # Mangrovepressureplate
+    default.mangrovepressureplate:
+      base-price: 4.49
+      lambda: 0.0200
+
+    # Mangroveshelf
+    default.mangroveshelf:
+      base-price: 9.83
+      lambda: 0.0200
+
+    # Mangrovesign
+    default.mangrovesign:
+      base-price: 4.62
+      lambda: 0.0200
+
+    # Mangrovestairs
+    default.mangrovestairs:
+      base-price: 3.23
+      lambda: 0.0200
+
+    # Mangrovetrapdoor
+    default.mangrovetrapdoor:
+      base-price: 6.47
+      lambda: 0.0200
+
+    # Mangrovewood
+    default.mangrovewood:
+      base-price: 11.72
+      lambda: 0.0200
+
+    # Mediumamethystbud
+    default.mediumamethystbud:
+      base-price: 4.69
+      lambda: 0.0200
+
+    # Melonseeds
+    default.melonseeds:
+      base-price: 4.50
+      lambda: 0.0200
+
+    # Melonslice
+    default.melonslice:
+      base-price: 4.65
+      lambda: 0.0200
+
+    # Mossblock
+    default.mossblock:
+      base-price: 2.20
+      lambda: 0.0200
+
+    # Mossycobblestone
+    default.mossycobblestone:
+      base-price: 6.53
+      lambda: 0.0200
+
+    # Mossycobblestoneslab
+    default.mossycobblestoneslab:
+      base-price: 3.20
+      lambda: 0.0200
+
+    # Mossycobblestonestairs
+    default.mossycobblestonestairs:
+      base-price: 9.31
+      lambda: 0.0200
+
+    # Mossycobblestonewall
+    default.mossycobblestonewall:
+      base-price: 6.20
+      lambda: 0.0200
+
+    # Mossystonebricks
+    default.mossystonebricks:
+      base-price: 6.77
+      lambda: 0.0200
+
+    # Mossystonebrickslab
+    default.mossystonebrickslab:
+      base-price: 3.32
+      lambda: 0.0200
+
+    # Mossystonebrickstairs
+    default.mossystonebrickstairs:
+      base-price: 9.65
+      lambda: 0.0200
+
+    # Mossystonebrickwall
+    default.mossystonebrickwall:
+      base-price: 6.43
+      lambda: 0.0200
+
+    # Mudbricks
+    default.mudbricks:
+      base-price: 3.72
+      lambda: 0.0200
+
+    # Mudbrickstairs
+    default.mudbrickstairs:
+      base-price: 5.30
+      lambda: 0.0200
+
+    # Mudbrickwall
+    default.mudbrickwall:
+      base-price: 3.53
+      lambda: 0.0200
+
+    # Mushroomstem
+    default.mushroomstem:
+      base-price: 2.20
+      lambda: 0.0200
+
+    # Mushroomstew
+    default.mushroomstew:
+      base-price: 3.79
+      lambda: 0.0200
+
+    # Mycelium
+    default.mycelium:
+      base-price: 11.00
+      lambda: 0.0200
+
+    # Nautilusshell
+    default.nautilusshell:
+      base-price: 6.58
+      lambda: 0.0200
+
+    # Netherbrick
+    default.netherbrick:
+      base-price: 2.19
+      lambda: 0.0200
+
+    # Netherbricks
+    default.netherbricks:
+      base-price: 8.50
+      lambda: 0.0200
+
+    # Netherbrickslab
+    default.netherbrickslab:
+      base-price: 4.17
+      lambda: 0.0200
+
+    # Netherbrickstairs
+    default.netherbrickstairs:
+      base-price: 12.11
+      lambda: 0.0200
+
+    # Netherbrickwall
+    default.netherbrickwall:
+      base-price: 8.07
+      lambda: 0.0200
+
+    # Netherquartzore
+    default.netherquartzore:
+      base-price: 14.44
+      lambda: 0.0200
+
+    # Netherwart
+    default.netherwart:
+      base-price: 16.50
+      lambda: 0.0200
+
+    # Noteblock
+    default.noteblock:
+      base-price: 19.74
+      lambda: 0.0200
+
+    # Oakboat
+    default.oakboat:
+      base-price: 10.90
+      lambda: 0.0200
+
+    # Oakbutton
+    default.oakbutton:
+      base-price: 2.27
+      lambda: 0.0200
+
+    # Oakdoor
+    default.oakdoor:
+      base-price: 4.31
+      lambda: 0.0200
+
+    # Oakfence
+    default.oakfence:
+      base-price: 10.75
+      lambda: 0.0200
+
+    # Oakfencegate
+    default.oakfencegate:
+      base-price: 8.57
+      lambda: 0.0200
+
+    # Oakhangingsign
+    default.oakhangingsign:
+      base-price: 16.49
+      lambda: 0.0200
+
+    # Oakleaves
+    default.oakleaves:
+      base-price: 2.20
+      lambda: 0.0200
+
+    # Oaklog
+    default.oaklog:
+      base-price: 9.06
+      lambda: 0.0200
+
+    # Oakplanks
+    default.oakplanks:
+      base-price: 2.27
+      lambda: 0.0200
+
+    # Oakpressureplate
+    default.oakpressureplate:
+      base-price: 4.49
+      lambda: 0.0200
+
+    # Oakshelf
+    default.oakshelf:
+      base-price: 9.83
+      lambda: 0.0200
+
+    # Oaksign
+    default.oaksign:
+      base-price: 4.62
+      lambda: 0.0200
+
+    # Oakstairs
+    default.oakstairs:
+      base-price: 3.23
+      lambda: 0.0200
+
+    # Oaktrapdoor
+    default.oaktrapdoor:
+      base-price: 6.47
+      lambda: 0.0200
+
+    # Oakwood
+    default.oakwood:
+      base-price: 11.72
+      lambda: 0.0200
+
+    # Openeyeblossom
+    default.openeyeblossom:
+      base-price: 3.50
+      lambda: 0.0200
+
+    # Orangebundle
+    default.orangebundle:
+      base-price: 11.85
+      lambda: 0.0200
+
+    # Orangecandle
+    default.orangecandle:
+      base-price: 12.35
+      lambda: 0.0200
+
+    # Orangecarpet
+    default.orangecarpet:
+      base-price: 5.45
+      lambda: 0.0200
+
+    # Orangeglazedterracotta
+    default.orangeglazedterracotta:
+      base-price: 18.68
+      lambda: 0.0200
+
+    # Orangeterracotta
+    default.orangeterracotta:
+      base-price: 14.94
+      lambda: 0.0200
+
+    # Orangewool
+    default.orangewool:
+      base-price: 8.25
+      lambda: 0.0200
+
+    # Oxidizedcopperdoor
+    default.oxidizedcopperdoor:
+      base-price: 7.31
+      lambda: 0.0200
+
+    # Oxidizedcoppertrapdoor
+    default.oxidizedcoppertrapdoor:
+      base-price: 14.93
+      lambda: 0.0200
+
+    # Packedice
+    default.packedice:
+      base-price: 14.08
+      lambda: 0.0200
+
+    # Packedmud
+    default.packedmud:
+      base-price: 3.84
+      lambda: 0.0200
+
+    # Painting
+    default.painting:
+      base-price: 14.13
+      lambda: 0.0200
+
+    # Palemossblock
+    default.palemossblock:
+      base-price: 2.40
+      lambda: 0.0200
+
+    # Paleoakboat
+    default.paleoakboat:
+      base-price: 12.48
+      lambda: 0.0200
+
+    # Paleoakbutton
+    default.paleoakbutton:
+      base-price: 2.60
+      lambda: 0.0200
+
+    # Paleoakdoor
+    default.paleoakdoor:
+      base-price: 4.94
+      lambda: 0.0200
+
+    # Paleoakfence
+    default.paleoakfence:
+      base-price: 12.01
+      lambda: 0.0200
+
+    # Paleoakfencegate
+    default.paleoakfencegate:
+      base-price: 9.20
+      lambda: 0.0200
+
+    # Paleoakhangingsign
+    default.paleoakhangingsign:
+      base-price: 16.49
+      lambda: 0.0200
+
+    # Paleoakleaves
+    default.paleoakleaves:
+      base-price: 2.20
+      lambda: 0.0200
+
+    # Paleoaklog
+    default.paleoaklog:
+      base-price: 10.42
+      lambda: 0.0200
+
+    # Paleoakplanks
+    default.paleoakplanks:
+      base-price: 2.60
+      lambda: 0.0200
+
+    # Paleoakpressureplate
+    default.paleoakpressureplate:
+      base-price: 5.15
+      lambda: 0.0200
+
+    # Paleoakshelf
+    default.paleoakshelf:
+      base-price: 9.83
+      lambda: 0.0200
+
+    # Paleoaksign
+    default.paleoaksign:
+      base-price: 5.24
+      lambda: 0.0200
+
+    # Paleoakstairs
+    default.paleoakstairs:
+      base-price: 3.71
+      lambda: 0.0200
+
+    # Paleoaktrapdoor
+    default.paleoaktrapdoor:
+      base-price: 7.41
+      lambda: 0.0200
+
+    # Paleoakwood
+    default.paleoakwood:
+      base-price: 13.48
+      lambda: 0.0200
+
+    # Pinkbundle
+    default.pinkbundle:
+      base-price: 10.48
+      lambda: 0.0200
+
+    # Pinkcandle
+    default.pinkcandle:
+      base-price: 10.98
+      lambda: 0.0200
+
+    # Pinkcarpet
+    default.pinkcarpet:
+      base-price: 4.54
+      lambda: 0.0200
+
+    # Pinkglazedterracotta
+    default.pinkglazedterracotta:
+      base-price: 18.47
+      lambda: 0.0200
+
+    # Pinkpetals
+    default.pinkpetals:
+      base-price: 2.34
+      lambda: 0.0200
+
+    # Pinkterracotta
+    default.pinkterracotta:
+      base-price: 14.78
+      lambda: 0.0200
+
+    # Pinkwool
+    default.pinkwool:
+      base-price: 6.88
+      lambda: 0.0200
+
+    # Podzol
+    default.podzol:
+      base-price: 2.63
+      lambda: 0.0200
+
+    # Polishedandesitestairs
+    default.polishedandesitestairs:
+      base-price: 2.35
+      lambda: 0.0200
+
+    # Polishedblackstonebrickstairs
+    default.polishedblackstonebrickstairs:
+      base-price: 2.07
+      lambda: 0.0200
+
+    # Polishedblackstonepressureplate
+    default.polishedblackstonepressureplate:
+      base-price: 2.95
+      lambda: 0.0200
+
+    # Polishedblackstonestairs
+    default.polishedblackstonestairs:
+      base-price: 2.12
+      lambda: 0.0200
+
+    # Polisheddioritestairs
+    default.polisheddioritestairs:
+      base-price: 2.08
+      lambda: 0.0200
+
+    # Polishedgranitestairs
+    default.polishedgranitestairs:
+      base-price: 2.62
+      lambda: 0.0200
+
+    # Poppedchorusfruit
+    default.poppedchorusfruit:
+      base-price: 6.88
+      lambda: 0.0200
+
+    # Porkchop
+    default.porkchop:
+      base-price: 4.40
+      lambda: 0.0200
+
+    # Prismarinecrystals
+    default.prismarinecrystals:
+      base-price: 8.25
+      lambda: 0.0200
+
+    # Prismarineshard
+    default.prismarineshard:
+      base-price: 5.50
+      lambda: 0.0200
+
+    # Prismarineslab
+    default.prismarineslab:
+      base-price: 10.46
+      lambda: 0.0200
+
+    # Pufferfish
+    default.pufferfish:
+      base-price: 5.50
+      lambda: 0.0200
+
+    # Pumpkinseeds
+    default.pumpkinseeds:
+      base-price: 4.50
+      lambda: 0.0200
+
+    # Purplebundle
+    default.purplebundle:
+      base-price: 16.76
+      lambda: 0.0200
+
+    # Purplecandle
+    default.purplecandle:
+      base-price: 17.26
+      lambda: 0.0200
+
+    # Purplecarpet
+    default.purplecarpet:
+      base-price: 8.69
+      lambda: 0.0200
+
+    # Purpledye
+    default.purpledye:
+      base-price: 6.89
+      lambda: 0.0200
+
+    # Purpleglazedterracotta
+    default.purpleglazedterracotta:
+      base-price: 19.39
+      lambda: 0.0200
+
+    # Purpleterracotta
+    default.purpleterracotta:
+      base-price: 15.51
+      lambda: 0.0200
+
+    # Purplewool
+    default.purplewool:
+      base-price: 13.16
+      lambda: 0.0200
+
+    # Purpurblock
+    default.purpurblock:
+      base-price: 6.67
+      lambda: 0.0200
+
+    # Purpurpillar
+    default.purpurpillar:
+      base-price: 6.47
+      lambda: 0.0200
+
+    # Purpurslab
+    default.purpurslab:
+      base-price: 3.27
+      lambda: 0.0200
+
+    # Purpurstairs
+    default.purpurstairs:
+      base-price: 9.50
+      lambda: 0.0200
+
+    # Quartz
+    default.quartz:
+      base-price: 19.25
+      lambda: 0.0200
+
+    # Rabbitstew
+    default.rabbitstew:
+      base-price: 6.10
+      lambda: 0.0200
+
+    # Rail
+    default.rail:
+      base-price: 6.58
+      lambda: 0.0200
+
+    # Rawcopper
+    default.rawcopper:
+      base-price: 10.26
+      lambda: 0.0200
+
+    # Rawiron
+    default.rawiron:
+      base-price: 13.20
+      lambda: 0.0200
+
+    # Redbundle
+    default.redbundle:
+      base-price: 10.59
+      lambda: 0.0200
+
+    # Redcandle
+    default.redcandle:
+      base-price: 11.09
+      lambda: 0.0200
+
+    # Redcarpet
+    default.redcarpet:
+      base-price: 4.61
+      lambda: 0.0200
+
+    # Redglazedterracotta
+    default.redglazedterracotta:
+      base-price: 18.50
+      lambda: 0.0200
+
+    # Redmushroomblock
+    default.redmushroomblock:
+      base-price: 2.20
+      lambda: 0.0200
+
+    # Rednetherbrickslab
+    default.rednetherbrickslab:
+      base-price: 17.77
+      lambda: 0.0200
+
+    # Redsandstone
+    default.redsandstone:
+      base-price: 6.32
+      lambda: 0.0200
+
+    # Redsandstoneslab
+    default.redsandstoneslab:
+      base-price: 3.10
+      lambda: 0.0200
+
+    # Redsandstonestairs
+    default.redsandstonestairs:
+      base-price: 9.01
+      lambda: 0.0200
+
+    # Redsandstonewall
+    default.redsandstonewall:
+      base-price: 6.00
+      lambda: 0.0200
+
+    # Redstone
+    default.redstone:
+      base-price: 3.30
+      lambda: 0.0200
+
+    # Redstoneore
+    default.redstoneore:
+      base-price: 2.47
+      lambda: 0.0200
+
+    # Redstonetorch
+    default.redstonetorch:
+      base-price: 4.38
+      lambda: 0.0200
+
+    # Redterracotta
+    default.redterracotta:
+      base-price: 14.80
+      lambda: 0.0200
+
+    # Redwool
+    default.redwool:
+      base-price: 6.99
+      lambda: 0.0200
+
+    # Repeater
+    default.repeater:
+      base-price: 15.39
+      lambda: 0.0200
+
+    # Resinblock
+    default.resinblock:
+      base-price: 16.15
+      lambda: 0.0200
+
+    # Resinbrick
+    default.resinbrick:
+      base-price: 2.44
+      lambda: 0.0200
+
+    # Resinbricks
+    default.resinbricks:
+      base-price: 9.47
+      lambda: 0.0200
+
+    # Resinbrickslab
+    default.resinbrickslab:
+      base-price: 4.64
+      lambda: 0.0200
+
+    # Resinbrickstairs
+    default.resinbrickstairs:
+      base-price: 13.49
+      lambda: 0.0200
+
+    # Resinbrickwall
+    default.resinbrickwall:
+      base-price: 9.00
+      lambda: 0.0200
+
+    # Salmon
+    default.salmon:
+      base-price: 3.58
+      lambda: 0.0200
+
+    # Sandstone
+    default.sandstone:
+      base-price: 2.13
+      lambda: 0.0200
+
+    # Sandstonestairs
+    default.sandstonestairs:
+      base-price: 3.04
+      lambda: 0.0200
+
+    # Sandstonewall
+    default.sandstonewall:
+      base-price: 2.02
+      lambda: 0.0200
+
+    # Seapickle
+    default.seapickle:
+      base-price: 3.74
+      lambda: 0.0200
+
+    # Slimeball
+    default.slimeball:
+      base-price: 11.00
+      lambda: 0.0200
+
+    # Smallamethystbud
+    default.smallamethystbud:
+      base-price: 2.25
+      lambda: 0.0200
+
+    # Smalldripleaf
+    default.smalldripleaf:
+      base-price: 2.30
+      lambda: 0.0200
+
+    # Smoothredsandstone
+    default.smoothredsandstone:
+      base-price: 7.90
+      lambda: 0.0200
+
+    # Smoothredsandstoneslab
+    default.smoothredsandstoneslab:
+      base-price: 3.87
+      lambda: 0.0200
+
+    # Smoothredsandstonestairs
+    default.smoothredsandstonestairs:
+      base-price: 11.26
+      lambda: 0.0200
+
+    # Smoothsandstone
+    default.smoothsandstone:
+      base-price: 2.66
+      lambda: 0.0200
+
+    # Smoothsandstonestairs
+    default.smoothsandstonestairs:
+      base-price: 3.79
+      lambda: 0.0200
+
+    # Snow
+    default.snow:
+      base-price: 2.09
+      lambda: 0.0200
+
+    # Snowblock
+    default.snowblock:
+      base-price: 4.27
+      lambda: 0.0200
+
+    # Soullantern
+    default.soullantern:
+      base-price: 19.81
+      lambda: 0.0200
+
+    # Soulsand
+    default.soulsand:
+      base-price: 11.00
+      lambda: 0.0200
+
+    # Soulsoil
+    default.soulsoil:
+      base-price: 11.00
+      lambda: 0.0200
+
+    # Soultorch
+    default.soultorch:
+      base-price: 5.13
+      lambda: 0.0200
+
+    # Spectralarrow
+    default.spectralarrow:
+      base-price: 17.16
+      lambda: 0.0200
+
+    # Spidereye
+    default.spidereye:
+      base-price: 3.30
+      lambda: 0.0200
+
+    # Sponge
+    default.sponge:
+      base-price: 12.71
+      lambda: 0.0200
+
+    # Sporeblossom
+    default.sporeblossom:
+      base-price: 3.80
+      lambda: 0.0200
+
+    # Spruceboat
+    default.spruceboat:
+      base-price: 10.90
+      lambda: 0.0200
+
+    # Sprucebutton
+    default.sprucebutton:
+      base-price: 2.27
+      lambda: 0.0200
+
+    # Sprucedoor
+    default.sprucedoor:
+      base-price: 4.31
+      lambda: 0.0200
+
+    # Sprucefence
+    default.sprucefence:
+      base-price: 10.75
+      lambda: 0.0200
+
+    # Sprucefencegate
+    default.sprucefencegate:
+      base-price: 8.57
+      lambda: 0.0200
+
+    # Sprucehangingsign
+    default.sprucehangingsign:
+      base-price: 16.49
+      lambda: 0.0200
+
+    # Spruceleaves
+    default.spruceleaves:
+      base-price: 2.20
+      lambda: 0.0200
+
+    # Sprucelog
+    default.sprucelog:
+      base-price: 9.06
+      lambda: 0.0200
+
+    # Spruceplanks
+    default.spruceplanks:
+      base-price: 2.27
+      lambda: 0.0200
+
+    # Sprucepressureplate
+    default.sprucepressureplate:
+      base-price: 4.49
+      lambda: 0.0200
+
+    # Spruceshelf
+    default.spruceshelf:
+      base-price: 9.83
+      lambda: 0.0200
+
+    # Sprucesign
+    default.sprucesign:
+      base-price: 4.62
+      lambda: 0.0200
+
+    # Sprucestairs
+    default.sprucestairs:
+      base-price: 3.23
+      lambda: 0.0200
+
+    # Sprucetrapdoor
+    default.sprucetrapdoor:
+      base-price: 6.47
+      lambda: 0.0200
+
+    # Sprucewood
+    default.sprucewood:
+      base-price: 11.72
+      lambda: 0.0200
+
+    # Stoneaxe
+    default.stoneaxe:
+      base-price: 5.32
+      lambda: 0.0200
+
+    # Stonehoe
+    default.stonehoe:
+      base-price: 4.31
+      lambda: 0.0200
+
+    # Stonepickaxe
+    default.stonepickaxe:
+      base-price: 5.32
+      lambda: 0.0200
+
+    # Stonepressureplate
+    default.stonepressureplate:
+      base-price: 2.73
+      lambda: 0.0200
+
+    # Stoneshovel
+    default.stoneshovel:
+      base-price: 3.27
+      lambda: 0.0200
+
+    # Stonespear
+    default.stonespear:
+      base-price: 3.27
+      lambda: 0.0200
+
+    # Stonesword
+    default.stonesword:
+      base-price: 3.25
+      lambda: 0.0200
+
+    # Strippedacacialog
+    default.strippedacacialog:
+      base-price: 10.35
+      lambda: 0.0200
+
+    # Strippedacaciawood
+    default.strippedacaciawood:
+      base-price: 13.39
+      lambda: 0.0200
+
+    # Strippedbambooblock
+    default.strippedbambooblock:
+      base-price: 6.04
+      lambda: 0.0200
+
+    # Strippedbirchlog
+    default.strippedbirchlog:
+      base-price: 10.35
+      lambda: 0.0200
+
+    # Strippedbirchwood
+    default.strippedbirchwood:
+      base-price: 13.39
+      lambda: 0.0200
+
+    # Strippedcherrylog
+    default.strippedcherrylog:
+      base-price: 10.35
+      lambda: 0.0200
+
+    # Strippedcherrywood
+    default.strippedcherrywood:
+      base-price: 13.39
+      lambda: 0.0200
+
+    # Strippedcrimsonhyphae
+    default.strippedcrimsonhyphae:
+      base-price: 16.06
+      lambda: 0.0200
+
+    # Strippedcrimsonstem
+    default.strippedcrimsonstem:
+      base-price: 12.42
+      lambda: 0.0200
+
+    # Strippeddarkoaklog
+    default.strippeddarkoaklog:
+      base-price: 10.35
+      lambda: 0.0200
+
+    # Strippeddarkoakwood
+    default.strippeddarkoakwood:
+      base-price: 13.39
+      lambda: 0.0200
+
+    # Strippedjunglelog
+    default.strippedjunglelog:
+      base-price: 10.35
+      lambda: 0.0200
+
+    # Strippedjunglewood
+    default.strippedjunglewood:
+      base-price: 13.39
+      lambda: 0.0200
+
+    # Strippedmangrovelog
+    default.strippedmangrovelog:
+      base-price: 10.35
+      lambda: 0.0200
+
+    # Strippedmangrovewood
+    default.strippedmangrovewood:
+      base-price: 13.39
+      lambda: 0.0200
+
+    # Strippedoaklog
+    default.strippedoaklog:
+      base-price: 10.35
+      lambda: 0.0200
+
+    # Strippedoakwood
+    default.strippedoakwood:
+      base-price: 13.39
+      lambda: 0.0200
+
+    # Strippedpaleoaklog
+    default.strippedpaleoaklog:
+      base-price: 10.35
+      lambda: 0.0200
+
+    # Strippedpaleoakwood
+    default.strippedpaleoakwood:
+      base-price: 13.39
+      lambda: 0.0200
+
+    # Strippedsprucelog
+    default.strippedsprucelog:
+      base-price: 10.35
+      lambda: 0.0200
+
+    # Strippedsprucewood
+    default.strippedsprucewood:
+      base-price: 13.39
+      lambda: 0.0200
+
+    # Strippedwarpedhyphae
+    default.strippedwarpedhyphae:
+      base-price: 16.06
+      lambda: 0.0200
+
+    # Strippedwarpedstem
+    default.strippedwarpedstem:
+      base-price: 12.42
+      lambda: 0.0200
+
+    # Sunflower
+    default.sunflower:
+      base-price: 3.30
+      lambda: 0.0200
+
+    # Suspiciousstew
+    default.suspiciousstew:
+      base-price: 5.20
+      lambda: 0.0200
+
+    # Sweetberries
+    default.sweetberries:
+      base-price: 3.30
+      lambda: 0.0200
+
+    # Terracotta
+    default.terracotta:
+      base-price: 16.00
+      lambda: 0.0200
+
+    # Tintedglass
+    default.tintedglass:
+      base-price: 17.61
+      lambda: 0.0200
+
+    # Tippedarrow
+    default.tippedarrow:
+      base-price: 13.02
+      lambda: 0.0200
+
+    # Torch
+    default.torch:
+      base-price: 2.46
+      lambda: 0.0200
+
+    # Tripwirehook
+    default.tripwirehook:
+      base-price: 10.72
+      lambda: 0.0200
+
+    # Tubecoral
+    default.tubecoral:
+      base-price: 2.87
+      lambda: 0.0200
+
+    # Tubecoralblock
+    default.tubecoralblock:
+      base-price: 3.43
+      lambda: 0.0200
+
+    # Tubecoralfan
+    default.tubecoralfan:
+      base-price: 3.17
+      lambda: 0.0200
+
+    # Turtleegg
+    default.turtleegg:
+      base-price: 18.98
+      lambda: 0.0200
+
+    # Turtlehelmet
+    default.turtlehelmet:
+      base-price: 5.28
+      lambda: 0.0200
+
+    # Twistingvines
+    default.twistingvines:
+      base-price: 6.45
+      lambda: 0.0200
+
+    # Vine
+    default.vine:
+      base-price: 5.50
+      lambda: 0.0200
+
+    # Warpedbutton
+    default.warpedbutton:
+      base-price: 2.96
+      lambda: 0.0200
+
+    # Warpeddoor
+    default.warpeddoor:
+      base-price: 5.62
+      lambda: 0.0200
+
+    # Warpedfence
+    default.warpedfence:
+      base-price: 13.38
+      lambda: 0.0200
+
+    # Warpedfencegate
+    default.warpedfencegate:
+      base-price: 9.88
+      lambda: 0.0200
+
+    # Warpedfungusonastick
+    default.warpedfungusonastick:
+      base-price: 7.63
+      lambda: 0.0200
+
+    # Warpedhangingsign
+    default.warpedhangingsign:
+      base-price: 18.41
+      lambda: 0.0200
+
+    # Warpedhyphae
+    default.warpedhyphae:
+      base-price: 15.30
+      lambda: 0.0200
+
+    # Warpednylium
+    default.warpednylium:
+      base-price: 2.25
+      lambda: 0.0200
+
+    # Warpedplanks
+    default.warpedplanks:
+      base-price: 2.96
+      lambda: 0.0200
+
+    # Warpedpressureplate
+    default.warpedpressureplate:
+      base-price: 5.86
+      lambda: 0.0200
+
+    # Warpedshelf
+    default.warpedshelf:
+      base-price: 11.80
+      lambda: 0.0200
+
+    # Warpedsign
+    default.warpedsign:
+      base-price: 5.92
+      lambda: 0.0200
+
+    # Warpedstairs
+    default.warpedstairs:
+      base-price: 4.22
+      lambda: 0.0200
+
+    # Warpedstem
+    default.warpedstem:
+      base-price: 11.83
+      lambda: 0.0200
+
+    # Warpedtrapdoor
+    default.warpedtrapdoor:
+      base-price: 8.44
+      lambda: 0.0200
+
+    # Waxedcopperbars
+    default.waxedcopperbars:
+      base-price: 12.21
+      lambda: 0.0200
+
+    # Waxedcopperlantern
+    default.waxedcopperlantern:
+      base-price: 19.87
+      lambda: 0.0200
+
+    # Waxedoxidizedcopperdoor
+    default.waxedoxidizedcopperdoor:
+      base-price: 16.15
+      lambda: 0.0200
+
+    # Waxedweatheredcopperdoor
+    default.waxedweatheredcopperdoor:
+      base-price: 18.56
+      lambda: 0.0200
+
+    # Weatheredcopperdoor
+    default.weatheredcopperdoor:
+      base-price: 9.75
+      lambda: 0.0200
+
+    # Weatheredcoppertrapdoor
+    default.weatheredcoppertrapdoor:
+      base-price: 19.91
+      lambda: 0.0200
+
+    # Weepingvines
+    default.weepingvines:
+      base-price: 6.45
+      lambda: 0.0200
+
+    # Wetsponge
+    default.wetsponge:
+      base-price: 11.00
+      lambda: 0.0200
+
+    # Wheat
+    default.wheat:
+      base-price: 3.30
+      lambda: 0.0200
+
+    # Whitebundle
+    default.whitebundle:
+      base-price: 10.51
+      lambda: 0.0200
+
+    # Whitecandle
+    default.whitecandle:
+      base-price: 11.01
+      lambda: 0.0200
+
+    # Whitecarpet
+    default.whitecarpet:
+      base-price: 4.22
+      lambda: 0.0200
+
+    # Whiteglazedterracotta
+    default.whiteglazedterracotta:
+      base-price: 18.49
+      lambda: 0.0200
+
+    # Whiteterracotta
+    default.whiteterracotta:
+      base-price: 14.79
+      lambda: 0.0200
+
+    # Whitewool
+    default.whitewool:
+      base-price: 6.40
+      lambda: 0.0200
+
+    # Windcharge
+    default.windcharge:
+      base-price: 7.00
+      lambda: 0.0200
+
+    # Wolfarmor
+    default.wolfarmor:
+      base-price: 14.59
+      lambda: 0.0200
+
+    # Woodenaxe
+    default.woodenaxe:
+      base-price: 8.69
+      lambda: 0.0200
+
+    # Woodenhoe
+    default.woodenhoe:
+      base-price: 6.58
+      lambda: 0.0200
+
+    # Woodenpickaxe
+    default.woodenpickaxe:
+      base-price: 8.69
+      lambda: 0.0200
+
+    # Woodenshovel
+    default.woodenshovel:
+      base-price: 4.42
+      lambda: 0.0200
+
+    # Woodenspear
+    default.woodenspear:
+      base-price: 4.42
+      lambda: 0.0200
+
+    # Woodensword
+    default.woodensword:
+      base-price: 5.55
+      lambda: 0.0200
+
+    # Writablebook
+    default.writablebook:
+      base-price: 10.14
+      lambda: 0.0200
+
+    # Writtenbook
+    default.writtenbook:
+      base-price: 10.48
+      lambda: 0.0200
+
+    # Yellowbundle
+    default.yellowbundle:
+      base-price: 11.25
+      lambda: 0.0200
+
+    # Yellowcandle
+    default.yellowcandle:
+      base-price: 11.74
+      lambda: 0.0200
+
+    # Yellowcarpet
+    default.yellowcarpet:
+      base-price: 5.04
+      lambda: 0.0200
+
+    # Yellowglazedterracotta
+    default.yellowglazedterracotta:
+      base-price: 18.59
+      lambda: 0.0200
+
+    # Yellowterracotta
+    default.yellowterracotta:
+      base-price: 14.87
+      lambda: 0.0200
+
+    # Yellowwool
+    default.yellowwool:
+      base-price: 7.64
+      lambda: 0.0200
+
+  # === 铁器时代 (λ=0.0120) ===
+    # Acaciachestboat
+    default.acaciachestboat:
+      base-price: 27.51
+      lambda: 0.0120
+
+    # Amethystblock
+    default.amethystblock:
+      base-price: 34.92
+      lambda: 0.0120
+
+    # Axolotlbucket
+    default.axolotlbucket:
+      base-price: 67.31
+      lambda: 0.0120
+
+    # Bamboochestraft
+    default.bamboochestraft:
+      base-price: 32.64
+      lambda: 0.0120
+
+    # Beehive
+    default.beehive:
+      base-price: 39.87
+      lambda: 0.0120
+
+    # Beenest
+    default.beenest:
+      base-price: 39.87
+      lambda: 0.0120
+
+    # Bell
+    default.bell:
+      base-price: 147.23
+      lambda: 0.0120
+
+    # Birchchestboat
+    default.birchchestboat:
+      base-price: 27.51
+      lambda: 0.0120
+
+    # Blackbanner
+    default.blackbanner:
+      base-price: 55.20
+      lambda: 0.0120
+
+    # Blackbed
+    default.blackbed:
+      base-price: 33.83
+      lambda: 0.0120
+
+    # Blackshulkerbox
+    default.blackshulkerbox:
+      base-price: 86.01
+      lambda: 0.0120
+
+    # Blastfurnace
+    default.blastfurnace:
+      base-price: 97.28
+      lambda: 0.0120
+
+    # Bluebanner
+    default.bluebanner:
+      base-price: 110.75
+      lambda: 0.0120
+
+    # Bluebed
+    default.bluebed:
+      base-price: 61.90
+      lambda: 0.0120
+
+    # Bluebundle
+    default.bluebundle:
+      base-price: 23.06
+      lambda: 0.0120
+
+    # Bluecandle
+    default.bluecandle:
+      base-price: 23.55
+      lambda: 0.0120
+
+    # Blueglazedterracotta
+    default.blueglazedterracotta:
+      base-price: 20.30
+      lambda: 0.0120
+
+    # Blueice
+    default.blueice:
+      base-price: 116.58
+      lambda: 0.0120
+
+    # Blueshulkerbox
+    default.blueshulkerbox:
+      base-price: 95.86
+      lambda: 0.0120
+
+    # Bookshelf
+    default.bookshelf:
+      base-price: 30.47
+      lambda: 0.0120
+
+    # Breezerod
+    default.breezerod:
+      base-price: 28.00
+      lambda: 0.0120
+
+    # Brickstairs
+    default.brickstairs:
+      base-price: 22.79
+      lambda: 0.0120
+
+    # Brownbanner
+    default.brownbanner:
+      base-price: 62.25
+      lambda: 0.0120
+
+    # Brownbed
+    default.brownbed:
+      base-price: 37.39
+      lambda: 0.0120
+
+    # Brownshulkerbox
+    default.brownshulkerbox:
+      base-price: 87.26
+      lambda: 0.0120
+
+    # Bucket
+    default.bucket:
+      base-price: 54.33
+      lambda: 0.0120
+
+    # Cake
+    default.cake:
+      base-price: 189.20
+      lambda: 0.0120
+
+    # Calibratedsculksensor
+    default.calibratedsculksensor:
+      base-price: 111.74
+      lambda: 0.0120
+
+    # Campfire
+    default.campfire:
+      base-price: 36.98
+      lambda: 0.0120
+
+    # Cauldron
+    default.cauldron:
+      base-price: 121.60
+      lambda: 0.0120
+
+    # Chainmailboots
+    default.chainmailboots:
+      base-price: 150.00
+      lambda: 0.0120
+
+    # Chainmailhelmet
+    default.chainmailhelmet:
+      base-price: 150.00
+      lambda: 0.0120
+
+    # Cherrychestboat
+    default.cherrychestboat:
+      base-price: 29.08
+      lambda: 0.0120
+
+    # Chestminecart
+    default.chestminecart:
+      base-price: 104.53
+      lambda: 0.0120
+
+    # Chiseledquartzblock
+    default.chiseledquartzblock:
+      base-price: 147.89
+      lambda: 0.0120
+
+    # Chorusflower
+    default.chorusflower:
+      base-price: 27.50
+      lambda: 0.0120
+
+    # Coalblock
+    default.coalblock:
+      base-price: 72.86
+      lambda: 0.0120
+
+    # Codbucket
+    default.codbucket:
+      base-price: 67.31
+      lambda: 0.0120
+
+    # Comparator
+    default.comparator:
+      base-price: 34.34
+      lambda: 0.0120
+
+    # Compass
+    default.compass:
+      base-price: 74.13
+      lambda: 0.0120
+
+    # Conduit
+    default.conduit:
+      base-price: 89.27
+      lambda: 0.0120
+
+    # Copperaxe
+    default.copperaxe:
+      base-price: 39.10
+      lambda: 0.0120
+
+    # Copperblock
+    default.copperblock:
+      base-price: 106.23
+      lambda: 0.0120
+
+    # Copperboots
+    default.copperboots:
+      base-price: 49.78
+      lambda: 0.0120
+
+    # Copperbulb
+    default.copperbulb:
+      base-price: 80.64
+      lambda: 0.0120
+
+    # Copperchest
+    default.copperchest:
+      base-price: 109.97
+      lambda: 0.0120
+
+    # Copperchestplate
+    default.copperchestplate:
+      base-price: 95.46
+      lambda: 0.0120
+
+    # Copperdoor
+    default.copperdoor:
+      base-price: 24.38
+      lambda: 0.0120
+
+    # Coppergolemstatue
+    default.coppergolemstatue:
+      base-price: 132.64
+      lambda: 0.0120
+
+    # Coppergrate
+    default.coppergrate:
+      base-price: 103.04
+      lambda: 0.0120
+
+    # Copperhelmet
+    default.copperhelmet:
+      base-price: 61.58
+      lambda: 0.0120
+
+    # Copperhoe
+    default.copperhoe:
+      base-price: 27.06
+      lambda: 0.0120
+
+    # Copperhorsearmor
+    default.copperhorsearmor:
+      base-price: 102.00
+      lambda: 0.0120
+
+    # Copperleggings
+    default.copperleggings:
+      base-price: 84.42
+      lambda: 0.0120
+
+    # Coppernautilusarmor
+    default.coppernautilusarmor:
+      base-price: 61.00
+      lambda: 0.0120
+
+    # Copperpickaxe
+    default.copperpickaxe:
+      base-price: 39.10
+      lambda: 0.0120
+
+    # Coppersword
+    default.coppersword:
+      base-price: 26.24
+      lambda: 0.0120
+
+    # Coppertrapdoor
+    default.coppertrapdoor:
+      base-price: 49.78
+      lambda: 0.0120
+
+    # Crafter
+    default.crafter:
+      base-price: 108.60
+      lambda: 0.0120
+
+    # Creakingheart
+    default.creakingheart:
+      base-price: 36.25
+      lambda: 0.0120
+
+    # Crossbow
+    default.crossbow:
+      base-price: 33.71
+      lambda: 0.0120
+
+    # Cutcopper
+    default.cutcopper:
+      base-price: 103.04
+      lambda: 0.0120
+
+    # Cutcopperslab
+    default.cutcopperslab:
+      base-price: 50.49
+      lambda: 0.0120
+
+    # Cutcopperstairs
+    default.cutcopperstairs:
+      base-price: 146.83
+      lambda: 0.0120
+
+    # Cyanbanner
+    default.cyanbanner:
+      base-price: 92.42
+      lambda: 0.0120
+
+    # Cyanbed
+    default.cyanbed:
+      base-price: 52.64
+      lambda: 0.0120
+
+    # Cyancandle
+    default.cyancandle:
+      base-price: 20.29
+      lambda: 0.0120
+
+    # Cyanshulkerbox
+    default.cyanshulkerbox:
+      base-price: 92.60
+      lambda: 0.0120
+
+    # Damagedanvil
+    default.damagedanvil:
+      base-price: 125.24
+      lambda: 0.0120
+
+    # Darkoakchestboat
+    default.darkoakchestboat:
+      base-price: 27.51
+      lambda: 0.0120
+
+    # Darkprismarine
+    default.darkprismarine:
+      base-price: 43.52
+      lambda: 0.0120
+
+    # Darkprismarineslab
+    default.darkprismarineslab:
+      base-price: 21.32
+      lambda: 0.0120
+
+    # Darkprismarinestairs
+    default.darkprismarinestairs:
+      base-price: 62.02
+      lambda: 0.0120
+
+    # Daylightdetector
+    default.daylightdetector:
+      base-price: 58.10
+      lambda: 0.0120
+
+    # Deepslateemeraldore
+    default.deepslateemeraldore:
+      base-price: 41.25
+      lambda: 0.0120
+
+    # Deepslategoldore
+    default.deepslategoldore:
+      base-price: 33.00
+      lambda: 0.0120
+
+    # Dragonbreath
+    default.dragonbreath:
+      base-price: 180.00
+      lambda: 0.0120
+
+    # Driedkelpblock
+    default.driedkelpblock:
+      base-price: 32.37
+      lambda: 0.0120
+
+    # Echoshard
+    default.echoshard:
+      base-price: 92.30
+      lambda: 0.0120
+
+    # Emerald
+    default.emerald:
+      base-price: 55.00
+      lambda: 0.0120
+
+    # Emeraldore
+    default.emeraldore:
+      base-price: 41.25
+      lambda: 0.0120
+
+    # Enchantedbook
+    default.enchantedbook:
+      base-price: 89.30
+      lambda: 0.0120
+
+    # Endcrystal
+    default.endcrystal:
+      base-price: 136.81
+      lambda: 0.0120
+
+    # Endereye
+    default.endereye:
+      base-price: 61.38
+      lambda: 0.0120
+
+    # Enderpearl
+    default.enderpearl:
+      base-price: 55.00
+      lambda: 0.0120
+
+    # Endstonebrickstairs
+    default.endstonebrickstairs:
+      base-price: 24.18
+      lambda: 0.0120
+
+    # Endstonestairs
+    default.endstonestairs:
+      base-price: 24.18
+      lambda: 0.0120
+
+    # Experiencebottle
+    default.experiencebottle:
+      base-price: 25.00
+      lambda: 0.0120
+
+    # Exposedchiseledcopper
+    default.exposedchiseledcopper:
+      base-price: 51.52
+      lambda: 0.0120
+
+    # Exposedcopper
+    default.exposedcopper:
+      base-price: 51.52
+      lambda: 0.0120
+
+    # Exposedcopperbars
+    default.exposedcopperbars:
+      base-price: 51.52
+      lambda: 0.0120
+
+    # Exposedcopperbulb
+    default.exposedcopperbulb:
+      base-price: 51.52
+      lambda: 0.0120
+
+    # Exposedcopperchain
+    default.exposedcopperchain:
+      base-price: 51.52
+      lambda: 0.0120
+
+    # Exposedcopperchest
+    default.exposedcopperchest:
+      base-price: 51.52
+      lambda: 0.0120
+
+    # Exposedcoppergolemstatue
+    default.exposedcoppergolemstatue:
+      base-price: 51.52
+      lambda: 0.0120
+
+    # Exposedcoppergrate
+    default.exposedcoppergrate:
+      base-price: 51.52
+      lambda: 0.0120
+
+    # Exposedcopperlantern
+    default.exposedcopperlantern:
+      base-price: 51.52
+      lambda: 0.0120
+
+    # Exposedcoppertrapdoor
+    default.exposedcoppertrapdoor:
+      base-price: 24.89
+      lambda: 0.0120
+
+    # Exposedcutcopper
+    default.exposedcutcopper:
+      base-price: 51.52
+      lambda: 0.0120
+
+    # Exposedcutcopperslab
+    default.exposedcutcopperslab:
+      base-price: 51.52
+      lambda: 0.0120
+
+    # Exposedcutcopperstairs
+    default.exposedcutcopperstairs:
+      base-price: 51.52
+      lambda: 0.0120
+
+    # Exposedlightningrod
+    default.exposedlightningrod:
+      base-price: 51.52
+      lambda: 0.0120
+
+    # Fireworkstar
+    default.fireworkstar:
+      base-price: 101.75
+      lambda: 0.0120
+
+    # Furnaceminecart
+    default.furnaceminecart:
+      base-price: 95.91
+      lambda: 0.0120
+
+    # Ghasttear
+    default.ghasttear:
+      base-price: 82.50
+      lambda: 0.0120
+
+    # Gildedblackstone
+    default.gildedblackstone:
+      base-price: 58.00
+      lambda: 0.0120
+
+    # Glisteringmelonslice
+    default.glisteringmelonslice:
+      base-price: 52.49
+      lambda: 0.0120
+
+    # Glowstone
+    default.glowstone:
+      base-price: 36.96
+      lambda: 0.0120
+
+    # Goldenaxe
+    default.goldenaxe:
+      base-price: 171.81
+      lambda: 0.0120
+
+    # Goldencarrot
+    default.goldencarrot:
+      base-price: 48.97
+      lambda: 0.0120
+
+    # Goldendandelion
+    default.goldendandelion:
+      base-price: 49.42
+      lambda: 0.0120
+
+    # Goldenhoe
+    default.goldenhoe:
+      base-price: 116.46
+      lambda: 0.0120
+
+    # Goldenpickaxe
+    default.goldenpickaxe:
+      base-price: 171.81
+      lambda: 0.0120
+
+    # Goldenshovel
+    default.goldenshovel:
+      base-price: 59.93
+      lambda: 0.0120
+
+    # Goldenspear
+    default.goldenspear:
+      base-price: 59.93
+      lambda: 0.0120
+
+    # Goldensword
+    default.goldensword:
+      base-price: 116.56
+      lambda: 0.0120
+
+    # Goldingot
+    default.goldingot:
+      base-price: 58.91
+      lambda: 0.0120
+
+    # Goldore
+    default.goldore:
+      base-price: 33.00
+      lambda: 0.0120
+
+    # Graybanner
+    default.graybanner:
+      base-price: 47.53
+      lambda: 0.0120
+
+    # Graybed
+    default.graybed:
+      base-price: 29.95
+      lambda: 0.0120
+
+    # Grayshulkerbox
+    default.grayshulkerbox:
+      base-price: 84.64
+      lambda: 0.0120
+
+    # Greenbanner
+    default.greenbanner:
+      base-price: 75.22
+      lambda: 0.0120
+
+    # Greenbed
+    default.greenbed:
+      base-price: 43.95
+      lambda: 0.0120
+
+    # Greenshulkerbox
+    default.greenshulkerbox:
+      base-price: 89.56
+      lambda: 0.0120
+
+    # Hayblock
+    default.hayblock:
+      base-price: 27.32
+      lambda: 0.0120
+
+    # Heartofthesea
+    default.heartofthesea:
+      base-price: 44.39
+      lambda: 0.0120
+
+    # Heavycore
+    default.heavycore:
+      base-price: 149.45
+      lambda: 0.0120
+
+    # Heavyweightedpressureplate
+    default.heavyweightedpressureplate:
+      base-price: 36.59
+      lambda: 0.0120
+
+    # Honeycombblock
+    default.honeycombblock:
+      base-price: 34.92
+      lambda: 0.0120
+
+    # Hopper
+    default.hopper:
+      base-price: 103.83
+      lambda: 0.0120
+
+    # Hopperminecart
+    default.hopperminecart:
+      base-price: 190.60
+      lambda: 0.0120
+
+    # Ironaxe
+    default.ironaxe:
+      base-price: 55.37
+      lambda: 0.0120
+
+    # Ironblock
+    default.ironblock:
+      base-price: 153.01
+      lambda: 0.0120
+
+    # Ironboots
+    default.ironboots:
+      base-price: 71.70
+      lambda: 0.0120
+
+    # Ironchain
+    default.ironchain:
+      base-price: 22.13
+      lambda: 0.0120
+
+    # Ironchestplate
+    default.ironchestplate:
+      base-price: 137.49
+      lambda: 0.0120
+
+    # Irondoor
+    default.irondoor:
+      base-price: 35.11
+      lambda: 0.0120
+
+    # Ironhelmet
+    default.ironhelmet:
+      base-price: 88.70
+      lambda: 0.0120
+
+    # Ironhoe
+    default.ironhoe:
+      base-price: 38.02
+      lambda: 0.0120
+
+    # Ironhorsearmor
+    default.ironhorsearmor:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Ironleggings
+    default.ironleggings:
+      base-price: 121.60
+      lambda: 0.0120
+
+    # Ironnautilusarmor
+    default.ironnautilusarmor:
+      base-price: 80.00
+      lambda: 0.0120
+
+    # Ironpickaxe
+    default.ironpickaxe:
+      base-price: 55.37
+      lambda: 0.0120
+
+    # Ironshovel
+    default.ironshovel:
+      base-price: 20.31
+      lambda: 0.0120
+
+    # Ironspear
+    default.ironspear:
+      base-price: 20.31
+      lambda: 0.0120
+
+    # Ironsword
+    default.ironsword:
+      base-price: 37.32
+      lambda: 0.0120
+
+    # Irontrapdoor
+    default.irontrapdoor:
+      base-price: 71.70
+      lambda: 0.0120
+
+    # Junglechestboat
+    default.junglechestboat:
+      base-price: 27.51
+      lambda: 0.0120
+
+    # Lapisblock
+    default.lapisblock:
+      base-price: 109.71
+      lambda: 0.0120
+
+    # Lavabucket
+    default.lavabucket:
+      base-price: 68.28
+      lambda: 0.0120
+
+    # Leatherchestplate
+    default.leatherchestplate:
+      base-price: 37.80
+      lambda: 0.0120
+
+    # Leatherhelmet
+    default.leatherhelmet:
+      base-price: 24.38
+      lambda: 0.0120
+
+    # Leatherhorsearmor
+    default.leatherhorsearmor:
+      base-price: 33.43
+      lambda: 0.0120
+
+    # Leatherleggings
+    default.leatherleggings:
+      base-price: 33.43
+      lambda: 0.0120
+
+    # Lectern
+    default.lectern:
+      base-price: 33.51
+      lambda: 0.0120
+
+    # Lightbluebanner
+    default.lightbluebanner:
+      base-price: 42.90
+      lambda: 0.0120
+
+    # Lightbluebed
+    default.lightbluebed:
+      base-price: 27.62
+      lambda: 0.0120
+
+    # Lightblueshulkerbox
+    default.lightblueshulkerbox:
+      base-price: 83.83
+      lambda: 0.0120
+
+    # Lightgraybanner
+    default.lightgraybanner:
+      base-price: 47.58
+      lambda: 0.0120
+
+    # Lightgraybed
+    default.lightgraybed:
+      base-price: 29.98
+      lambda: 0.0120
+
+    # Lightgrayshulkerbox
+    default.lightgrayshulkerbox:
+      base-price: 84.65
+      lambda: 0.0120
+
+    # Lightningrod
+    default.lightningrod:
+      base-price: 37.72
+      lambda: 0.0120
+
+    # Lightweightedpressureplate
+    default.lightweightedpressureplate:
+      base-price: 116.64
+      lambda: 0.0120
+
+    # Limebanner
+    default.limebanner:
+      base-price: 57.40
+      lambda: 0.0120
+
+    # Limebed
+    default.limebed:
+      base-price: 34.94
+      lambda: 0.0120
+
+    # Limeshulkerbox
+    default.limeshulkerbox:
+      base-price: 86.40
+      lambda: 0.0120
+
+    # Lingeringpotion
+    default.lingeringpotion:
+      base-price: 50.20
+      lambda: 0.0120
+
+    # Lodestone
+    default.lodestone:
+      base-price: 36.51
+      lambda: 0.0120
+
+    # Mace
+    default.mace:
+      base-price: 175.68
+      lambda: 0.0120
+
+    # Magentabanner
+    default.magentabanner:
+      base-price: 67.49
+      lambda: 0.0120
+
+    # Magentabed
+    default.magentabed:
+      base-price: 40.04
+      lambda: 0.0120
+
+    # Magentashulkerbox
+    default.magentashulkerbox:
+      base-price: 88.19
+      lambda: 0.0120
+
+    # Magmablock
+    default.magmablock:
+      base-price: 69.14
+      lambda: 0.0120
+
+    # Mangrovechestboat
+    default.mangrovechestboat:
+      base-price: 27.51
+      lambda: 0.0120
+
+    # Map
+    default.map:
+      base-price: 72.17
+      lambda: 0.0120
+
+    # Melon
+    default.melon:
+      base-price: 38.50
+      lambda: 0.0120
+
+    # Melonblock
+    default.melonblock:
+      base-price: 38.50
+      lambda: 0.0120
+
+    # Milkbucket
+    default.milkbucket:
+      base-price: 64.70
+      lambda: 0.0120
+
+    # Minecart
+    default.minecart:
+      base-price: 88.70
+      lambda: 0.0120
+
+    # Musicdisc11
+    default.musicdisc11:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Musicdisc13
+    default.musicdisc13:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Musicdisc5
+    default.musicdisc5:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Musicdiscblocks
+    default.musicdiscblocks:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Musicdisccat
+    default.musicdisccat:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Musicdiscchirp
+    default.musicdiscchirp:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Musicdisccreator
+    default.musicdisccreator:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Musicdisccreatormusicbox
+    default.musicdisccreatormusicbox:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Musicdiscfar
+    default.musicdiscfar:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Musicdisclavachicken
+    default.musicdisclavachicken:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Musicdiscmall
+    default.musicdiscmall:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Musicdiscmellohi
+    default.musicdiscmellohi:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Musicdiscotherside
+    default.musicdiscotherside:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Musicdiscpigstep
+    default.musicdiscpigstep:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Musicdiscprecipice
+    default.musicdiscprecipice:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Musicdiscrelic
+    default.musicdiscrelic:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Musicdiscstal
+    default.musicdiscstal:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Musicdiscstrad
+    default.musicdiscstrad:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Musicdisctears
+    default.musicdisctears:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Musicdiscwait
+    default.musicdiscwait:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Musicdiscward
+    default.musicdiscward:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Nametag
+    default.nametag:
+      base-price: 55.00
+      lambda: 0.0120
+
+    # Netherbrickfence
+    default.netherbrickfence:
+      base-price: 34.43
+      lambda: 0.0120
+
+    # Nethergoldore
+    default.nethergoldore:
+      base-price: 33.00
+      lambda: 0.0120
+
+    # Netherwartblock
+    default.netherwartblock:
+      base-price: 118.80
+      lambda: 0.0120
+
+    # Oakchestboat
+    default.oakchestboat:
+      base-price: 27.51
+      lambda: 0.0120
+
+    # Observer
+    default.observer:
+      base-price: 29.85
+      lambda: 0.0120
+
+    # Obsidian
+    default.obsidian:
+      base-price: 130.80
+      lambda: 0.0120
+
+    # Ochrefroglight
+    default.ochrefroglight:
+      base-price: 59.44
+      lambda: 0.0120
+
+    # Ominousbottle
+    default.ominousbottle:
+      base-price: 37.15
+      lambda: 0.0120
+
+    # Orangebanner
+    default.orangebanner:
+      base-price: 47.58
+      lambda: 0.0120
+
+    # Orangebed
+    default.orangebed:
+      base-price: 29.98
+      lambda: 0.0120
+
+    # Orangeshulkerbox
+    default.orangeshulkerbox:
+      base-price: 84.65
+      lambda: 0.0120
+
+    # Oxidizedchiseledcopper
+    default.oxidizedchiseledcopper:
+      base-price: 30.91
+      lambda: 0.0120
+
+    # Oxidizedcopper
+    default.oxidizedcopper:
+      base-price: 30.91
+      lambda: 0.0120
+
+    # Oxidizedcopperbars
+    default.oxidizedcopperbars:
+      base-price: 30.91
+      lambda: 0.0120
+
+    # Oxidizedcopperbulb
+    default.oxidizedcopperbulb:
+      base-price: 30.91
+      lambda: 0.0120
+
+    # Oxidizedcopperchain
+    default.oxidizedcopperchain:
+      base-price: 30.91
+      lambda: 0.0120
+
+    # Oxidizedcopperchest
+    default.oxidizedcopperchest:
+      base-price: 30.91
+      lambda: 0.0120
+
+    # Oxidizedcoppergolemstatue
+    default.oxidizedcoppergolemstatue:
+      base-price: 30.91
+      lambda: 0.0120
+
+    # Oxidizedcoppergrate
+    default.oxidizedcoppergrate:
+      base-price: 30.91
+      lambda: 0.0120
+
+    # Oxidizedcopperlantern
+    default.oxidizedcopperlantern:
+      base-price: 30.91
+      lambda: 0.0120
+
+    # Oxidizedcutcopper
+    default.oxidizedcutcopper:
+      base-price: 30.91
+      lambda: 0.0120
+
+    # Oxidizedcutcopperslab
+    default.oxidizedcutcopperslab:
+      base-price: 30.91
+      lambda: 0.0120
+
+    # Oxidizedcutcopperstairs
+    default.oxidizedcutcopperstairs:
+      base-price: 30.91
+      lambda: 0.0120
+
+    # Oxidizedlightningrod
+    default.oxidizedlightningrod:
+      base-price: 30.91
+      lambda: 0.0120
+
+    # Paleoakchestboat
+    default.paleoakchestboat:
+      base-price: 29.08
+      lambda: 0.0120
+
+    # Pearlescentfroglight
+    default.pearlescentfroglight:
+      base-price: 59.44
+      lambda: 0.0120
+
+    # Pinkbanner
+    default.pinkbanner:
+      base-price: 39.86
+      lambda: 0.0120
+
+    # Pinkbed
+    default.pinkbed:
+      base-price: 26.08
+      lambda: 0.0120
+
+    # Pinkshulkerbox
+    default.pinkshulkerbox:
+      base-price: 83.29
+      lambda: 0.0120
+
+    # Piston
+    default.piston:
+      base-price: 30.35
+      lambda: 0.0120
+
+    # Potion
+    default.potion:
+      base-price: 100.00
+      lambda: 0.0120
+
+    # Powderedsnowbucket
+    default.powderedsnowbucket:
+      base-price: 62.54
+      lambda: 0.0120
+
+    # Powdersnowbucket
+    default.powdersnowbucket:
+      base-price: 62.54
+      lambda: 0.0120
+
+    # Poweredrail
+    default.poweredrail:
+      base-price: 55.47
+      lambda: 0.0120
+
+    # Prismarine
+    default.prismarine:
+      base-price: 21.34
+      lambda: 0.0120
+
+    # Prismarinebricks
+    default.prismarinebricks:
+      base-price: 45.54
+      lambda: 0.0120
+
+    # Prismarinebrickslab
+    default.prismarinebrickslab:
+      base-price: 22.31
+      lambda: 0.0120
+
+    # Prismarinebrickstairs
+    default.prismarinebrickstairs:
+      base-price: 64.89
+      lambda: 0.0120
+
+    # Prismarinestairs
+    default.prismarinestairs:
+      base-price: 30.41
+      lambda: 0.0120
+
+    # Prismarinewall
+    default.prismarinewall:
+      base-price: 20.27
+      lambda: 0.0120
+
+    # Pufferfishbucket
+    default.pufferfishbucket:
+      base-price: 67.31
+      lambda: 0.0120
+
+    # Pumpkin
+    default.pumpkin:
+      base-price: 30.00
+      lambda: 0.0120
+
+    # Pumpkinpie
+    default.pumpkinpie:
+      base-price: 30.48
+      lambda: 0.0120
+
+    # Purplebanner
+    default.purplebanner:
+      base-price: 75.28
+      lambda: 0.0120
+
+    # Purplebed
+    default.purplebed:
+      base-price: 43.98
+      lambda: 0.0120
+
+    # Purpleshulkerbox
+    default.purpleshulkerbox:
+      base-price: 89.57
+      lambda: 0.0120
+
+    # Quartzblock
+    default.quartzblock:
+      base-price: 74.69
+      lambda: 0.0120
+
+    # Quartzbricks
+    default.quartzbricks:
+      base-price: 72.45
+      lambda: 0.0120
+
+    # Quartzpillar
+    default.quartzpillar:
+      base-price: 73.94
+      lambda: 0.0120
+
+    # Quartzslab
+    default.quartzslab:
+      base-price: 36.60
+      lambda: 0.0120
+
+    # Quartzstairs
+    default.quartzstairs:
+      base-price: 106.43
+      lambda: 0.0120
+
+    # Rabbitfoot
+    default.rabbitfoot:
+      base-price: 22.00
+      lambda: 0.0120
+
+    # Rawcopperblock
+    default.rawcopperblock:
+      base-price: 84.95
+      lambda: 0.0120
+
+    # Rawgold
+    default.rawgold:
+      base-price: 44.00
+      lambda: 0.0120
+
+    # Rawironblock
+    default.rawironblock:
+      base-price: 109.30
+      lambda: 0.0120
+
+    # Redbanner
+    default.redbanner:
+      base-price: 40.48
+      lambda: 0.0120
+
+    # Redbed
+    default.redbed:
+      base-price: 26.39
+      lambda: 0.0120
+
+    # Rednetherbricks
+    default.rednetherbricks:
+      base-price: 36.26
+      lambda: 0.0120
+
+    # Rednetherbrickstairs
+    default.rednetherbrickstairs:
+      base-price: 51.67
+      lambda: 0.0120
+
+    # Rednetherbrickwall
+    default.rednetherbrickwall:
+      base-price: 34.45
+      lambda: 0.0120
+
+    # Redshulkerbox
+    default.redshulkerbox:
+      base-price: 83.40
+      lambda: 0.0120
+
+    # Redstoneblock
+    default.redstoneblock:
+      base-price: 27.32
+      lambda: 0.0120
+
+    # Redstonelamp
+    default.redstonelamp:
+      base-price: 48.15
+      lambda: 0.0120
+
+    # Saddle
+    default.saddle:
+      base-price: 110.00
+      lambda: 0.0120
+
+    # Salmonbucket
+    default.salmonbucket:
+      base-price: 67.31
+      lambda: 0.0120
+
+    # Sculk
+    default.sculk:
+      base-price: 30.69
+      lambda: 0.0120
+
+    # Sculkcatalyst
+    default.sculkcatalyst:
+      base-price: 108.89
+      lambda: 0.0120
+
+    # Sculksensor
+    default.sculksensor:
+      base-price: 88.20
+      lambda: 0.0120
+
+    # Sculkshrieker
+    default.sculkshrieker:
+      base-price: 97.28
+      lambda: 0.0120
+
+    # Sculkvein
+    default.sculkvein:
+      base-price: 42.68
+      lambda: 0.0120
+
+    # Sealantern
+    default.sealantern:
+      base-price: 58.19
+      lambda: 0.0120
+
+    # Shears
+    default.shears:
+      base-price: 36.59
+      lambda: 0.0120
+
+    # Shield
+    default.shield:
+      base-price: 30.17
+      lambda: 0.0120
+
+    # Shroomlight
+    default.shroomlight:
+      base-price: 44.35
+      lambda: 0.0120
+
+    # Shulkerbox
+    default.shulkerbox:
+      base-price: 83.58
+      lambda: 0.0120
+
+    # Shulkershell
+    default.shulkershell:
+      base-price: 34.20
+      lambda: 0.0120
+
+    # Slimeblock
+    default.slimeblock:
+      base-price: 91.08
+      lambda: 0.0120
+
+    # Smithingtable
+    default.smithingtable:
+      base-price: 43.74
+      lambda: 0.0120
+
+    # Smoker
+    default.smoker:
+      base-price: 42.64
+      lambda: 0.0120
+
+    # Smoothquartz
+    default.smoothquartz:
+      base-price: 93.36
+      lambda: 0.0120
+
+    # Smoothquartzslab
+    default.smoothquartzslab:
+      base-price: 45.75
+      lambda: 0.0120
+
+    # Smoothquartzstairs
+    default.smoothquartzstairs:
+      base-price: 133.04
+      lambda: 0.0120
+
+    # Snifferegg
+    default.snifferegg:
+      base-price: 23.24
+      lambda: 0.0120
+
+    # Soulcampfire
+    default.soulcampfire:
+      base-price: 39.05
+      lambda: 0.0120
+
+    # Splashpotion
+    default.splashpotion:
+      base-price: 40.72
+      lambda: 0.0120
+
+    # Sprucechestboat
+    default.sprucechestboat:
+      base-price: 27.51
+      lambda: 0.0120
+
+    # Spyglass
+    default.spyglass:
+      base-price: 33.97
+      lambda: 0.0120
+
+    # Stickypiston
+    default.stickypiston:
+      base-price: 40.94
+      lambda: 0.0120
+
+    # Stonecutter
+    default.stonecutter:
+      base-price: 21.94
+      lambda: 0.0120
+
+    # Tadpolebucket
+    default.tadpolebucket:
+      base-price: 55.21
+      lambda: 0.0120
+
+    # Target
+    default.target:
+      base-price: 38.90
+      lambda: 0.0120
+
+    # Tnt
+    default.tnt:
+      base-price: 52.62
+      lambda: 0.0120
+
+    # Tntminecart
+    default.tntminecart:
+      base-price: 139.91
+      lambda: 0.0120
+
+    # Trappedchest
+    default.trappedchest:
+      base-price: 27.33
+      lambda: 0.0120
+
+    # Trident
+    default.trident:
+      base-price: 78.83
+      lambda: 0.0120
+
+    # Tropicalfishbucket
+    default.tropicalfishbucket:
+      base-price: 67.31
+      lambda: 0.0120
+
+    # Verdantfroglight
+    default.verdantfroglight:
+      base-price: 59.44
+      lambda: 0.0120
+
+    # Warpedwartblock
+    default.warpedwartblock:
+      base-price: 118.80
+      lambda: 0.0120
+
+    # Waterbucket
+    default.waterbucket:
+      base-price: 61.41
+      lambda: 0.0120
+
+    # Waxedcopperblock
+    default.waxedcopperblock:
+      base-price: 114.08
+      lambda: 0.0120
+
+    # Waxedcopperbulb
+    default.waxedcopperbulb:
+      base-price: 88.74
+      lambda: 0.0120
+
+    # Waxedcopperchain
+    default.waxedcopperchain:
+      base-price: 21.94
+      lambda: 0.0120
+
+    # Waxedcopperchest
+    default.waxedcopperchest:
+      base-price: 117.78
+      lambda: 0.0120
+
+    # Waxedcopperdoor
+    default.waxedcopperdoor:
+      base-price: 33.05
+      lambda: 0.0120
+
+    # Waxedcoppergolemstatue
+    default.waxedcoppergolemstatue:
+      base-price: 140.22
+      lambda: 0.0120
+
+    # Waxedcoppergrate
+    default.waxedcoppergrate:
+      base-price: 110.92
+      lambda: 0.0120
+
+    # Waxedcoppertrapdoor
+    default.waxedcoppertrapdoor:
+      base-price: 58.19
+      lambda: 0.0120
+
+    # Waxedcutcopper
+    default.waxedcutcopper:
+      base-price: 110.92
+      lambda: 0.0120
+
+    # Waxedcutcopperslab
+    default.waxedcutcopperslab:
+      base-price: 58.90
+      lambda: 0.0120
+
+    # Waxedcutcopperstairs
+    default.waxedcutcopperstairs:
+      base-price: 154.27
+      lambda: 0.0120
+
+    # Waxedexposedchiseledcopper
+    default.waxedexposedchiseledcopper:
+      base-price: 59.91
+      lambda: 0.0120
+
+    # Waxedexposedcopper
+    default.waxedexposedcopper:
+      base-price: 59.91
+      lambda: 0.0120
+
+    # Waxedexposedcopperbars
+    default.waxedexposedcopperbars:
+      base-price: 54.47
+      lambda: 0.0120
+
+    # Waxedexposedcopperbulb
+    default.waxedexposedcopperbulb:
+      base-price: 59.91
+      lambda: 0.0120
+
+    # Waxedexposedcopperchain
+    default.waxedexposedcopperchain:
+      base-price: 54.47
+      lambda: 0.0120
+
+    # Waxedexposedcopperchest
+    default.waxedexposedcopperchest:
+      base-price: 59.91
+      lambda: 0.0120
+
+    # Waxedexposedcopperdoor
+    default.waxedexposedcopperdoor:
+      base-price: 20.98
+      lambda: 0.0120
+
+    # Waxedexposedcoppergolemstatue
+    default.waxedexposedcoppergolemstatue:
+      base-price: 59.91
+      lambda: 0.0120
+
+    # Waxedexposedcoppergrate
+    default.waxedexposedcoppergrate:
+      base-price: 59.91
+      lambda: 0.0120
+
+    # Waxedexposedcopperlantern
+    default.waxedexposedcopperlantern:
+      base-price: 54.47
+      lambda: 0.0120
+
+    # Waxedexposedcoppertrapdoor
+    default.waxedexposedcoppertrapdoor:
+      base-price: 33.55
+      lambda: 0.0120
+
+    # Waxedexposedcutcopper
+    default.waxedexposedcutcopper:
+      base-price: 59.91
+      lambda: 0.0120
+
+    # Waxedexposedcutcopperslab
+    default.waxedexposedcutcopperslab:
+      base-price: 59.91
+      lambda: 0.0120
+
+    # Waxedexposedcutcopperstairs
+    default.waxedexposedcutcopperstairs:
+      base-price: 59.91
+      lambda: 0.0120
+
+    # Waxedexposedlightningrod
+    default.waxedexposedlightningrod:
+      base-price: 59.91
+      lambda: 0.0120
+
+    # Waxedlightningrod
+    default.waxedlightningrod:
+      base-price: 46.25
+      lambda: 0.0120
+
+    # Waxedoxidizedchiseledcopper
+    default.waxedoxidizedchiseledcopper:
+      base-price: 39.51
+      lambda: 0.0120
+
+    # Waxedoxidizedcopper
+    default.waxedoxidizedcopper:
+      base-price: 39.51
+      lambda: 0.0120
+
+    # Waxedoxidizedcopperbars
+    default.waxedoxidizedcopperbars:
+      base-price: 35.92
+      lambda: 0.0120
+
+    # Waxedoxidizedcopperbulb
+    default.waxedoxidizedcopperbulb:
+      base-price: 39.51
+      lambda: 0.0120
+
+    # Waxedoxidizedcopperchain
+    default.waxedoxidizedcopperchain:
+      base-price: 35.92
+      lambda: 0.0120
+
+    # Waxedoxidizedcopperchest
+    default.waxedoxidizedcopperchest:
+      base-price: 39.51
+      lambda: 0.0120
+
+    # Waxedoxidizedcoppergolemstatue
+    default.waxedoxidizedcoppergolemstatue:
+      base-price: 39.51
+      lambda: 0.0120
+
+    # Waxedoxidizedcoppergrate
+    default.waxedoxidizedcoppergrate:
+      base-price: 39.51
+      lambda: 0.0120
+
+    # Waxedoxidizedcopperlantern
+    default.waxedoxidizedcopperlantern:
+      base-price: 35.92
+      lambda: 0.0120
+
+    # Waxedoxidizedcoppertrapdoor
+    default.waxedoxidizedcoppertrapdoor:
+      base-price: 23.69
+      lambda: 0.0120
+
+    # Waxedoxidizedcutcopper
+    default.waxedoxidizedcutcopper:
+      base-price: 39.51
+      lambda: 0.0120
+
+    # Waxedoxidizedcutcopperslab
+    default.waxedoxidizedcutcopperslab:
+      base-price: 39.51
+      lambda: 0.0120
+
+    # Waxedoxidizedcutcopperstairs
+    default.waxedoxidizedcutcopperstairs:
+      base-price: 39.51
+      lambda: 0.0120
+
+    # Waxedoxidizedlightningrod
+    default.waxedoxidizedlightningrod:
+      base-price: 39.51
+      lambda: 0.0120
+
+    # Waxedweatheredchiseledcopper
+    default.waxedweatheredchiseledcopper:
+      base-price: 49.72
+      lambda: 0.0120
+
+    # Waxedweatheredcopper
+    default.waxedweatheredcopper:
+      base-price: 49.72
+      lambda: 0.0120
+
+    # Waxedweatheredcopperbars
+    default.waxedweatheredcopperbars:
+      base-price: 45.20
+      lambda: 0.0120
+
+    # Waxedweatheredcopperbulb
+    default.waxedweatheredcopperbulb:
+      base-price: 49.72
+      lambda: 0.0120
+
+    # Waxedweatheredcopperchain
+    default.waxedweatheredcopperchain:
+      base-price: 45.20
+      lambda: 0.0120
+
+    # Waxedweatheredcopperchest
+    default.waxedweatheredcopperchest:
+      base-price: 49.72
+      lambda: 0.0120
+
+    # Waxedweatheredcoppergolemstatue
+    default.waxedweatheredcoppergolemstatue:
+      base-price: 49.72
+      lambda: 0.0120
+
+    # Waxedweatheredcoppergrate
+    default.waxedweatheredcoppergrate:
+      base-price: 49.72
+      lambda: 0.0120
+
+    # Waxedweatheredcopperlantern
+    default.waxedweatheredcopperlantern:
+      base-price: 45.20
+      lambda: 0.0120
+
+    # Waxedweatheredcoppertrapdoor
+    default.waxedweatheredcoppertrapdoor:
+      base-price: 28.62
+      lambda: 0.0120
+
+    # Waxedweatheredcutcopper
+    default.waxedweatheredcutcopper:
+      base-price: 49.72
+      lambda: 0.0120
+
+    # Waxedweatheredcutcopperslab
+    default.waxedweatheredcutcopperslab:
+      base-price: 49.72
+      lambda: 0.0120
+
+    # Waxedweatheredcutcopperstairs
+    default.waxedweatheredcutcopperstairs:
+      base-price: 49.72
+      lambda: 0.0120
+
+    # Waxedweatheredlightningrod
+    default.waxedweatheredlightningrod:
+      base-price: 49.72
+      lambda: 0.0120
+
+    # Weatheredchiseledcopper
+    default.weatheredchiseledcopper:
+      base-price: 41.22
+      lambda: 0.0120
+
+    # Weatheredcopper
+    default.weatheredcopper:
+      base-price: 41.22
+      lambda: 0.0120
+
+    # Weatheredcopperbars
+    default.weatheredcopperbars:
+      base-price: 41.22
+      lambda: 0.0120
+
+    # Weatheredcopperbulb
+    default.weatheredcopperbulb:
+      base-price: 41.22
+      lambda: 0.0120
+
+    # Weatheredcopperchain
+    default.weatheredcopperchain:
+      base-price: 41.22
+      lambda: 0.0120
+
+    # Weatheredcopperchest
+    default.weatheredcopperchest:
+      base-price: 41.22
+      lambda: 0.0120
+
+    # Weatheredcoppergolemstatue
+    default.weatheredcoppergolemstatue:
+      base-price: 41.22
+      lambda: 0.0120
+
+    # Weatheredcoppergrate
+    default.weatheredcoppergrate:
+      base-price: 41.22
+      lambda: 0.0120
+
+    # Weatheredcopperlantern
+    default.weatheredcopperlantern:
+      base-price: 41.22
+      lambda: 0.0120
+
+    # Weatheredcutcopper
+    default.weatheredcutcopper:
+      base-price: 41.22
+      lambda: 0.0120
+
+    # Weatheredcutcopperslab
+    default.weatheredcutcopperslab:
+      base-price: 41.22
+      lambda: 0.0120
+
+    # Weatheredcutcopperstairs
+    default.weatheredcutcopperstairs:
+      base-price: 41.22
+      lambda: 0.0120
+
+    # Weatheredlightningrod
+    default.weatheredlightningrod:
+      base-price: 41.22
+      lambda: 0.0120
+
+    # Whitebanner
+    default.whitebanner:
+      base-price: 37.15
+      lambda: 0.0120
+
+    # Whitebed
+    default.whitebed:
+      base-price: 24.71
+      lambda: 0.0120
+
+    # Whiteshulkerbox
+    default.whiteshulkerbox:
+      base-price: 83.32
+      lambda: 0.0120
+
+    # Yellowbanner
+    default.yellowbanner:
+      base-price: 44.14
+      lambda: 0.0120
+
+    # Yellowbed
+    default.yellowbed:
+      base-price: 28.24
+      lambda: 0.0120
+
+    # Yellowshulkerbox
+    default.yellowshulkerbox:
+      base-price: 84.05
+      lambda: 0.0120
+
+  # === 钻石装备 (λ=0.0060) ===
+    # Ancientdebris
+    default.ancientdebris:
+      base-price: 968.00
+      lambda: 0.0060
+
+    # Anglerpotterysherd
+    default.anglerpotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Anvil
+    default.anvil:
+      base-price: 500.97
+      lambda: 0.0060
+
+    # Archerpotterysherd
+    default.archerpotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Armsuppotterysherd
+    default.armsuppotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Blackharness
+    default.blackharness:
+      base-price: 1196.51
+      lambda: 0.0060
+
+    # Bladepotterysherd
+    default.bladepotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Blueharness
+    default.blueharness:
+      base-price: 1205.86
+      lambda: 0.0060
+
+    # Brewerpotterysherd
+    default.brewerpotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Brownharness
+    default.brownharness:
+      base-price: 1197.69
+      lambda: 0.0060
+
+    # Burnpotterysherd
+    default.burnpotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Chainmailchestplate
+    default.chainmailchestplate:
+      base-price: 325.00
+      lambda: 0.0060
+
+    # Chainmailleggings
+    default.chainmailleggings:
+      base-price: 250.00
+      lambda: 0.0060
+
+    # Chippedanvil
+    default.chippedanvil:
+      base-price: 250.49
+      lambda: 0.0060
+
+    # Chiseledcopper
+    default.chiseledcopper:
+      base-price: 204.02
+      lambda: 0.0060
+
+    # Clock
+    default.clock:
+      base-price: 229.38
+      lambda: 0.0060
+
+    # Cryingobsidian
+    default.cryingobsidian:
+      base-price: 392.40
+      lambda: 0.0060
+
+    # Cyanharness
+    default.cyanharness:
+      base-price: 1202.78
+      lambda: 0.0060
+
+    # Dangerpotterysherd
+    default.dangerpotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Deepslatediamondore
+    default.deepslatediamondore:
+      base-price: 412.50
+      lambda: 0.0060
+
+    # Diamond
+    default.diamond:
+      base-price: 550.00
+      lambda: 0.0060
+
+    # Diamondaxe
+    default.diamondaxe:
+      base-price: 1586.15
+      lambda: 0.0060
+
+    # Diamondhoe
+    default.diamondhoe:
+      base-price: 1069.17
+      lambda: 0.0060
+
+    # Diamondnautilusarmor
+    default.diamondnautilusarmor:
+      base-price: 1980.00
+      lambda: 0.0060
+
+    # Diamondore
+    default.diamondore:
+      base-price: 412.50
+      lambda: 0.0060
+
+    # Diamondpickaxe
+    default.diamondpickaxe:
+      base-price: 1586.15
+      lambda: 0.0060
+
+    # Diamondshovel
+    default.diamondshovel:
+      base-price: 541.20
+      lambda: 0.0060
+
+    # Diamondspear
+    default.diamondspear:
+      base-price: 541.20
+      lambda: 0.0060
+
+    # Diamondsword
+    default.diamondsword:
+      base-price: 1079.10
+      lambda: 0.0060
+
+    # Driedghast
+    default.driedghast:
+      base-price: 617.32
+      lambda: 0.0060
+
+    # Emeraldblock
+    default.emeraldblock:
+      base-price: 455.40
+      lambda: 0.0060
+
+    # Enchantingtable
+    default.enchantingtable:
+      base-price: 1531.92
+      lambda: 0.0060
+
+    # Enderchest
+    default.enderchest:
+      base-price: 1019.16
+      lambda: 0.0060
+
+    # Explorerpotterysherd
+    default.explorerpotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Flowpotterysherd
+    default.flowpotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Friendpotterysherd
+    default.friendpotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Globebannerpattern
+    default.globebannerpattern:
+      base-price: 481.80
+      lambda: 0.0060
+
+    # Goldblock
+    default.goldblock:
+      base-price: 487.77
+      lambda: 0.0060
+
+    # Goldenapple
+    default.goldenapple:
+      base-price: 436.61
+      lambda: 0.0060
+
+    # Goldenboots
+    default.goldenboots:
+      base-price: 228.57
+      lambda: 0.0060
+
+    # Goldenchestplate
+    default.goldenchestplate:
+      base-price: 438.29
+      lambda: 0.0060
+
+    # Goldenhelmet
+    default.goldenhelmet:
+      base-price: 282.77
+      lambda: 0.0060
+
+    # Goldenhorsearmor
+    default.goldenhorsearmor:
+      base-price: 385.00
+      lambda: 0.0060
+
+    # Goldenleggings
+    default.goldenleggings:
+      base-price: 387.63
+      lambda: 0.0060
+
+    # Goldennautilusarmor
+    default.goldennautilusarmor:
+      base-price: 231.00
+      lambda: 0.0060
+
+    # Grayharness
+    default.grayharness:
+      base-price: 1195.21
+      lambda: 0.0060
+
+    # Greenharness
+    default.greenharness:
+      base-price: 1199.88
+      lambda: 0.0060
+
+    # Gusterpotterysherd
+    default.gusterpotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Heartbreakpotterysherd
+    default.heartbreakpotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Heartpotterysherd
+    default.heartpotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Howlpotterysherd
+    default.howlpotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Jukebox
+    default.jukebox:
+      base-price: 522.71
+      lambda: 0.0060
+
+    # Lightblueharness
+    default.lightblueharness:
+      base-price: 1194.44
+      lambda: 0.0060
+
+    # Lightgrayharness
+    default.lightgrayharness:
+      base-price: 1195.22
+      lambda: 0.0060
+
+    # Limeharness
+    default.limeharness:
+      base-price: 1196.88
+      lambda: 0.0060
+
+    # Magentaharness
+    default.magentaharness:
+      base-price: 1198.58
+      lambda: 0.0060
+
+    # Minerpotterysherd
+    default.minerpotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Mournerpotterysherd
+    default.mournerpotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Netheritescrap
+    default.netheritescrap:
+      base-price: 1210.00
+      lambda: 0.0060
+
+    # Ominoustrialkey
+    default.ominoustrialkey:
+      base-price: 800.00
+      lambda: 0.0060
+
+    # Orangeharness
+    default.orangeharness:
+      base-price: 1195.22
+      lambda: 0.0060
+
+    # Pinkharness
+    default.pinkharness:
+      base-price: 1193.92
+      lambda: 0.0060
+
+    # Plentypotterysherd
+    default.plentypotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Prizepotterysherd
+    default.prizepotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Purpleharness
+    default.purpleharness:
+      base-price: 1199.89
+      lambda: 0.0060
+
+    # Rawgoldblock
+    default.rawgoldblock:
+      base-price: 364.32
+      lambda: 0.0060
+
+    # Recoverycompass
+    default.recoverycompass:
+      base-price: 747.53
+      lambda: 0.0060
+
+    # Redharness
+    default.redharness:
+      base-price: 1194.03
+      lambda: 0.0060
+
+    # Scrapepotterysherd
+    default.scrapepotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Sheafpotterysherd
+    default.sheafpotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Shelterpotterysherd
+    default.shelterpotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Skullpotterysherd
+    default.skullpotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Snortpotterysherd
+    default.snortpotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Trialkey
+    default.trialkey:
+      base-price: 500.00
+      lambda: 0.0060
+
+    # Waxedchiseledcopper
+    default.waxedchiseledcopper:
+      base-price: 210.89
+      lambda: 0.0060
+
+    # Whiteharness
+    default.whiteharness:
+      base-price: 1193.47
+      lambda: 0.0060
+
+    # Witherrose
+    default.witherrose:
+      base-price: 225.00
+      lambda: 0.0060
+
+    # Yellowharness
+    default.yellowharness:
+      base-price: 1194.64
+      lambda: 0.0060
+
+  # === 稀有掉落 (λ=0.0030) ===
+    # Boltarmortrimsmithingtemplate
+    default.boltarmortrimsmithingtemplate:
+      base-price: 8850.70
+      lambda: 0.0030
+
+    # Coastarmortrimsmithingtemplate
+    default.coastarmortrimsmithingtemplate:
+      base-price: 8850.70
+      lambda: 0.0030
+
+    # Creeperbannerpattern
+    default.creeperbannerpattern:
+      base-price: 4950.53
+      lambda: 0.0030
+
+    # Creeperhead
+    default.creeperhead:
+      base-price: 5000.00
+      lambda: 0.0030
+
+    # Diamondblock
+    default.diamondblock:
+      base-price: 4554.00
+      lambda: 0.0030
+
+    # Diamondboots
+    default.diamondboots:
+      base-price: 2134.00
+      lambda: 0.0030
+
+    # Diamondchestplate
+    default.diamondchestplate:
+      base-price: 4092.00
+      lambda: 0.0030
+
+    # Diamondhelmet
+    default.diamondhelmet:
+      base-price: 2640.00
+      lambda: 0.0030
+
+    # Diamondhorsearmor
+    default.diamondhorsearmor:
+      base-price: 3300.00
+      lambda: 0.0030
+
+    # Diamondleggings
+    default.diamondleggings:
+      base-price: 3619.00
+      lambda: 0.0030
+
+    # Dunearmortrimsmithingtemplate
+    default.dunearmortrimsmithingtemplate:
+      base-price: 8850.70
+      lambda: 0.0030
+
+    # Elytra
+    default.elytra:
+      base-price: 6000.00
+      lambda: 0.0030
+
+    # Enchantedgoldenapple
+    default.enchantedgoldenapple:
+      base-price: 4679.34
+      lambda: 0.0030
+
+    # Eyearmortrimsmithingtemplate
+    default.eyearmortrimsmithingtemplate:
+      base-price: 8850.70
+      lambda: 0.0030
+
+    # Flowarmortrimsmithingtemplate
+    default.flowarmortrimsmithingtemplate:
+      base-price: 8850.70
+      lambda: 0.0030
+
+    # Flowbannerpattern
+    default.flowbannerpattern:
+      base-price: 5832.25
+      lambda: 0.0030
+
+    # Gusterbannerpattern
+    default.gusterbannerpattern:
+      base-price: 5832.25
+      lambda: 0.0030
+
+    # Hostarmortrimsmithingtemplate
+    default.hostarmortrimsmithingtemplate:
+      base-price: 8850.70
+      lambda: 0.0030
+
+    # Mojangbannerpattern
+    default.mojangbannerpattern:
+      base-price: 4633.08
+      lambda: 0.0030
+
+    # Netheriteaxe
+    default.netheriteaxe:
+      base-price: 6329.85
+      lambda: 0.0030
+
+    # Netheriteboots
+    default.netheriteboots:
+      base-price: 6872.22
+      lambda: 0.0030
+
+    # Netheritechestplate
+    default.netheritechestplate:
+      base-price: 8810.64
+      lambda: 0.0030
+
+    # Netheritehelmet
+    default.netheritehelmet:
+      base-price: 7373.16
+      lambda: 0.0030
+
+    # Netheritehoe
+    default.netheritehoe:
+      base-price: 5818.04
+      lambda: 0.0030
+
+    # Netheritehorsearmor
+    default.netheritehorsearmor:
+      base-price: 8026.56
+      lambda: 0.0030
+
+    # Netheriteingot
+    default.netheriteingot:
+      base-price: 4807.64
+      lambda: 0.0030
+
+    # Netheriteleggings
+    default.netheriteleggings:
+      base-price: 8342.37
+      lambda: 0.0030
+
+    # Netheritenautilusarmor
+    default.netheritenautilusarmor:
+      base-price: 6719.76
+      lambda: 0.0030
+
+    # Netheritepickaxe
+    default.netheritepickaxe:
+      base-price: 6329.85
+      lambda: 0.0030
+
+    # Netheriteshovel
+    default.netheriteshovel:
+      base-price: 5295.35
+      lambda: 0.0030
+
+    # Netheritespear
+    default.netheritespear:
+      base-price: 5295.35
+      lambda: 0.0030
+
+    # Netheritesword
+    default.netheritesword:
+      base-price: 5827.87
+      lambda: 0.0030
+
+    # Netheriteupgradesmithingtemplate
+    default.netheriteupgradesmithingtemplate:
+      base-price: 8850.70
+      lambda: 0.0030
+
+    # Piglinbannerpattern
+    default.piglinbannerpattern:
+      base-price: 5832.25
+      lambda: 0.0030
+
+    # Piglinhead
+    default.piglinhead:
+      base-price: 5000.00
+      lambda: 0.0030
+
+    # Playerhead
+    default.playerhead:
+      base-price: 5000.00
+      lambda: 0.0030
+
+    # Raiserarmortrimsmithingtemplate
+    default.raiserarmortrimsmithingtemplate:
+      base-price: 8850.70
+      lambda: 0.0030
+
+    # Respawnanchor
+    default.respawnanchor:
+      base-price: 2268.06
+      lambda: 0.0030
+
+    # Ribarmortrimsmithingtemplate
+    default.ribarmortrimsmithingtemplate:
+      base-price: 8850.70
+      lambda: 0.0030
+
+    # Sentryarmortrimsmithingtemplate
+    default.sentryarmortrimsmithingtemplate:
+      base-price: 8850.70
+      lambda: 0.0030
+
+    # Shaperarmortrimsmithingtemplate
+    default.shaperarmortrimsmithingtemplate:
+      base-price: 8850.70
+      lambda: 0.0030
+
+    # Silencearmortrimsmithingtemplate
+    default.silencearmortrimsmithingtemplate:
+      base-price: 8850.70
+      lambda: 0.0030
+
+    # Skeletonskull
+    default.skeletonskull:
+      base-price: 5000.00
+      lambda: 0.0030
+
+    # Snoutarmortrimsmithingtemplate
+    default.snoutarmortrimsmithingtemplate:
+      base-price: 8850.70
+      lambda: 0.0030
+
+    # Snoutbannerpattern
+    default.snoutbannerpattern:
+      base-price: 5832.25
+      lambda: 0.0030
+
+    # Spirearmortrimsmithingtemplate
+    default.spirearmortrimsmithingtemplate:
+      base-price: 8850.70
+      lambda: 0.0030
+
+    # Tidearmortrimsmithingtemplate
+    default.tidearmortrimsmithingtemplate:
+      base-price: 8850.70
+      lambda: 0.0030
+
+    # Totemofundying
+    default.totemofundying:
+      base-price: 8230.00
+      lambda: 0.0030
+
+    # Vexarmortrimsmithingtemplate
+    default.vexarmortrimsmithingtemplate:
+      base-price: 8850.70
+      lambda: 0.0030
+
+    # Wardarmortrimsmithingtemplate
+    default.wardarmortrimsmithingtemplate:
+      base-price: 8850.70
+      lambda: 0.0030
+
+    # Wayfinderarmortrimsmithingtemplate
+    default.wayfinderarmortrimsmithingtemplate:
+      base-price: 8850.70
+      lambda: 0.0030
+
+    # Wildarmortrimsmithingtemplate
+    default.wildarmortrimsmithingtemplate:
+      base-price: 8850.70
+      lambda: 0.0030
+
+    # Zombiehead
+    default.zombiehead:
+      base-price: 5000.00
+      lambda: 0.0030
+
+  # === 终极物品 (λ=0.0015) ===
+    # Beacon
+    default.beacon:
+      base-price: 27964.18
+      lambda: 0.0015
+
+    # Dragonegg
+    default.dragonegg:
+      base-price: 25000.00
+      lambda: 0.0015
+
+    # Dragonhead
+    default.dragonhead:
+      base-price: 10000.00
+      lambda: 0.0015
+
+    # Netheriteblock
+    default.netheriteblock:
+      base-price: 39807.26
+      lambda: 0.0015
+
+    # Netherstar
+    default.netherstar:
+      base-price: 30000.00
+      lambda: 0.0015
+
+    # Skeletonbannerpattern
+    default.skeletonbannerpattern:
+      base-price: 9900.53
+      lambda: 0.0015
+
+    # Skullbannerpattern
+    default.skullbannerpattern:
+      base-price: 9900.53
+      lambda: 0.0015
+
+    # Witherskeletonskull
+    default.witherskeletonskull:
+      base-price: 10000.00
+      lambda: 0.0015
