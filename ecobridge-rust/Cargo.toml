@@ -39,8 +39,8 @@ parallel = []
 
 [profile.release]
 opt-level = 3
-# LTO + codegen-units controlled via RUSTFLAGS in CI (Linux only)
-# Windows/macOS skip LTO for fast CI builds
+lto = "fat"
+codegen-units = 1
 strip = "symbols"
 
 # 保持默认以支持 FFM 异常捕获
