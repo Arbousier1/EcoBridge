@@ -22,7 +22,7 @@ libraries:
 dependencies:
   server:
     # 核心前置：必须在 EcoBridge 启动前准备就绪
-    CoinsEngine:
+    ExcellentEconomy:
       load: BEFORE
       required: true
     nightcore: # 假设这是你使用的某些核心库

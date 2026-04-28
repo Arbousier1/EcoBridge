@@ -9,8 +9,8 @@ import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
-import su.nightexpress.coinsengine.api.CoinsEngineAPI;
-import su.nightexpress.coinsengine.api.currency.Currency;
+import su.nightexpress.excellenteconomy.api.ExcellentEconomyAPI;
+import su.nightexpress.excellenteconomy.api.currency.Currency;
 import top.ellan.ecobridge.EcoBridge;
 import top.ellan.ecobridge.application.context.TransactionContext;
 import top.ellan.ecobridge.infrastructure.ffi.bridge.NativeBridge;
@@ -125,12 +125,12 @@ public class TransferManager {
     }
 
     public void initiateTransfer(Player sender, Player receiver, double amount) {
-        Currency currency = CoinsEngineAPI.getCurrency(mainCurrencyId);
+        Currency currency = ExcellentEconomyAPI.getCurrency(mainCurrencyId);
         if (currency == null) {
             sender.sendMessage(Component.text("系统故障：找不到核心货币配置 (ID: " + mainCurrencyId + ")。"));
             return;
         }
-        double senderBal = CoinsEngineAPI.getBalance(sender, currency);
+        double senderBal = ExcellentEconomyAPI.getBalance(sender, currency);
         if (senderBal < amount) {
             sender.sendMessage(EcoBridge.getMiniMessage().deserialize(
                 "<red>✘ 交易失败</red> <dark_gray>| <gray>账户余额不足，无法支付 <gold><amount></gold>",
@@ -183,8 +183,8 @@ public class TransferManager {
             MemorySegment cfgSeg = arena.allocate(NativeBridge.Layouts.REGULATOR_CONFIG);
             MemorySegment resSeg = arena.allocate(NativeBridge.Layouts.TRANSFER_RESULT);
 
-            Currency cur = CoinsEngineAPI.getCurrency(mainCurrencyId);
-            double senderBal = (cur != null) ? CoinsEngineAPI.getBalance(player, cur) : 0.0;
+            Currency cur = ExcellentEconomyAPI.getCurrency(mainCurrencyId);
+            double senderBal = (cur != null) ? ExcellentEconomyAPI.getBalance(player, cur) : 0.0;
 
             fillTransferContext(ctxSeg, player, null, cur, amount, senderBal);
             populateRegulatorConfig(cfgSeg);
@@ -211,7 +211,7 @@ public class TransferManager {
 
         final long amountMicros = NativeBridge.moneyToMicros(amount);
         final long senderBalMicros = NativeBridge.moneyToMicros(senderBal);
-        final long receiverBalMicros = (receiver != null) ? NativeBridge.moneyToMicros(CoinsEngineAPI.getBalance(receiver, cur)) : 0L;
+        final long receiverBalMicros = (receiver != null) ? NativeBridge.moneyToMicros(ExcellentEconomyAPI.getBalance(receiver, cur)) : 0L;
 
         VH_TR_AMOUNT.set(ctx, 0L, amountMicros);
         VH_TR_S_BAL.set(ctx, 0L, senderBalMicros);
@@ -247,7 +247,7 @@ public class TransferManager {
             return;
         }
 
-        double currentSenderBal = CoinsEngineAPI.getBalance(sender, currency);
+        double currentSenderBal = ExcellentEconomyAPI.getBalance(sender, currency);
         if (currentSenderBal < amount) {
             sender.sendMessage(EcoBridge.getMiniMessage().deserialize("<red>转账失败：账户资金发生并发冲突。"));
             return;
@@ -278,13 +278,13 @@ public class TransferManager {
             // [Fix] 开启交易上下文，标记为市场行为
             TransactionContext.setMarketTrade(true);
 
-            if (!CoinsEngineAPI.removeBalance(sender.getUniqueId(), currency, amount)) {
+            if (!ExcellentEconomyAPI.removeBalance(sender.getUniqueId(), currency, amount)) {
                 throw new IllegalStateException("余额不足或引擎拒绝");
             }
             debitSuccess = true;
 
             if (receiver != null) {
-                CoinsEngineAPI.addBalance(receiver.getUniqueId(), currency, netAmount);
+                ExcellentEconomyAPI.addBalance(receiver.getUniqueId(), currency, netAmount);
             }
             creditSuccess = true;
 
@@ -296,7 +296,7 @@ public class TransferManager {
             
             if (debitSuccess && !creditSuccess) {
                 try {
-                    boolean rollbackSuccess = CoinsEngineAPI.addBalance(sender.getUniqueId(), currency, amount);
+                    boolean rollbackSuccess = ExcellentEconomyAPI.addBalance(sender.getUniqueId(), currency, amount);
                     
                     if (rollbackSuccess) {
                         TransactionJournal.markForRollback(txId);

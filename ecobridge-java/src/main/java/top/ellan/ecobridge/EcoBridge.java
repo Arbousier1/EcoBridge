@@ -156,7 +156,7 @@ public final class EcoBridge extends JavaPlugin implements Listener {
 
     private boolean verifyDependencies() {
         var pm = Bukkit.getPluginManager();
-        if (!pm.isPluginEnabled("CoinsEngine")) {
+        if (!pm.isPluginEnabled("ExcellentEconomy")) {
             sendConsole("<red>" + I18n.tr("startup.dependency_missing") + "</red>");
             pm.disablePlugin(this);
             return false;

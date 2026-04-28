@@ -7,8 +7,8 @@ import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.ServicePriority;
-import su.nightexpress.coinsengine.api.CoinsEngineAPI;
-import su.nightexpress.coinsengine.api.currency.Currency;
+import su.nightexpress.excellenteconomy.api.ExcellentEconomyAPI;
+import su.nightexpress.excellenteconomy.api.currency.Currency;
 import top.ellan.ecobridge.EcoBridge;
 import top.ellan.ecobridge.application.service.TransferManager;
 import top.ellan.ecobridge.util.LogUtil;
@@ -35,7 +35,7 @@ public class VaultEconomyBridge extends AbstractEconomy {
     public VaultEconomyBridge(EcoBridge plugin) {
         this.plugin = plugin;
         String currencyId = plugin.getConfig().getString("economy.currency-id", "coins");
-        this.primaryCurrency = CoinsEngineAPI.getCurrency(currencyId);
+        this.primaryCurrency = ExcellentEconomyAPI.getCurrency(currencyId);
     }
 
     /** Register this bridge as the primary Vault economy provider. */
@@ -83,7 +83,7 @@ public class VaultEconomyBridge extends AbstractEconomy {
 
     private double getBalance(UUID uuid) {
         if (primaryCurrency == null) return 0.0;
-        return CoinsEngineAPI.getBalance(uuid, primaryCurrency);
+        return ExcellentEconomyAPI.getBalance(uuid, primaryCurrency);
     }
 
     @Override
@@ -154,13 +154,13 @@ public class VaultEconomyBridge extends AbstractEconomy {
             }
             double tax = result.finalTax();
             double netWithdraw = amount + tax;
-            CoinsEngineAPI.removeBalance(player.getUniqueId(), primaryCurrency, netWithdraw);
+            ExcellentEconomyAPI.removeBalance(player.getUniqueId(), primaryCurrency, netWithdraw);
             return new EconomyResponse(amount, balance - netWithdraw,
                 EconomyResponse.ResponseType.SUCCESS, tax > 0 ? "Tax: " + tax : "");
         }
 
         // Direct withdrawal (no regulator available)
-        CoinsEngineAPI.removeBalance(player.getUniqueId(), primaryCurrency, amount);
+        ExcellentEconomyAPI.removeBalance(player.getUniqueId(), primaryCurrency, amount);
         return new EconomyResponse(amount, balance - amount, EconomyResponse.ResponseType.SUCCESS, "");
     }
 
@@ -173,7 +173,7 @@ public class VaultEconomyBridge extends AbstractEconomy {
             return new EconomyResponse(0, 0, EconomyResponse.ResponseType.FAILURE, "No currency configured");
         }
 
-        CoinsEngineAPI.addBalance(player.getUniqueId(), primaryCurrency, amount);
+        ExcellentEconomyAPI.addBalance(player.getUniqueId(), primaryCurrency, amount);
         double newBalance = getBalance(player);
         return new EconomyResponse(amount, newBalance, EconomyResponse.ResponseType.SUCCESS, "");
     }
