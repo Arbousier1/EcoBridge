@@ -1,5 +1,6 @@
 package top.ellan.ecobridge.integration.platform.hook;
 
+import net.milkbowl.vault.economy.AbstractEconomy;
 import net.milkbowl.vault.economy.Economy;
 import net.milkbowl.vault.economy.EconomyResponse;
 import org.bukkit.Bukkit;
@@ -7,7 +8,7 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.ServicePriority;
 import su.nightexpress.coinsengine.api.CoinsEngineAPI;
-import su.nightexpress.coinsengine.api.currency.ExcellentCurrency;
+import su.nightexpress.coinsengine.api.currency.Currency;
 import top.ellan.ecobridge.EcoBridge;
 import top.ellan.ecobridge.application.service.TransferManager;
 import top.ellan.ecobridge.util.LogUtil;
@@ -26,10 +27,10 @@ import java.util.UUID;
  * etc.) automatically benefits from EcoBridge's tax calculation, transfer
  * limits, puppet detection, and wealth-gap regulation.
  */
-public class VaultEconomyBridge implements Economy {
+public class VaultEconomyBridge extends AbstractEconomy {
 
     private final EcoBridge plugin;
-    private final ExcellentCurrency primaryCurrency;
+    private final Currency primaryCurrency;
 
     public VaultEconomyBridge(EcoBridge plugin) {
         this.plugin = plugin;
@@ -50,6 +51,11 @@ public class VaultEconomyBridge implements Economy {
 
         LogUtil.info("<gradient:gold:yellow>Vault economy bridge registered — "
             + "all Vault transactions now routed through EcoBridge regulator");
+    }
+
+    @Override
+    public boolean hasBankSupport() {
+        return false;
     }
 
     // ==================== Balance queries (read directly from CoinsEngine) ====================
@@ -112,6 +118,16 @@ public class VaultEconomyBridge implements Economy {
     public EconomyResponse depositPlayer(String playerName, double amount) {
         OfflinePlayer player = Bukkit.getOfflinePlayer(playerName);
         return depositPlayer(player, amount);
+    }
+
+    @Override
+    public EconomyResponse withdrawPlayer(String playerName, String world, double amount) {
+        return withdrawPlayer(playerName, amount);
+    }
+
+    @Override
+    public EconomyResponse depositPlayer(String playerName, String world, double amount) {
+        return depositPlayer(playerName, amount);
     }
 
     @Override

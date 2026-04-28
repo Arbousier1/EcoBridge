@@ -4,7 +4,7 @@ import java.util.UUID;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import su.nightexpress.coinsengine.api.currency.ExcellentCurrency;
+import su.nightexpress.coinsengine.api.currency.Currency;
 import su.nightexpress.coinsengine.api.event.ChangeBalanceEvent;
 import top.ellan.ecobridge.EcoBridge;
 import top.ellan.ecobridge.application.context.TransactionContext;
@@ -35,7 +35,7 @@ public class CoinsEngineListener implements Listener {
   @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
   public void onBalanceChange(ChangeBalanceEvent event) {
     // 1) Filter by configured currency.
-    ExcellentCurrency currency = event.getCurrency();
+    Currency currency = event.getCurrency();
     if (!targetCurrencyId.equals(currency.getId())) {
       return;
     }

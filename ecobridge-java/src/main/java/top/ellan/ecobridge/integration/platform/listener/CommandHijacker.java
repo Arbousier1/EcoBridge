@@ -8,7 +8,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.command.SimpleCommandMap;
 import org.jetbrains.annotations.NotNull;
 import su.nightexpress.coinsengine.api.CoinsEngineAPI;
-import su.nightexpress.coinsengine.api.currency.ExcellentCurrency;
+import su.nightexpress.coinsengine.api.currency.Currency;
 import top.ellan.ecobridge.EcoBridge;
 import top.ellan.ecobridge.util.LogUtil;
 
@@ -58,7 +58,7 @@ public class CommandHijacker {
     }
 
     // 1. 劫持 CoinsEngine 所有货币的主指令 (例如 /coins, /gold)
-    for (ExcellentCurrency currency : CoinsEngineAPI.getCurrencyRegistry().getCurrencies()) {
+    for (Currency currency : CoinsEngineAPI.getCurrencyRegistry().getCurrencies()) {
       for (String alias : currency.getCommandAliases()) {
         // true = 需要参数偏移 (例如 /coins pay -> 偏移为 /ecopay)
         applyPhysicalHijack(alias.toLowerCase(), ecopay, true);

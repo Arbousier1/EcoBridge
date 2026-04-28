@@ -80,7 +80,7 @@ public final class EventLogDao {
 
             // Also push to Rust hot memory for SIMD computation
             if (marketKey != null && !marketKey.isEmpty()) {
-                NativeBridge.appendTradeToMemory(ts, delta, marketKey);
+                NativeBridge.injectRemoteTradeForKey(marketKey, NativeBridge.moneyToMicros(delta));
             }
         } catch (SQLException e) {
             LogUtil.warnOnce("H2_WRITE_ERR", "H2 write failed: " + e.getMessage());
@@ -92,7 +92,7 @@ public final class EventLogDao {
     public static double queryNeff(long currentTs, double tauDays, String marketKey) {
         if (!initialized) return 0.0;
         // Use Rust in-memory for fast queries; fall back to H2
-        double memResult = NativeBridge.queryNeffInMemory(currentTs, tauDays, marketKey);
+        double memResult = NativeBridge.queryNeffForKey(currentTs, tauDays, marketKey);
         if (memResult > 0) return memResult;
 
         // H2 fallback
