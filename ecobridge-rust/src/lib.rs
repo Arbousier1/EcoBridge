@@ -499,6 +499,20 @@ pub unsafe extern "C" fn ecobridge_compute_price_bounded(
     })
 }
 
+#[no_mangle]
+pub unsafe extern "C" fn ecobridge_compute_system_bid(
+    base: c_double,
+    hist_avg: c_double,
+    out_result: *mut c_double,
+) -> c_int {
+    ffi_guard!(|| {
+        if out_result.is_null() { return EconStatus::NullPointer; }
+        let base_micros = to_micros_saturating(base);
+        *out_result = economy::pricing::compute_system_bid(base_micros, hist_avg);
+        EconStatus::Ok
+    })
+}
+
 // -----------------------------------------------------------------------------
 // 4. 宏观经济指标
 // -----------------------------------------------------------------------------

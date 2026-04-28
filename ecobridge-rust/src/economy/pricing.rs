@@ -27,12 +27,17 @@ static RECOVERY_STATES: LazyLock<Mutex<HashMap<String, RecoveryIntegral>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
 /// Recovery parameter set (aligned with simulation-verified optimal values).
-const RECOVERY_ACTIVATION_RATIO: f64 = 0.85;  // activate when price < 85% of hist_avg
-const RECOVERY_TARGET_RATIO: f64 = 0.92;       // pull toward 92% of hist_avg
-const RECOVERY_STRENGTH: f64 = 0.25;           // per-cycle pull strength
-const RECOVERY_INTEGRAL_GAIN: f64 = 0.015;     // builds up when suppressed
-const RECOVERY_MAX_INTEGRAL: f64 = 2.0;       // cap on accumulated deficit multiplier
-const RECOVERY_MAX_STEP_RATIO: f64 = 0.03;    // max single-step price increase
+const RECOVERY_ACTIVATION_RATIO: f64 = 0.85;
+const RECOVERY_TARGET_RATIO: f64 = 0.92;
+const RECOVERY_STRENGTH: f64 = 0.25;
+const RECOVERY_INTEGRAL_GAIN: f64 = 0.015;
+const RECOVERY_MAX_INTEGRAL: f64 = 2.0;
+const RECOVERY_MAX_STEP_RATIO: f64 = 0.03;
+
+/// System Bid (Universal Price Floor) — anchors every item to a guaranteed minimum.
+/// Inspired by OSRS High Alchemy & EVE reprocessing value.
+/// The server will always buy at this price, preventing total market collapse.
+const SYSTEM_BID_RATIO: f64 = 0.40; // 40% of base price = hard floor
 
 // -----------------------------------------------------------------------------
 // 1. 内部定价核心逻辑 (Core Engine)
@@ -246,6 +251,15 @@ pub unsafe fn compute_batch_prices_internal(
                 vol_mult,
             );
         });
+}
+
+/// Compute the System Bid — the guaranteed minimum buy price.
+/// This is the price at which the server will always purchase items from players,
+/// serving as the ultimate economic floor and item sink.
+/// Modeled after OSRS High Alchemy and EVE reprocessing values.
+pub fn compute_system_bid(base_price_micros: i64, hist_avg: f64) -> f64 {
+    let base = (base_price_micros as f64) / 1_000_000.0;
+    (base * SYSTEM_BID_RATIO).max(hist_avg * 0.20).max(0.01)
 }
 
 // ==================== 单元测试 ====================
