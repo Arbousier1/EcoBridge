@@ -1,5 +1,6 @@
 package top.ellan.ecobridge.infrastructure.ffi.bridge;
 
+import top.ellan.ecobridge.EcoBridge;
 import top.ellan.ecobridge.util.LogUtil;
 
 /**
@@ -27,7 +28,9 @@ public enum EconStatus {
         for (EconStatus s : values()) {
             if (s.code == code) return s;
         }
-        LogUtil.warn("收到未定义的 Native 状态码: " + code);
+        if (EcoBridge.getInstanceOrNull() != null) {
+            LogUtil.warn("收到未定义的 Native 状态码: " + code);
+        }
         return INTERNAL_ERROR;
     }
 
