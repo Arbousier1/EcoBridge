@@ -551,21 +551,6 @@ pub unsafe extern "C" fn ecobridge_calc_decay(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ecobridge_get_health_stats(
-    out_total: *mut u64, 
-    out_dropped: *mut u64,
-) -> c_int {
-    ffi_guard!(|| {
-        if out_total.is_null() || out_dropped.is_null() {
-            return EconStatus::NullPointer;
-        }
-        *out_total = storage::get_total_logs() as u64; 
-        *out_dropped = storage::get_dropped_logs() as u64;
-        EconStatus::Ok
-    })
-}
-
-#[no_mangle]
 pub unsafe extern "C" fn ecobridge_calculate_epsilon(
     ctx_ptr: *const TradeContext,
     cfg_ptr: *const MarketConfig,

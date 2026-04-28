@@ -38,19 +38,11 @@ const PRUNE_TO_SIZE: usize = 400_000;
 static HOT_HISTORY_BY_KEY: LazyLock<RwLock<HashMap<String, Vec<HistoryRecord>>>> =
     LazyLock::new(|| RwLock::new(HashMap::new()));
 
-/// 初始化加载逻辑 (服务器启动时调用)
+/// [v2.0] Hot store is now populated by Java via ecobridge_append_trade_to_memory FFI.
+/// This function is a no-op; kept for backward compatibility.
 pub fn hydrate_hot_store() {
-    let records_by_key = storage::load_recent_market_history_by_key(30);
-    let total: usize = records_by_key.values().map(Vec::len).sum();
-    let markets = records_by_key.len();
-
-    let mut lock = HOT_HISTORY_BY_KEY.write().unwrap();
-    *lock = records_by_key;
-
-    println!(
-        "[EcoBridge-Native] v1.6.0 SIMD keyed hot store loaded: {} records across {} markets",
-        total, markets
-    );
+    // H2 migration: data is pushed from Java side via FFI at startup.
+    // No action needed — the hot store is populated lazily.
 }
 
 /// 实时双写逻辑
