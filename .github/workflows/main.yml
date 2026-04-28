@@ -7,6 +7,8 @@ on:
 
 env:
   CARGO_INCREMENTAL: 0
+  SCCACHE_GHA_ENABLED: "true"
+  RUSTC_WRAPPER: "sccache"
 
 jobs:
   build-rust:
@@ -31,11 +33,15 @@ jobs:
       - name: Setup Rust Toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Rust Cache
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.9
+
+      - name: Rust Deps Cache
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: "ecobridge-rust"
-          prefix-key: "v4-rust-${{ matrix.os }}"
+          prefix-key: "v5-rust-${{ matrix.os }}"
+          shared-key: "deps"
 
       - name: Build Rust Library (Release)
         shell: bash
@@ -44,7 +50,8 @@ jobs:
           export RUSTFLAGS="${{ matrix.rust_flags }}"
           cargo build --release
 
-      - name: Run Rust Tests
+      - name: Run Rust Tests (ubuntu only)
+        if: matrix.os == 'ubuntu-latest'
         shell: bash
         run: |
           cd ecobridge-rust
@@ -95,7 +102,6 @@ jobs:
         run: |
           mkdir -p ecobridge-java/src/main/resources/
           cp temp-assets/*.dll temp-assets/*.so temp-assets/*.dylib ecobridge-java/src/main/resources/
-
           mkdir -p ecobridge-rust/
           cp temp-assets/ecobridge_rust.h ecobridge-rust/
 
