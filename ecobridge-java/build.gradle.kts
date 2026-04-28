@@ -329,7 +329,7 @@ dependencies {
     compileOnly("org.ow2.asm:asm:9.9.1")
     compileOnly("org.ow2.asm:asm-commons:9.9.1")
     
-    compileOnly("net.bytebuddy:byte-buddy-agent:1.15.10")
+    compileOnly("net.bytebuddy:byte-buddy-agent:1.18.8")
 
     compileOnly("com.google.code.gson:gson:2.11.0")
 
