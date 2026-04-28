@@ -9,6 +9,7 @@ import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.ServicePriority;
 import su.nightexpress.excellenteconomy.api.ExcellentEconomyAPI;
 import su.nightexpress.excellenteconomy.api.currency.ExcellentCurrency;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import top.ellan.ecobridge.EcoBridge;
 import top.ellan.ecobridge.application.service.TransferManager;
@@ -28,7 +29,7 @@ import java.util.UUID;
  * etc.) automatically benefits from EcoBridge's tax calculation, transfer
  * limits, puppet detection, and wealth-gap regulation.
  */
-public class VaultEconomyBridge extends AbstractEconomy {
+public class VaultEconomyBridge implements Economy {
 
     private final EcoBridge plugin;
     private final ExcellentCurrency primaryCurrency;
@@ -90,7 +91,9 @@ public class VaultEconomyBridge extends AbstractEconomy {
 
     private double getBalance(UUID uuid) {
         if (primaryCurrency == null) return 0.0;
-        return eeApi().getBalance(uuid, primaryCurrency);
+        Player p = Bukkit.getPlayer(uuid);
+        if (p != null) return eeApi().getBalance(p, primaryCurrency);
+        try { return eeApi().getBalanceAsync(uuid, primaryCurrency).join(); } catch (Exception e) { return 0.0; }
     }
 
     @Override
@@ -161,13 +164,13 @@ public class VaultEconomyBridge extends AbstractEconomy {
             }
             double tax = result.finalTax();
             double netWithdraw = amount + tax;
-            eeApi().withdraw(player.getUniqueId(), primaryCurrency, netWithdraw);
+            eeApi().withdraw(player.getPlayer(), primaryCurrency, netWithdraw);
             return new EconomyResponse(amount, balance - netWithdraw,
                 EconomyResponse.ResponseType.SUCCESS, tax > 0 ? "Tax: " + tax : "");
         }
 
         // Direct withdrawal (no regulator available)
-        eeApi().withdraw(player.getUniqueId(), primaryCurrency, amount);
+        eeApi().withdraw(player.getPlayer(), primaryCurrency, amount);
         return new EconomyResponse(amount, balance - amount, EconomyResponse.ResponseType.SUCCESS, "");
     }
 
@@ -180,7 +183,7 @@ public class VaultEconomyBridge extends AbstractEconomy {
             return new EconomyResponse(0, 0, EconomyResponse.ResponseType.FAILURE, "No currency configured");
         }
 
-        eeApi().deposit(player.getUniqueId(), primaryCurrency, amount);
+        eeApi().deposit(player.getPlayer(), primaryCurrency, amount);
         double newBalance = getBalance(player);
         return new EconomyResponse(amount, newBalance, EconomyResponse.ResponseType.SUCCESS, "");
     }

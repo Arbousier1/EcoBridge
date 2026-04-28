@@ -58,24 +58,15 @@ public class CommandHijacker {
       return;
     }
 
-    // 1. 劫持 ExcellentEconomy 所有货币的主指令 (例如 /coins, /gold)
-    var provider = Bukkit.getServicesManager().getRegistration(ExcellentEconomyAPI.class);
-    if (provider == null) return;
-    for (ExcellentCurrency currency : provider.getProvider().getCurrencies()) {
-      for (String alias : currency.getCommandAliases()) {
-        // true = 需要参数偏移 (例如 /coins pay -> 偏移为 /ecopay)
-        applyPhysicalHijack(alias.toLowerCase(), ecopay, true);
-      }
+    // 1. 劫持 ExcellentEconomy 货币命令
+    // Default currency commands: /coins, /money, /balance
+    for (String alias : new String[]{"coins", "money", "balance", "gold", "eco"}) {
+      applyPhysicalHijack(alias, ecopay, true);
+    }
 
-      // 2. 劫持纯支付指令 (例如 /pay, /epay) - 仅当它是主货币时
-      if (currency.isPrimary()) {
-        Command finalEcopay = ecopay;
-        Arrays.asList("pay", "transfer", "epay")
-            .forEach(
-                label ->
-                    // false = 不需要偏移 (例如 /pay -> /ecopay)
-                    applyPhysicalHijack(label, finalEcopay, false));
-      }
+    // 2. 劫持纯支付指令
+    for (String label : new String[]{"pay", "transfer", "epay"}) {
+      applyPhysicalHijack(label, ecopay, false);
     }
   }
 
