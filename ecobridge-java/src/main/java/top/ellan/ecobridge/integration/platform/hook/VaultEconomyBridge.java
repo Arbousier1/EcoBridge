@@ -7,7 +7,7 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.ServicePriority;
 import su.nightexpress.coinsengine.api.CoinsEngineAPI;
-import su.nightexpress.coinsengine.api.currency.Currency;
+import su.nightexpress.coinsengine.api.currency.ExcellentCurrency;
 import top.ellan.ecobridge.EcoBridge;
 import top.ellan.ecobridge.application.service.TransferManager;
 import top.ellan.ecobridge.util.LogUtil;
@@ -29,7 +29,7 @@ import java.util.UUID;
 public class VaultEconomyBridge implements Economy {
 
     private final EcoBridge plugin;
-    private final Currency primaryCurrency;
+    private final ExcellentCurrency primaryCurrency;
 
     public VaultEconomyBridge(EcoBridge plugin) {
         this.plugin = plugin;

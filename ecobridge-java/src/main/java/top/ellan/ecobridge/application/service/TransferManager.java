@@ -10,7 +10,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import su.nightexpress.coinsengine.api.CoinsEngineAPI;
-import su.nightexpress.coinsengine.api.currency.Currency;
+import su.nightexpress.coinsengine.api.currency.ExcellentCurrency;
 import top.ellan.ecobridge.EcoBridge;
 import top.ellan.ecobridge.application.context.TransactionContext;
 import top.ellan.ecobridge.infrastructure.ffi.bridge.NativeBridge;
@@ -125,7 +125,7 @@ public class TransferManager {
     }
 
     public void initiateTransfer(Player sender, Player receiver, double amount) {
-        Currency currency = CoinsEngineAPI.getCurrency(mainCurrencyId);
+        ExcellentCurrency currency = CoinsEngineAPI.getCurrency(mainCurrencyId);
         if (currency == null) {
             sender.sendMessage(Component.text("系统故障：找不到核心货币配置 (ID: " + mainCurrencyId + ")。"));
             return;
@@ -141,7 +141,7 @@ public class TransferManager {
         captureAndAudit(sender, receiver, currency, amount, senderBal);
     }
 
-    private void captureAndAudit(Player sender, Player receiver, Currency currency, double amount, double senderBal) {
+    private void captureAndAudit(Player sender, Player receiver, ExcellentCurrency currency, double amount, double senderBal) {
         if (!sender.hasPermission(BYPASS_BLOCK_PERMISSION)) {
             sender.sendActionBar(EcoBridge.getMiniMessage().deserialize(
                 "<dark_gray>[</dark_gray><gradient:blue:aqua>Audit</gradient><dark_gray>]</dark_gray> <gray>正在同步 <aqua>Native</aqua> 算力核心..."
@@ -183,7 +183,7 @@ public class TransferManager {
             MemorySegment cfgSeg = arena.allocate(NativeBridge.Layouts.REGULATOR_CONFIG);
             MemorySegment resSeg = arena.allocate(NativeBridge.Layouts.TRANSFER_RESULT);
 
-            Currency cur = CoinsEngineAPI.getCurrency(mainCurrencyId);
+            ExcellentCurrency cur = CoinsEngineAPI.getCurrency(mainCurrencyId);
             double senderBal = (cur != null) ? CoinsEngineAPI.getBalance(player, cur) : 0.0;
 
             fillTransferContext(ctxSeg, player, null, cur, amount, senderBal);
@@ -205,7 +205,7 @@ public class TransferManager {
         }
     }
 
-    private void fillTransferContext(MemorySegment ctx, Player sender, Player receiver, Currency cur, double amount, double senderBal) throws Throwable {
+    private void fillTransferContext(MemorySegment ctx, Player sender, Player receiver, ExcellentCurrency cur, double amount, double senderBal) throws Throwable {
         var sSnapshot = ActivityCollector.getSafeSnapshot(sender.getUniqueId());
         double individualVelocity = getEstimatedVelocity(sender.getUniqueId());
 
@@ -228,7 +228,7 @@ public class TransferManager {
         VH_TCTX_VELOCITY.set(ctx, 0L, individualVelocity);
     }
 
-    public void executeSettlement(Player sender, Player receiver, Currency currency, double amount, NativeTransferResult audit) {
+    public void executeSettlement(Player sender, Player receiver, ExcellentCurrency currency, double amount, NativeTransferResult audit) {
         Preconditions.checkState(Bukkit.isPrimaryThread(), "结算逻辑必须在主线程执行！");
 
         if (plugin.isShadowMode()) {
@@ -318,7 +318,7 @@ public class TransferManager {
         }
     }
 
-    private void postTransactionActions(Player sender, Player receiver, double amount, double netAmount, double tax, boolean isTaxFree, Currency currency) {
+    private void postTransactionActions(Player sender, Player receiver, double amount, double netAmount, double tax, boolean isTaxFree, ExcellentCurrency currency) {
         // [Fix] 移除手动调用 recordTradeVolume，完全交由 Listener 监听
         // EconomyManager.getInstance().recordTradeVolume(amount);
         
@@ -426,7 +426,7 @@ public class TransferManager {
         ));
     }
 
-    private void notifySuccess(Player s, Player r, Currency cur, double total, double net, double tax, boolean isTaxFree) {
+    private void notifySuccess(Player s, Player r, ExcellentCurrency cur, double total, double net, double tax, boolean isTaxFree) {
         Component suffix = isTaxFree 
             ? EcoBridge.getMiniMessage().deserialize(" <rainbow>★免税特权★</rainbow>") 
             : Component.empty();
