@@ -19,7 +19,7 @@ import top.ellan.ecobridge.integration.platform.hook.EcoPlaceholderExpansion;
 import top.ellan.ecobridge.integration.platform.hook.UltimateShopHook;
 import top.ellan.ecobridge.integration.platform.hook.VaultEconomyBridge;
 import top.ellan.ecobridge.integration.platform.listener.CacheListener;
-import top.ellan.ecobridge.integration.platform.listener.CoinsEngineListener;
+import top.ellan.ecobridge.integration.platform.listener.ExcellentEconomyListener;
 import top.ellan.ecobridge.util.LogUtil;
 import top.ellan.ecobridge.util.UltimateShopImporter;
 
@@ -54,7 +54,7 @@ public final class PlatformIntegrationLifecycle implements LifecycleComponent {
   private static void registerListeners(EcoBridge plugin) {
     PluginManager pm = plugin.getServer().getPluginManager();
     pm.registerEvents(plugin, plugin);
-    pm.registerEvents(new CoinsEngineListener(plugin), plugin);
+    pm.registerEvents(new ExcellentEconomyListener(plugin), plugin);
     pm.registerEvents(new CacheListener(), plugin);
   }
 

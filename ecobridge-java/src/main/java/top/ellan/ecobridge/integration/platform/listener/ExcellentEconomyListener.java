@@ -4,7 +4,7 @@ import java.util.UUID;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import su.nightexpress.excellenteconomy.api.currency.Currency;
+import su.nightexpress.excellenteconomy.api.currency.ExcellentCurrency;
 import su.nightexpress.excellenteconomy.api.event.ChangeBalanceEvent;
 import top.ellan.ecobridge.EcoBridge;
 import top.ellan.ecobridge.application.context.TransactionContext;
@@ -15,18 +15,18 @@ import top.ellan.ecobridge.infrastructure.persistence.database.TransactionDao;
 import top.ellan.ecobridge.infrastructure.persistence.storage.AsyncLogger;
 
 /**
- * CoinsEngine balance listener.
+ * ExcellentEconomy balance listener (v2.0)
  *
  * <p>Key behavior: 1. Uses {@link TransactionContext} to detect internal market transactions. 2.
  * Prevents double counting by recording market-side velocity only on debit leg (delta &lt; 0). 3.
  * Synchronizes latest balance to cache + DB + async journal.
  */
-public class CoinsEngineListener implements Listener {
+public class ExcellentEconomyListener implements Listener {
 
   private final String targetCurrencyId;
-  private static final double EPSILON = 1e-6; // floating-point guard
+  private static final double EPSILON = 1e-6;
 
-  public CoinsEngineListener(EcoBridge plugin) {
+  public ExcellentEconomyListener(EcoBridge plugin) {
     // Configure which currency id should be observed (default: coins).
     this.targetCurrencyId = plugin.getConfig().getString("economy.currency-id", "coins");
   }
@@ -35,7 +35,7 @@ public class CoinsEngineListener implements Listener {
   @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
   public void onBalanceChange(ChangeBalanceEvent event) {
     // 1) Filter by configured currency.
-    Currency currency = event.getCurrency();
+    ExcellentCurrency currency = event.getCurrency();
     if (!targetCurrencyId.equals(currency.getId())) {
       return;
     }
