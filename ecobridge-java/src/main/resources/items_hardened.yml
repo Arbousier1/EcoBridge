@@ -1,0 +1,7003 @@
+# EcoBridge 抗自动化/刷物品定价表
+# Generated from mc-toolkit recipe data + server reality adjustments
+#
+# Adjustments applied:
+#   红石自动化农场产物 → 价格÷10, lambda×2
+#   复制bug高危物品 → 价格÷5, lambda×2
+#   Boss/探索限定 → 价格×1.3, lambda×0.7
+#
+# Column legend:
+#   base = original recipe price
+#   adjusted = after automation/dupe reality check
+#   λ = price sensitivity (higher = more volatile)
+#   tag = classification
+
+item-settings:
+  # ====== 红石自动化 ======
+  # ====== Boss/探索限定 ======
+  # ====== 曾受复制bug影响 ======
+  # ====== 手动获取 ======
+    # Elytra [Boss掉落] 原价=6000.0
+    default.elytra:
+      base-price: 7800.00
+      lambda: 0.0021
+
+    # Trident [Boss掉落] 原价=78.8
+    default.trident:
+      base-price: 102.48
+      lambda: 0.0084
+
+    # Sponge [Boss掉落] 原价=12.7
+    default.sponge:
+      base-price: 16.52
+      lambda: 0.0140
+
+    # Diamondblock [手动获取] 原价=4554.0
+    default.diamondblock:
+      base-price: 4554.00
+      lambda: 0.0030
+
+    # Diamondchestplate [手动获取] 原价=4092.0
+    default.diamondchestplate:
+      base-price: 4092.00
+      lambda: 0.0030
+
+    # Diamondleggings [手动获取] 原价=3619.0
+    default.diamondleggings:
+      base-price: 3619.00
+      lambda: 0.0030
+
+    # Diamondhorsearmor [手动获取] 原价=3300.0
+    default.diamondhorsearmor:
+      base-price: 3300.00
+      lambda: 0.0030
+
+    # Diamondhelmet [手动获取] 原价=2640.0
+    default.diamondhelmet:
+      base-price: 2640.00
+      lambda: 0.0030
+
+    # Diamondboots [手动获取] 原价=2134.0
+    default.diamondboots:
+      base-price: 2134.00
+      lambda: 0.0030
+
+    # Diamondnautilusarmor [手动获取] 原价=1980.0
+    default.diamondnautilusarmor:
+      base-price: 1980.00
+      lambda: 0.0060
+
+    # Diamondaxe [手动获取] 原价=1586.2
+    default.diamondaxe:
+      base-price: 1586.15
+      lambda: 0.0060
+
+    # Diamondpickaxe [手动获取] 原价=1586.2
+    default.diamondpickaxe:
+      base-price: 1586.15
+      lambda: 0.0060
+
+    # Diamondsword [手动获取] 原价=1079.1
+    default.diamondsword:
+      base-price: 1079.10
+      lambda: 0.0060
+
+    # Diamondhoe [手动获取] 原价=1069.2
+    default.diamondhoe:
+      base-price: 1069.17
+      lambda: 0.0060
+
+    # Diamond [手动获取] 原价=550.0
+    default.diamond:
+      base-price: 550.00
+      lambda: 0.0060
+
+    # Diamondshovel [手动获取] 原价=541.2
+    default.diamondshovel:
+      base-price: 541.20
+      lambda: 0.0060
+
+    # Diamondspear [手动获取] 原价=541.2
+    default.diamondspear:
+      base-price: 541.20
+      lambda: 0.0060
+
+    # Diamondore [手动获取] 原价=412.5
+    default.diamondore:
+      base-price: 412.50
+      lambda: 0.0060
+
+    # Bell [手动获取] 原价=147.2
+    default.bell:
+      base-price: 147.23
+      lambda: 0.0120
+
+    # Sculkcatalyst [手动获取] 原价=108.9
+    default.sculkcatalyst:
+      base-price: 108.89
+      lambda: 0.0120
+
+    # Sculkshrieker [手动获取] 原价=97.3
+    default.sculkshrieker:
+      base-price: 97.28
+      lambda: 0.0120
+
+    # Conduit [手动获取] 原价=89.3
+    default.conduit:
+      base-price: 89.27
+      lambda: 0.0120
+
+    # Sculksensor [手动获取] 原价=88.2
+    default.sculksensor:
+      base-price: 88.20
+      lambda: 0.0120
+
+    # Sculkvein [手动获取] 原价=42.7
+    default.sculkvein:
+      base-price: 42.68
+      lambda: 0.0120
+
+    # Lodestone [手动获取] 原价=36.5
+    default.lodestone:
+      base-price: 36.51
+      lambda: 0.0120
+
+    # Sculk [手动获取] 原价=30.7
+    default.sculk:
+      base-price: 30.69
+      lambda: 0.0120
+
+    # Lead [手动获取] 原价=4.0
+    default.lead:
+      base-price: 3.96
+      lambda: 0.0200
+
+    # Obsidian [红石农场] 原价=130.8
+    default.obsidian:
+      base-price: 13.08
+      lambda: 0.0240
+
+    # Saddle [红石农场] 原价=110.0
+    default.saddle:
+      base-price: 11.00
+      lambda: 0.0240
+
+    # Emerald [红石农场] 原价=55.0
+    default.emerald:
+      base-price: 5.50
+      lambda: 0.0240
+
+    # Melon [红石农场] 原价=38.5
+    default.melon:
+      base-price: 3.85
+      lambda: 0.0240
+
+    # Glowstone [红石农场] 原价=37.0
+    default.glowstone:
+      base-price: 3.70
+      lambda: 0.0240
+
+    # Crossbow [红石农场] 原价=33.7
+    default.crossbow:
+      base-price: 3.37
+      lambda: 0.0240
+
+    # Pumpkin [红石农场] 原价=30.0
+    default.pumpkin:
+      base-price: 3.00
+      lambda: 0.0240
+
+    # Gunpowder [红石农场] 原价=11.0
+    default.gunpowder:
+      base-price: 1.10
+      lambda: 0.0400
+
+    # Beef [红石农场] 原价=5.5
+    default.beef:
+      base-price: 0.55
+      lambda: 0.0400
+
+    # Cactus [红石农场] 原价=5.5
+    default.cactus:
+      base-price: 0.55
+      lambda: 0.0400
+
+    # Leather [红石农场] 原价=5.1
+    default.leather:
+      base-price: 0.51
+      lambda: 0.0400
+
+    # Apple [红石农场] 原价=3.3
+    default.apple:
+      base-price: 0.33
+      lambda: 0.0400
+
+    # Redstone [红石农场] 原价=3.3
+    default.redstone:
+      base-price: 0.33
+      lambda: 0.0400
+
+    # Wheat [红石农场] 原价=3.3
+    default.wheat:
+      base-price: 0.33
+      lambda: 0.0400
+
+    # Kelp [红石农场] 原价=3.1
+    default.kelp:
+      base-price: 0.31
+      lambda: 0.0400
+
+    # Chicken [红石农场] 原价=2.8
+    default.chicken:
+      base-price: 0.28
+      lambda: 0.0400
+
+    # Bone [红石农场] 原价=1.8
+    default.bone:
+      base-price: 0.18
+      lambda: 0.0600
+
+    # String [红石农场] 原价=1.6
+    default.string:
+      base-price: 0.17
+      lambda: 0.0600
+
+    # Stone [红石农场] 原价=1.4
+    default.stone:
+      base-price: 0.14
+      lambda: 0.0600
+
+    # Cobblestone [红石农场] 原价=1.1
+    default.cobblestone:
+      base-price: 0.11
+      lambda: 0.0600
+
+    # Mutton [红石农场] 原价=1.1
+    default.mutton:
+      base-price: 0.11
+      lambda: 0.0600
+
+    # Poppy [红石农场] 原价=1.1
+    default.poppy:
+      base-price: 0.11
+      lambda: 0.0600
+
+    # Stick [红石农场] 原价=1.1
+    default.stick:
+      base-price: 0.11
+      lambda: 0.0600
+
+    # Bamboo [红石农场] 原价=0.8
+    default.bamboo:
+      base-price: 0.08
+      lambda: 0.0600
+
+    # Carrot [红石农场] 原价=0.8
+    default.carrot:
+      base-price: 0.08
+      lambda: 0.0600
+
+    # Beetroot [红石农场] 原价=0.7
+    default.beetroot:
+      base-price: 0.07
+      lambda: 0.0600
+
+    # Egg [红石农场] 原价=0.6
+    default.egg:
+      base-price: 0.06
+      lambda: 0.0600
+
+    # Feather [红石农场] 原价=0.6
+    default.feather:
+      base-price: 0.06
+      lambda: 0.0600
+
+    # Gravel [红石农场] 原价=0.6
+    default.gravel:
+      base-price: 0.06
+      lambda: 0.0600
+
+    # Potato [红石农场] 原价=0.6
+    default.potato:
+      base-price: 0.06
+      lambda: 0.0600
+
+    # Sugar [红石农场] 原价=0.6
+    default.sugar:
+      base-price: 0.06
+      lambda: 0.0600
+
+    # Arrow [红石农场] 原价=0.5
+    default.arrow:
+      base-price: 0.05
+      lambda: 0.0600
+
+    # Tnt [复制bug] 原价=52.6
+    default.tnt:
+      base-price: 10.52
+      lambda: 0.0240
+
+    # Rail [复制bug] 原价=6.6
+    default.rail:
+      base-price: 1.32
+      lambda: 0.0400
+
+    # Sand [复制bug] 原价=0.6
+    default.sand:
+      base-price: 0.11
+      lambda: 0.0600
+
+    # Netheriteblock [普通] 原价=39807.3
+    default.netheriteblock:
+      base-price: 39807.26
+      lambda: 0.0015
+
+    # Netherstar [普通] 原价=30000.0
+    default.netherstar:
+      base-price: 30000.00
+      lambda: 0.0015
+
+    # Beacon [普通] 原价=27964.2
+    default.beacon:
+      base-price: 27964.18
+      lambda: 0.0015
+
+    # Dragonegg [普通] 原价=25000.0
+    default.dragonegg:
+      base-price: 25000.00
+      lambda: 0.0015
+
+    # Dragonhead [普通] 原价=10000.0
+    default.dragonhead:
+      base-price: 10000.00
+      lambda: 0.0015
+
+    # Witherskeletonskull [普通] 原价=10000.0
+    default.witherskeletonskull:
+      base-price: 10000.00
+      lambda: 0.0015
+
+    # Skeletonbannerpattern [普通] 原价=9900.5
+    default.skeletonbannerpattern:
+      base-price: 9900.53
+      lambda: 0.0015
+
+    # Skullbannerpattern [普通] 原价=9900.5
+    default.skullbannerpattern:
+      base-price: 9900.53
+      lambda: 0.0015
+
+    # Boltarmortrimsmithingtemplate [普通] 原价=8850.7
+    default.boltarmortrimsmithingtemplate:
+      base-price: 8850.70
+      lambda: 0.0030
+
+    # Coastarmortrimsmithingtemplate [普通] 原价=8850.7
+    default.coastarmortrimsmithingtemplate:
+      base-price: 8850.70
+      lambda: 0.0030
+
+    # Dunearmortrimsmithingtemplate [普通] 原价=8850.7
+    default.dunearmortrimsmithingtemplate:
+      base-price: 8850.70
+      lambda: 0.0030
+
+    # Eyearmortrimsmithingtemplate [普通] 原价=8850.7
+    default.eyearmortrimsmithingtemplate:
+      base-price: 8850.70
+      lambda: 0.0030
+
+    # Flowarmortrimsmithingtemplate [普通] 原价=8850.7
+    default.flowarmortrimsmithingtemplate:
+      base-price: 8850.70
+      lambda: 0.0030
+
+    # Hostarmortrimsmithingtemplate [普通] 原价=8850.7
+    default.hostarmortrimsmithingtemplate:
+      base-price: 8850.70
+      lambda: 0.0030
+
+    # Netheriteupgradesmithingtemplate [普通] 原价=8850.7
+    default.netheriteupgradesmithingtemplate:
+      base-price: 8850.70
+      lambda: 0.0030
+
+    # Raiserarmortrimsmithingtemplate [普通] 原价=8850.7
+    default.raiserarmortrimsmithingtemplate:
+      base-price: 8850.70
+      lambda: 0.0030
+
+    # Ribarmortrimsmithingtemplate [普通] 原价=8850.7
+    default.ribarmortrimsmithingtemplate:
+      base-price: 8850.70
+      lambda: 0.0030
+
+    # Sentryarmortrimsmithingtemplate [普通] 原价=8850.7
+    default.sentryarmortrimsmithingtemplate:
+      base-price: 8850.70
+      lambda: 0.0030
+
+    # Shaperarmortrimsmithingtemplate [普通] 原价=8850.7
+    default.shaperarmortrimsmithingtemplate:
+      base-price: 8850.70
+      lambda: 0.0030
+
+    # Silencearmortrimsmithingtemplate [普通] 原价=8850.7
+    default.silencearmortrimsmithingtemplate:
+      base-price: 8850.70
+      lambda: 0.0030
+
+    # Snoutarmortrimsmithingtemplate [普通] 原价=8850.7
+    default.snoutarmortrimsmithingtemplate:
+      base-price: 8850.70
+      lambda: 0.0030
+
+    # Spirearmortrimsmithingtemplate [普通] 原价=8850.7
+    default.spirearmortrimsmithingtemplate:
+      base-price: 8850.70
+      lambda: 0.0030
+
+    # Tidearmortrimsmithingtemplate [普通] 原价=8850.7
+    default.tidearmortrimsmithingtemplate:
+      base-price: 8850.70
+      lambda: 0.0030
+
+    # Vexarmortrimsmithingtemplate [普通] 原价=8850.7
+    default.vexarmortrimsmithingtemplate:
+      base-price: 8850.70
+      lambda: 0.0030
+
+    # Wardarmortrimsmithingtemplate [普通] 原价=8850.7
+    default.wardarmortrimsmithingtemplate:
+      base-price: 8850.70
+      lambda: 0.0030
+
+    # Wayfinderarmortrimsmithingtemplate [普通] 原价=8850.7
+    default.wayfinderarmortrimsmithingtemplate:
+      base-price: 8850.70
+      lambda: 0.0030
+
+    # Wildarmortrimsmithingtemplate [普通] 原价=8850.7
+    default.wildarmortrimsmithingtemplate:
+      base-price: 8850.70
+      lambda: 0.0030
+
+    # Netheritechestplate [普通] 原价=8810.6
+    default.netheritechestplate:
+      base-price: 8810.64
+      lambda: 0.0030
+
+    # Netheriteleggings [普通] 原价=8342.4
+    default.netheriteleggings:
+      base-price: 8342.37
+      lambda: 0.0030
+
+    # Totemofundying [普通] 原价=8230.0
+    default.totemofundying:
+      base-price: 8230.00
+      lambda: 0.0030
+
+    # Netheritehorsearmor [普通] 原价=8026.6
+    default.netheritehorsearmor:
+      base-price: 8026.56
+      lambda: 0.0030
+
+    # Netheritehelmet [普通] 原价=7373.2
+    default.netheritehelmet:
+      base-price: 7373.16
+      lambda: 0.0030
+
+    # Netheriteboots [普通] 原价=6872.2
+    default.netheriteboots:
+      base-price: 6872.22
+      lambda: 0.0030
+
+    # Netheritenautilusarmor [普通] 原价=6719.8
+    default.netheritenautilusarmor:
+      base-price: 6719.76
+      lambda: 0.0030
+
+    # Netheriteaxe [普通] 原价=6329.9
+    default.netheriteaxe:
+      base-price: 6329.85
+      lambda: 0.0030
+
+    # Netheritepickaxe [普通] 原价=6329.9
+    default.netheritepickaxe:
+      base-price: 6329.85
+      lambda: 0.0030
+
+    # Flowbannerpattern [普通] 原价=5832.2
+    default.flowbannerpattern:
+      base-price: 5832.25
+      lambda: 0.0030
+
+    # Gusterbannerpattern [普通] 原价=5832.2
+    default.gusterbannerpattern:
+      base-price: 5832.25
+      lambda: 0.0030
+
+    # Piglinbannerpattern [普通] 原价=5832.2
+    default.piglinbannerpattern:
+      base-price: 5832.25
+      lambda: 0.0030
+
+    # Snoutbannerpattern [普通] 原价=5832.2
+    default.snoutbannerpattern:
+      base-price: 5832.25
+      lambda: 0.0030
+
+    # Netheritesword [普通] 原价=5827.9
+    default.netheritesword:
+      base-price: 5827.87
+      lambda: 0.0030
+
+    # Netheritehoe [普通] 原价=5818.0
+    default.netheritehoe:
+      base-price: 5818.04
+      lambda: 0.0030
+
+    # Netheriteshovel [普通] 原价=5295.4
+    default.netheriteshovel:
+      base-price: 5295.35
+      lambda: 0.0030
+
+    # Netheritespear [普通] 原价=5295.4
+    default.netheritespear:
+      base-price: 5295.35
+      lambda: 0.0030
+
+    # Creeperhead [普通] 原价=5000.0
+    default.creeperhead:
+      base-price: 5000.00
+      lambda: 0.0030
+
+    # Piglinhead [普通] 原价=5000.0
+    default.piglinhead:
+      base-price: 5000.00
+      lambda: 0.0030
+
+    # Playerhead [普通] 原价=5000.0
+    default.playerhead:
+      base-price: 5000.00
+      lambda: 0.0030
+
+    # Skeletonskull [普通] 原价=5000.0
+    default.skeletonskull:
+      base-price: 5000.00
+      lambda: 0.0030
+
+    # Zombiehead [普通] 原价=5000.0
+    default.zombiehead:
+      base-price: 5000.00
+      lambda: 0.0030
+
+    # Creeperbannerpattern [普通] 原价=4950.5
+    default.creeperbannerpattern:
+      base-price: 4950.53
+      lambda: 0.0030
+
+    # Netheriteingot [普通] 原价=4807.6
+    default.netheriteingot:
+      base-price: 4807.64
+      lambda: 0.0030
+
+    # Enchantedgoldenapple [普通] 原价=4679.3
+    default.enchantedgoldenapple:
+      base-price: 4679.34
+      lambda: 0.0030
+
+    # Mojangbannerpattern [普通] 原价=4633.1
+    default.mojangbannerpattern:
+      base-price: 4633.08
+      lambda: 0.0030
+
+    # Respawnanchor [普通] 原价=2268.1
+    default.respawnanchor:
+      base-price: 2268.06
+      lambda: 0.0030
+
+    # Enchantingtable [普通] 原价=1531.9
+    default.enchantingtable:
+      base-price: 1531.92
+      lambda: 0.0060
+
+    # Netheritescrap [普通] 原价=1210.0
+    default.netheritescrap:
+      base-price: 1210.00
+      lambda: 0.0060
+
+    # Blueharness [普通] 原价=1205.9
+    default.blueharness:
+      base-price: 1205.86
+      lambda: 0.0060
+
+    # Cyanharness [普通] 原价=1202.8
+    default.cyanharness:
+      base-price: 1202.78
+      lambda: 0.0060
+
+    # Purpleharness [普通] 原价=1199.9
+    default.purpleharness:
+      base-price: 1199.89
+      lambda: 0.0060
+
+    # Greenharness [普通] 原价=1199.9
+    default.greenharness:
+      base-price: 1199.88
+      lambda: 0.0060
+
+    # Magentaharness [普通] 原价=1198.6
+    default.magentaharness:
+      base-price: 1198.58
+      lambda: 0.0060
+
+    # Brownharness [普通] 原价=1197.7
+    default.brownharness:
+      base-price: 1197.69
+      lambda: 0.0060
+
+    # Limeharness [普通] 原价=1196.9
+    default.limeharness:
+      base-price: 1196.88
+      lambda: 0.0060
+
+    # Blackharness [普通] 原价=1196.5
+    default.blackharness:
+      base-price: 1196.51
+      lambda: 0.0060
+
+    # Lightgrayharness [普通] 原价=1195.2
+    default.lightgrayharness:
+      base-price: 1195.22
+      lambda: 0.0060
+
+    # Orangeharness [普通] 原价=1195.2
+    default.orangeharness:
+      base-price: 1195.22
+      lambda: 0.0060
+
+    # Grayharness [普通] 原价=1195.2
+    default.grayharness:
+      base-price: 1195.21
+      lambda: 0.0060
+
+    # Yellowharness [普通] 原价=1194.6
+    default.yellowharness:
+      base-price: 1194.64
+      lambda: 0.0060
+
+    # Lightblueharness [普通] 原价=1194.4
+    default.lightblueharness:
+      base-price: 1194.44
+      lambda: 0.0060
+
+    # Redharness [普通] 原价=1194.0
+    default.redharness:
+      base-price: 1194.03
+      lambda: 0.0060
+
+    # Pinkharness [普通] 原价=1193.9
+    default.pinkharness:
+      base-price: 1193.92
+      lambda: 0.0060
+
+    # Whiteharness [普通] 原价=1193.5
+    default.whiteharness:
+      base-price: 1193.47
+      lambda: 0.0060
+
+    # Enderchest [普通] 原价=1019.2
+    default.enderchest:
+      base-price: 1019.16
+      lambda: 0.0060
+
+    # Ancientdebris [普通] 原价=968.0
+    default.ancientdebris:
+      base-price: 968.00
+      lambda: 0.0060
+
+    # Ominoustrialkey [普通] 原价=800.0
+    default.ominoustrialkey:
+      base-price: 800.00
+      lambda: 0.0060
+
+    # Recoverycompass [普通] 原价=747.5
+    default.recoverycompass:
+      base-price: 747.53
+      lambda: 0.0060
+
+    # Driedghast [普通] 原价=617.3
+    default.driedghast:
+      base-price: 617.32
+      lambda: 0.0060
+
+    # Jukebox [普通] 原价=522.7
+    default.jukebox:
+      base-price: 522.71
+      lambda: 0.0060
+
+    # Anvil [普通] 原价=501.0
+    default.anvil:
+      base-price: 500.97
+      lambda: 0.0060
+
+    # Trialkey [普通] 原价=500.0
+    default.trialkey:
+      base-price: 500.00
+      lambda: 0.0060
+
+    # Anglerpotterysherd [普通] 原价=497.9
+    default.anglerpotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Archerpotterysherd [普通] 原价=497.9
+    default.archerpotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Armsuppotterysherd [普通] 原价=497.9
+    default.armsuppotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Bladepotterysherd [普通] 原价=497.9
+    default.bladepotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Brewerpotterysherd [普通] 原价=497.9
+    default.brewerpotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Burnpotterysherd [普通] 原价=497.9
+    default.burnpotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Dangerpotterysherd [普通] 原价=497.9
+    default.dangerpotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Explorerpotterysherd [普通] 原价=497.9
+    default.explorerpotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Flowpotterysherd [普通] 原价=497.9
+    default.flowpotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Friendpotterysherd [普通] 原价=497.9
+    default.friendpotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Gusterpotterysherd [普通] 原价=497.9
+    default.gusterpotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Heartbreakpotterysherd [普通] 原价=497.9
+    default.heartbreakpotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Heartpotterysherd [普通] 原价=497.9
+    default.heartpotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Howlpotterysherd [普通] 原价=497.9
+    default.howlpotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Minerpotterysherd [普通] 原价=497.9
+    default.minerpotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Mournerpotterysherd [普通] 原价=497.9
+    default.mournerpotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Plentypotterysherd [普通] 原价=497.9
+    default.plentypotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Prizepotterysherd [普通] 原价=497.9
+    default.prizepotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Scrapepotterysherd [普通] 原价=497.9
+    default.scrapepotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Sheafpotterysherd [普通] 原价=497.9
+    default.sheafpotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Shelterpotterysherd [普通] 原价=497.9
+    default.shelterpotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Skullpotterysherd [普通] 原价=497.9
+    default.skullpotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Snortpotterysherd [普通] 原价=497.9
+    default.snortpotterysherd:
+      base-price: 497.87
+      lambda: 0.0060
+
+    # Goldblock [普通] 原价=487.8
+    default.goldblock:
+      base-price: 487.77
+      lambda: 0.0060
+
+    # Globebannerpattern [普通] 原价=481.8
+    default.globebannerpattern:
+      base-price: 481.80
+      lambda: 0.0060
+
+    # Emeraldblock [普通] 原价=455.4
+    default.emeraldblock:
+      base-price: 455.40
+      lambda: 0.0060
+
+    # Goldenchestplate [普通] 原价=438.3
+    default.goldenchestplate:
+      base-price: 438.29
+      lambda: 0.0060
+
+    # Goldenapple [普通] 原价=436.6
+    default.goldenapple:
+      base-price: 436.61
+      lambda: 0.0060
+
+    # Deepslatediamondore [普通] 原价=412.5
+    default.deepslatediamondore:
+      base-price: 412.50
+      lambda: 0.0060
+
+    # Cryingobsidian [普通] 原价=392.4
+    default.cryingobsidian:
+      base-price: 392.40
+      lambda: 0.0060
+
+    # Goldenleggings [普通] 原价=387.6
+    default.goldenleggings:
+      base-price: 387.63
+      lambda: 0.0060
+
+    # Goldenhorsearmor [普通] 原价=385.0
+    default.goldenhorsearmor:
+      base-price: 385.00
+      lambda: 0.0060
+
+    # Rawgoldblock [普通] 原价=364.3
+    default.rawgoldblock:
+      base-price: 364.32
+      lambda: 0.0060
+
+    # Chainmailchestplate [普通] 原价=325.0
+    default.chainmailchestplate:
+      base-price: 325.00
+      lambda: 0.0060
+
+    # Goldenhelmet [普通] 原价=282.8
+    default.goldenhelmet:
+      base-price: 282.77
+      lambda: 0.0060
+
+    # Chippedanvil [普通] 原价=250.5
+    default.chippedanvil:
+      base-price: 250.49
+      lambda: 0.0060
+
+    # Chainmailleggings [普通] 原价=250.0
+    default.chainmailleggings:
+      base-price: 250.00
+      lambda: 0.0060
+
+    # Goldennautilusarmor [普通] 原价=231.0
+    default.goldennautilusarmor:
+      base-price: 231.00
+      lambda: 0.0060
+
+    # Clock [普通] 原价=229.4
+    default.clock:
+      base-price: 229.38
+      lambda: 0.0060
+
+    # Goldenboots [普通] 原价=228.6
+    default.goldenboots:
+      base-price: 228.57
+      lambda: 0.0060
+
+    # Witherrose [普通] 原价=225.0
+    default.witherrose:
+      base-price: 225.00
+      lambda: 0.0060
+
+    # Waxedchiseledcopper [普通] 原价=210.9
+    default.waxedchiseledcopper:
+      base-price: 210.89
+      lambda: 0.0060
+
+    # Chiseledcopper [普通] 原价=204.0
+    default.chiseledcopper:
+      base-price: 204.02
+      lambda: 0.0060
+
+    # Hopperminecart [普通] 原价=190.6
+    default.hopperminecart:
+      base-price: 190.60
+      lambda: 0.0120
+
+    # Cake [普通] 原价=189.2
+    default.cake:
+      base-price: 189.20
+      lambda: 0.0120
+
+    # Dragonbreath [普通] 原价=180.0
+    default.dragonbreath:
+      base-price: 180.00
+      lambda: 0.0120
+
+    # Mace [普通] 原价=175.7
+    default.mace:
+      base-price: 175.68
+      lambda: 0.0120
+
+    # Goldenaxe [普通] 原价=171.8
+    default.goldenaxe:
+      base-price: 171.81
+      lambda: 0.0120
+
+    # Goldenpickaxe [普通] 原价=171.8
+    default.goldenpickaxe:
+      base-price: 171.81
+      lambda: 0.0120
+
+    # Waxedcutcopperstairs [普通] 原价=154.3
+    default.waxedcutcopperstairs:
+      base-price: 154.27
+      lambda: 0.0120
+
+    # Ironblock [普通] 原价=153.0
+    default.ironblock:
+      base-price: 153.01
+      lambda: 0.0120
+
+    # Chainmailboots [普通] 原价=150.0
+    default.chainmailboots:
+      base-price: 150.00
+      lambda: 0.0120
+
+    # Chainmailhelmet [普通] 原价=150.0
+    default.chainmailhelmet:
+      base-price: 150.00
+      lambda: 0.0120
+
+    # Heavycore [普通] 原价=149.4
+    default.heavycore:
+      base-price: 149.45
+      lambda: 0.0120
+
+    # Chiseledquartzblock [普通] 原价=147.9
+    default.chiseledquartzblock:
+      base-price: 147.89
+      lambda: 0.0120
+
+    # Cutcopperstairs [普通] 原价=146.8
+    default.cutcopperstairs:
+      base-price: 146.83
+      lambda: 0.0120
+
+    # Waxedcoppergolemstatue [普通] 原价=140.2
+    default.waxedcoppergolemstatue:
+      base-price: 140.22
+      lambda: 0.0120
+
+    # Tntminecart [普通] 原价=139.9
+    default.tntminecart:
+      base-price: 139.91
+      lambda: 0.0120
+
+    # Ironchestplate [普通] 原价=137.5
+    default.ironchestplate:
+      base-price: 137.49
+      lambda: 0.0120
+
+    # Endcrystal [普通] 原价=136.8
+    default.endcrystal:
+      base-price: 136.81
+      lambda: 0.0120
+
+    # Smoothquartzstairs [普通] 原价=133.0
+    default.smoothquartzstairs:
+      base-price: 133.04
+      lambda: 0.0120
+
+    # Coppergolemstatue [普通] 原价=132.6
+    default.coppergolemstatue:
+      base-price: 132.64
+      lambda: 0.0120
+
+    # Ironhorsearmor [普通] 原价=132.0
+    default.ironhorsearmor:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Musicdisc11 [普通] 原价=132.0
+    default.musicdisc11:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Musicdisc13 [普通] 原价=132.0
+    default.musicdisc13:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Musicdisc5 [普通] 原价=132.0
+    default.musicdisc5:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Musicdiscblocks [普通] 原价=132.0
+    default.musicdiscblocks:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Musicdisccat [普通] 原价=132.0
+    default.musicdisccat:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Musicdiscchirp [普通] 原价=132.0
+    default.musicdiscchirp:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Musicdisccreator [普通] 原价=132.0
+    default.musicdisccreator:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Musicdisccreatormusicbox [普通] 原价=132.0
+    default.musicdisccreatormusicbox:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Musicdiscfar [普通] 原价=132.0
+    default.musicdiscfar:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Musicdisclavachicken [普通] 原价=132.0
+    default.musicdisclavachicken:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Musicdiscmall [普通] 原价=132.0
+    default.musicdiscmall:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Musicdiscmellohi [普通] 原价=132.0
+    default.musicdiscmellohi:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Musicdiscotherside [普通] 原价=132.0
+    default.musicdiscotherside:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Musicdiscpigstep [普通] 原价=132.0
+    default.musicdiscpigstep:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Musicdiscprecipice [普通] 原价=132.0
+    default.musicdiscprecipice:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Musicdiscrelic [普通] 原价=132.0
+    default.musicdiscrelic:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Musicdiscstal [普通] 原价=132.0
+    default.musicdiscstal:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Musicdiscstrad [普通] 原价=132.0
+    default.musicdiscstrad:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Musicdisctears [普通] 原价=132.0
+    default.musicdisctears:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Musicdiscwait [普通] 原价=132.0
+    default.musicdiscwait:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Musicdiscward [普通] 原价=132.0
+    default.musicdiscward:
+      base-price: 132.00
+      lambda: 0.0120
+
+    # Damagedanvil [普通] 原价=125.2
+    default.damagedanvil:
+      base-price: 125.24
+      lambda: 0.0120
+
+    # Cauldron [普通] 原价=121.6
+    default.cauldron:
+      base-price: 121.60
+      lambda: 0.0120
+
+    # Ironleggings [普通] 原价=121.6
+    default.ironleggings:
+      base-price: 121.60
+      lambda: 0.0120
+
+    # Netherwartblock [普通] 原价=118.8
+    default.netherwartblock:
+      base-price: 118.80
+      lambda: 0.0120
+
+    # Warpedwartblock [普通] 原价=118.8
+    default.warpedwartblock:
+      base-price: 118.80
+      lambda: 0.0120
+
+    # Waxedcopperchest [普通] 原价=117.8
+    default.waxedcopperchest:
+      base-price: 117.78
+      lambda: 0.0120
+
+    # Lightweightedpressureplate [普通] 原价=116.6
+    default.lightweightedpressureplate:
+      base-price: 116.64
+      lambda: 0.0120
+
+    # Blueice [普通] 原价=116.6
+    default.blueice:
+      base-price: 116.58
+      lambda: 0.0120
+
+    # Goldensword [普通] 原价=116.6
+    default.goldensword:
+      base-price: 116.56
+      lambda: 0.0120
+
+    # Goldenhoe [普通] 原价=116.5
+    default.goldenhoe:
+      base-price: 116.46
+      lambda: 0.0120
+
+    # Waxedcopperblock [普通] 原价=114.1
+    default.waxedcopperblock:
+      base-price: 114.08
+      lambda: 0.0120
+
+    # Calibratedsculksensor [普通] 原价=111.7
+    default.calibratedsculksensor:
+      base-price: 111.74
+      lambda: 0.0120
+
+    # Waxedcoppergrate [普通] 原价=110.9
+    default.waxedcoppergrate:
+      base-price: 110.92
+      lambda: 0.0120
+
+    # Waxedcutcopper [普通] 原价=110.9
+    default.waxedcutcopper:
+      base-price: 110.92
+      lambda: 0.0120
+
+    # Bluebanner [普通] 原价=110.8
+    default.bluebanner:
+      base-price: 110.75
+      lambda: 0.0120
+
+    # Copperchest [普通] 原价=110.0
+    default.copperchest:
+      base-price: 109.97
+      lambda: 0.0120
+
+    # Lapisblock [普通] 原价=109.7
+    default.lapisblock:
+      base-price: 109.71
+      lambda: 0.0120
+
+    # Rawironblock [普通] 原价=109.3
+    default.rawironblock:
+      base-price: 109.30
+      lambda: 0.0120
+
+    # Crafter [普通] 原价=108.6
+    default.crafter:
+      base-price: 108.60
+      lambda: 0.0120
+
+    # Quartzstairs [普通] 原价=106.4
+    default.quartzstairs:
+      base-price: 106.43
+      lambda: 0.0120
+
+    # Copperblock [普通] 原价=106.2
+    default.copperblock:
+      base-price: 106.23
+      lambda: 0.0120
+
+    # Chestminecart [普通] 原价=104.5
+    default.chestminecart:
+      base-price: 104.53
+      lambda: 0.0120
+
+    # Hopper [普通] 原价=103.8
+    default.hopper:
+      base-price: 103.83
+      lambda: 0.0120
+
+    # Coppergrate [普通] 原价=103.0
+    default.coppergrate:
+      base-price: 103.04
+      lambda: 0.0120
+
+    # Cutcopper [普通] 原价=103.0
+    default.cutcopper:
+      base-price: 103.04
+      lambda: 0.0120
+
+    # Copperhorsearmor [普通] 原价=102.0
+    default.copperhorsearmor:
+      base-price: 102.00
+      lambda: 0.0120
+
+    # Fireworkstar [普通] 原价=101.8
+    default.fireworkstar:
+      base-price: 101.75
+      lambda: 0.0120
+
+    # Potion [普通] 原价=100.0
+    default.potion:
+      base-price: 100.00
+      lambda: 0.0120
+
+    # Blastfurnace [普通] 原价=97.3
+    default.blastfurnace:
+      base-price: 97.28
+      lambda: 0.0120
+
+    # Furnaceminecart [普通] 原价=95.9
+    default.furnaceminecart:
+      base-price: 95.91
+      lambda: 0.0120
+
+    # Blueshulkerbox [普通] 原价=95.9
+    default.blueshulkerbox:
+      base-price: 95.86
+      lambda: 0.0120
+
+    # Copperchestplate [普通] 原价=95.5
+    default.copperchestplate:
+      base-price: 95.46
+      lambda: 0.0120
+
+    # Smoothquartz [普通] 原价=93.4
+    default.smoothquartz:
+      base-price: 93.36
+      lambda: 0.0120
+
+    # Cyanshulkerbox [普通] 原价=92.6
+    default.cyanshulkerbox:
+      base-price: 92.60
+      lambda: 0.0120
+
+    # Cyanbanner [普通] 原价=92.4
+    default.cyanbanner:
+      base-price: 92.42
+      lambda: 0.0120
+
+    # Echoshard [普通] 原价=92.3
+    default.echoshard:
+      base-price: 92.30
+      lambda: 0.0120
+
+    # Slimeblock [普通] 原价=91.1
+    default.slimeblock:
+      base-price: 91.08
+      lambda: 0.0120
+
+    # Purpleshulkerbox [普通] 原价=89.6
+    default.purpleshulkerbox:
+      base-price: 89.57
+      lambda: 0.0120
+
+    # Greenshulkerbox [普通] 原价=89.6
+    default.greenshulkerbox:
+      base-price: 89.56
+      lambda: 0.0120
+
+    # Enchantedbook [普通] 原价=89.3
+    default.enchantedbook:
+      base-price: 89.30
+      lambda: 0.0120
+
+    # Waxedcopperbulb [普通] 原价=88.7
+    default.waxedcopperbulb:
+      base-price: 88.74
+      lambda: 0.0120
+
+    # Ironhelmet [普通] 原价=88.7
+    default.ironhelmet:
+      base-price: 88.70
+      lambda: 0.0120
+
+    # Minecart [普通] 原价=88.7
+    default.minecart:
+      base-price: 88.70
+      lambda: 0.0120
+
+    # Magentashulkerbox [普通] 原价=88.2
+    default.magentashulkerbox:
+      base-price: 88.19
+      lambda: 0.0120
+
+    # Brownshulkerbox [普通] 原价=87.3
+    default.brownshulkerbox:
+      base-price: 87.26
+      lambda: 0.0120
+
+    # Limeshulkerbox [普通] 原价=86.4
+    default.limeshulkerbox:
+      base-price: 86.40
+      lambda: 0.0120
+
+    # Blackshulkerbox [普通] 原价=86.0
+    default.blackshulkerbox:
+      base-price: 86.01
+      lambda: 0.0120
+
+    # Rawcopperblock [普通] 原价=85.0
+    default.rawcopperblock:
+      base-price: 84.95
+      lambda: 0.0120
+
+    # Lightgrayshulkerbox [普通] 原价=84.7
+    default.lightgrayshulkerbox:
+      base-price: 84.65
+      lambda: 0.0120
+
+    # Orangeshulkerbox [普通] 原价=84.7
+    default.orangeshulkerbox:
+      base-price: 84.65
+      lambda: 0.0120
+
+    # Grayshulkerbox [普通] 原价=84.6
+    default.grayshulkerbox:
+      base-price: 84.64
+      lambda: 0.0120
+
+    # Copperleggings [普通] 原价=84.4
+    default.copperleggings:
+      base-price: 84.42
+      lambda: 0.0120
+
+    # Yellowshulkerbox [普通] 原价=84.0
+    default.yellowshulkerbox:
+      base-price: 84.05
+      lambda: 0.0120
+
+    # Lightblueshulkerbox [普通] 原价=83.8
+    default.lightblueshulkerbox:
+      base-price: 83.83
+      lambda: 0.0120
+
+    # Shulkerbox [普通] 原价=83.6
+    default.shulkerbox:
+      base-price: 83.58
+      lambda: 0.0120
+
+    # Redshulkerbox [普通] 原价=83.4
+    default.redshulkerbox:
+      base-price: 83.40
+      lambda: 0.0120
+
+    # Whiteshulkerbox [普通] 原价=83.3
+    default.whiteshulkerbox:
+      base-price: 83.32
+      lambda: 0.0120
+
+    # Pinkshulkerbox [普通] 原价=83.3
+    default.pinkshulkerbox:
+      base-price: 83.29
+      lambda: 0.0120
+
+    # Ghasttear [普通] 原价=82.5
+    default.ghasttear:
+      base-price: 82.50
+      lambda: 0.0120
+
+    # Copperbulb [普通] 原价=80.6
+    default.copperbulb:
+      base-price: 80.64
+      lambda: 0.0120
+
+    # Ironnautilusarmor [普通] 原价=80.0
+    default.ironnautilusarmor:
+      base-price: 80.00
+      lambda: 0.0120
+
+    # Purplebanner [普通] 原价=75.3
+    default.purplebanner:
+      base-price: 75.28
+      lambda: 0.0120
+
+    # Greenbanner [普通] 原价=75.2
+    default.greenbanner:
+      base-price: 75.22
+      lambda: 0.0120
+
+    # Quartzblock [普通] 原价=74.7
+    default.quartzblock:
+      base-price: 74.69
+      lambda: 0.0120
+
+    # Compass [普通] 原价=74.1
+    default.compass:
+      base-price: 74.13
+      lambda: 0.0120
+
+    # Quartzpillar [普通] 原价=73.9
+    default.quartzpillar:
+      base-price: 73.94
+      lambda: 0.0120
+
+    # Coalblock [普通] 原价=72.9
+    default.coalblock:
+      base-price: 72.86
+      lambda: 0.0120
+
+    # Quartzbricks [普通] 原价=72.5
+    default.quartzbricks:
+      base-price: 72.45
+      lambda: 0.0120
+
+    # Map [普通] 原价=72.2
+    default.map:
+      base-price: 72.17
+      lambda: 0.0120
+
+    # Ironboots [普通] 原价=71.7
+    default.ironboots:
+      base-price: 71.70
+      lambda: 0.0120
+
+    # Irontrapdoor [普通] 原价=71.7
+    default.irontrapdoor:
+      base-price: 71.70
+      lambda: 0.0120
+
+    # Magmablock [普通] 原价=69.1
+    default.magmablock:
+      base-price: 69.14
+      lambda: 0.0120
+
+    # Lavabucket [普通] 原价=68.3
+    default.lavabucket:
+      base-price: 68.28
+      lambda: 0.0120
+
+    # Magentabanner [普通] 原价=67.5
+    default.magentabanner:
+      base-price: 67.49
+      lambda: 0.0120
+
+    # Axolotlbucket [普通] 原价=67.3
+    default.axolotlbucket:
+      base-price: 67.31
+      lambda: 0.0120
+
+    # Codbucket [普通] 原价=67.3
+    default.codbucket:
+      base-price: 67.31
+      lambda: 0.0120
+
+    # Pufferfishbucket [普通] 原价=67.3
+    default.pufferfishbucket:
+      base-price: 67.31
+      lambda: 0.0120
+
+    # Salmonbucket [普通] 原价=67.3
+    default.salmonbucket:
+      base-price: 67.31
+      lambda: 0.0120
+
+    # Tropicalfishbucket [普通] 原价=67.3
+    default.tropicalfishbucket:
+      base-price: 67.31
+      lambda: 0.0120
+
+    # Prismarinebrickstairs [普通] 原价=64.9
+    default.prismarinebrickstairs:
+      base-price: 64.89
+      lambda: 0.0120
+
+    # Milkbucket [普通] 原价=64.7
+    default.milkbucket:
+      base-price: 64.70
+      lambda: 0.0120
+
+    # Powderedsnowbucket [普通] 原价=62.5
+    default.powderedsnowbucket:
+      base-price: 62.54
+      lambda: 0.0120
+
+    # Powdersnowbucket [普通] 原价=62.5
+    default.powdersnowbucket:
+      base-price: 62.54
+      lambda: 0.0120
+
+    # Brownbanner [普通] 原价=62.2
+    default.brownbanner:
+      base-price: 62.25
+      lambda: 0.0120
+
+    # Darkprismarinestairs [普通] 原价=62.0
+    default.darkprismarinestairs:
+      base-price: 62.02
+      lambda: 0.0120
+
+    # Bluebed [普通] 原价=61.9
+    default.bluebed:
+      base-price: 61.90
+      lambda: 0.0120
+
+    # Copperhelmet [普通] 原价=61.6
+    default.copperhelmet:
+      base-price: 61.58
+      lambda: 0.0120
+
+    # Waterbucket [普通] 原价=61.4
+    default.waterbucket:
+      base-price: 61.41
+      lambda: 0.0120
+
+    # Endereye [普通] 原价=61.4
+    default.endereye:
+      base-price: 61.38
+      lambda: 0.0120
+
+    # Coppernautilusarmor [普通] 原价=61.0
+    default.coppernautilusarmor:
+      base-price: 61.00
+      lambda: 0.0120
+
+    # Goldenshovel [普通] 原价=59.9
+    default.goldenshovel:
+      base-price: 59.93
+      lambda: 0.0120
+
+    # Goldenspear [普通] 原价=59.9
+    default.goldenspear:
+      base-price: 59.93
+      lambda: 0.0120
+
+    # Waxedexposedchiseledcopper [普通] 原价=59.9
+    default.waxedexposedchiseledcopper:
+      base-price: 59.91
+      lambda: 0.0120
+
+    # Waxedexposedcopper [普通] 原价=59.9
+    default.waxedexposedcopper:
+      base-price: 59.91
+      lambda: 0.0120
+
+    # Waxedexposedcopperbulb [普通] 原价=59.9
+    default.waxedexposedcopperbulb:
+      base-price: 59.91
+      lambda: 0.0120
+
+    # Waxedexposedcopperchest [普通] 原价=59.9
+    default.waxedexposedcopperchest:
+      base-price: 59.91
+      lambda: 0.0120
+
+    # Waxedexposedcoppergolemstatue [普通] 原价=59.9
+    default.waxedexposedcoppergolemstatue:
+      base-price: 59.91
+      lambda: 0.0120
+
+    # Waxedexposedcoppergrate [普通] 原价=59.9
+    default.waxedexposedcoppergrate:
+      base-price: 59.91
+      lambda: 0.0120
+
+    # Waxedexposedcutcopper [普通] 原价=59.9
+    default.waxedexposedcutcopper:
+      base-price: 59.91
+      lambda: 0.0120
+
+    # Waxedexposedcutcopperslab [普通] 原价=59.9
+    default.waxedexposedcutcopperslab:
+      base-price: 59.91
+      lambda: 0.0120
+
+    # Waxedexposedcutcopperstairs [普通] 原价=59.9
+    default.waxedexposedcutcopperstairs:
+      base-price: 59.91
+      lambda: 0.0120
+
+    # Waxedexposedlightningrod [普通] 原价=59.9
+    default.waxedexposedlightningrod:
+      base-price: 59.91
+      lambda: 0.0120
+
+    # Ochrefroglight [普通] 原价=59.4
+    default.ochrefroglight:
+      base-price: 59.44
+      lambda: 0.0120
+
+    # Pearlescentfroglight [普通] 原价=59.4
+    default.pearlescentfroglight:
+      base-price: 59.44
+      lambda: 0.0120
+
+    # Verdantfroglight [普通] 原价=59.4
+    default.verdantfroglight:
+      base-price: 59.44
+      lambda: 0.0120
+
+    # Goldingot [普通] 原价=58.9
+    default.goldingot:
+      base-price: 58.91
+      lambda: 0.0120
+
+    # Waxedcutcopperslab [普通] 原价=58.9
+    default.waxedcutcopperslab:
+      base-price: 58.90
+      lambda: 0.0120
+
+    # Sealantern [普通] 原价=58.2
+    default.sealantern:
+      base-price: 58.19
+      lambda: 0.0120
+
+    # Waxedcoppertrapdoor [普通] 原价=58.2
+    default.waxedcoppertrapdoor:
+      base-price: 58.19
+      lambda: 0.0120
+
+    # Daylightdetector [普通] 原价=58.1
+    default.daylightdetector:
+      base-price: 58.10
+      lambda: 0.0120
+
+    # Gildedblackstone [普通] 原价=58.0
+    default.gildedblackstone:
+      base-price: 58.00
+      lambda: 0.0120
+
+    # Limebanner [普通] 原价=57.4
+    default.limebanner:
+      base-price: 57.40
+      lambda: 0.0120
+
+    # Poweredrail [普通] 原价=55.5
+    default.poweredrail:
+      base-price: 55.47
+      lambda: 0.0120
+
+    # Ironaxe [普通] 原价=55.4
+    default.ironaxe:
+      base-price: 55.37
+      lambda: 0.0120
+
+    # Ironpickaxe [普通] 原价=55.4
+    default.ironpickaxe:
+      base-price: 55.37
+      lambda: 0.0120
+
+    # Tadpolebucket [普通] 原价=55.2
+    default.tadpolebucket:
+      base-price: 55.21
+      lambda: 0.0120
+
+    # Blackbanner [普通] 原价=55.2
+    default.blackbanner:
+      base-price: 55.20
+      lambda: 0.0120
+
+    # Enderpearl [普通] 原价=55.0
+    default.enderpearl:
+      base-price: 55.00
+      lambda: 0.0120
+
+    # Nametag [普通] 原价=55.0
+    default.nametag:
+      base-price: 55.00
+      lambda: 0.0120
+
+    # Waxedexposedcopperbars [普通] 原价=54.5
+    default.waxedexposedcopperbars:
+      base-price: 54.47
+      lambda: 0.0120
+
+    # Waxedexposedcopperchain [普通] 原价=54.5
+    default.waxedexposedcopperchain:
+      base-price: 54.47
+      lambda: 0.0120
+
+    # Waxedexposedcopperlantern [普通] 原价=54.5
+    default.waxedexposedcopperlantern:
+      base-price: 54.47
+      lambda: 0.0120
+
+    # Bucket [普通] 原价=54.3
+    default.bucket:
+      base-price: 54.33
+      lambda: 0.0120
+
+    # Cyanbed [普通] 原价=52.6
+    default.cyanbed:
+      base-price: 52.64
+      lambda: 0.0120
+
+    # Glisteringmelonslice [普通] 原价=52.5
+    default.glisteringmelonslice:
+      base-price: 52.49
+      lambda: 0.0120
+
+    # Rednetherbrickstairs [普通] 原价=51.7
+    default.rednetherbrickstairs:
+      base-price: 51.67
+      lambda: 0.0120
+
+    # Exposedchiseledcopper [普通] 原价=51.5
+    default.exposedchiseledcopper:
+      base-price: 51.52
+      lambda: 0.0120
+
+    # Exposedcopper [普通] 原价=51.5
+    default.exposedcopper:
+      base-price: 51.52
+      lambda: 0.0120
+
+    # Exposedcopperbars [普通] 原价=51.5
+    default.exposedcopperbars:
+      base-price: 51.52
+      lambda: 0.0120
+
+    # Exposedcopperbulb [普通] 原价=51.5
+    default.exposedcopperbulb:
+      base-price: 51.52
+      lambda: 0.0120
+
+    # Exposedcopperchain [普通] 原价=51.5
+    default.exposedcopperchain:
+      base-price: 51.52
+      lambda: 0.0120
+
+    # Exposedcopperchest [普通] 原价=51.5
+    default.exposedcopperchest:
+      base-price: 51.52
+      lambda: 0.0120
+
+    # Exposedcoppergolemstatue [普通] 原价=51.5
+    default.exposedcoppergolemstatue:
+      base-price: 51.52
+      lambda: 0.0120
+
+    # Exposedcoppergrate [普通] 原价=51.5
+    default.exposedcoppergrate:
+      base-price: 51.52
+      lambda: 0.0120
+
+    # Exposedcopperlantern [普通] 原价=51.5
+    default.exposedcopperlantern:
+      base-price: 51.52
+      lambda: 0.0120
+
+    # Exposedcutcopper [普通] 原价=51.5
+    default.exposedcutcopper:
+      base-price: 51.52
+      lambda: 0.0120
+
+    # Exposedcutcopperslab [普通] 原价=51.5
+    default.exposedcutcopperslab:
+      base-price: 51.52
+      lambda: 0.0120
+
+    # Exposedcutcopperstairs [普通] 原价=51.5
+    default.exposedcutcopperstairs:
+      base-price: 51.52
+      lambda: 0.0120
+
+    # Exposedlightningrod [普通] 原价=51.5
+    default.exposedlightningrod:
+      base-price: 51.52
+      lambda: 0.0120
+
+    # Cutcopperslab [普通] 原价=50.5
+    default.cutcopperslab:
+      base-price: 50.49
+      lambda: 0.0120
+
+    # Lingeringpotion [普通] 原价=50.2
+    default.lingeringpotion:
+      base-price: 50.20
+      lambda: 0.0120
+
+    # Copperboots [普通] 原价=49.8
+    default.copperboots:
+      base-price: 49.78
+      lambda: 0.0120
+
+    # Coppertrapdoor [普通] 原价=49.8
+    default.coppertrapdoor:
+      base-price: 49.78
+      lambda: 0.0120
+
+    # Waxedweatheredchiseledcopper [普通] 原价=49.7
+    default.waxedweatheredchiseledcopper:
+      base-price: 49.72
+      lambda: 0.0120
+
+    # Waxedweatheredcopper [普通] 原价=49.7
+    default.waxedweatheredcopper:
+      base-price: 49.72
+      lambda: 0.0120
+
+    # Waxedweatheredcopperbulb [普通] 原价=49.7
+    default.waxedweatheredcopperbulb:
+      base-price: 49.72
+      lambda: 0.0120
+
+    # Waxedweatheredcopperchest [普通] 原价=49.7
+    default.waxedweatheredcopperchest:
+      base-price: 49.72
+      lambda: 0.0120
+
+    # Waxedweatheredcoppergolemstatue [普通] 原价=49.7
+    default.waxedweatheredcoppergolemstatue:
+      base-price: 49.72
+      lambda: 0.0120
+
+    # Waxedweatheredcoppergrate [普通] 原价=49.7
+    default.waxedweatheredcoppergrate:
+      base-price: 49.72
+      lambda: 0.0120
+
+    # Waxedweatheredcutcopper [普通] 原价=49.7
+    default.waxedweatheredcutcopper:
+      base-price: 49.72
+      lambda: 0.0120
+
+    # Waxedweatheredcutcopperslab [普通] 原价=49.7
+    default.waxedweatheredcutcopperslab:
+      base-price: 49.72
+      lambda: 0.0120
+
+    # Waxedweatheredcutcopperstairs [普通] 原价=49.7
+    default.waxedweatheredcutcopperstairs:
+      base-price: 49.72
+      lambda: 0.0120
+
+    # Waxedweatheredlightningrod [普通] 原价=49.7
+    default.waxedweatheredlightningrod:
+      base-price: 49.72
+      lambda: 0.0120
+
+    # Goldendandelion [普通] 原价=49.4
+    default.goldendandelion:
+      base-price: 49.42
+      lambda: 0.0120
+
+    # Goldencarrot [普通] 原价=49.0
+    default.goldencarrot:
+      base-price: 48.97
+      lambda: 0.0120
+
+    # Redstonelamp [普通] 原价=48.1
+    default.redstonelamp:
+      base-price: 48.15
+      lambda: 0.0120
+
+    # Lightgraybanner [普通] 原价=47.6
+    default.lightgraybanner:
+      base-price: 47.58
+      lambda: 0.0120
+
+    # Orangebanner [普通] 原价=47.6
+    default.orangebanner:
+      base-price: 47.58
+      lambda: 0.0120
+
+    # Graybanner [普通] 原价=47.5
+    default.graybanner:
+      base-price: 47.53
+      lambda: 0.0120
+
+    # Waxedlightningrod [普通] 原价=46.2
+    default.waxedlightningrod:
+      base-price: 46.25
+      lambda: 0.0120
+
+    # Smoothquartzslab [普通] 原价=45.8
+    default.smoothquartzslab:
+      base-price: 45.75
+      lambda: 0.0120
+
+    # Prismarinebricks [普通] 原价=45.5
+    default.prismarinebricks:
+      base-price: 45.54
+      lambda: 0.0120
+
+    # Waxedweatheredcopperbars [普通] 原价=45.2
+    default.waxedweatheredcopperbars:
+      base-price: 45.20
+      lambda: 0.0120
+
+    # Waxedweatheredcopperchain [普通] 原价=45.2
+    default.waxedweatheredcopperchain:
+      base-price: 45.20
+      lambda: 0.0120
+
+    # Waxedweatheredcopperlantern [普通] 原价=45.2
+    default.waxedweatheredcopperlantern:
+      base-price: 45.20
+      lambda: 0.0120
+
+    # Heartofthesea [普通] 原价=44.4
+    default.heartofthesea:
+      base-price: 44.39
+      lambda: 0.0120
+
+    # Shroomlight [普通] 原价=44.4
+    default.shroomlight:
+      base-price: 44.35
+      lambda: 0.0120
+
+    # Yellowbanner [普通] 原价=44.1
+    default.yellowbanner:
+      base-price: 44.14
+      lambda: 0.0120
+
+    # Rawgold [普通] 原价=44.0
+    default.rawgold:
+      base-price: 44.00
+      lambda: 0.0120
+
+    # Purplebed [普通] 原价=44.0
+    default.purplebed:
+      base-price: 43.98
+      lambda: 0.0120
+
+    # Greenbed [普通] 原价=44.0
+    default.greenbed:
+      base-price: 43.95
+      lambda: 0.0120
+
+    # Smithingtable [普通] 原价=43.7
+    default.smithingtable:
+      base-price: 43.74
+      lambda: 0.0120
+
+    # Darkprismarine [普通] 原价=43.5
+    default.darkprismarine:
+      base-price: 43.52
+      lambda: 0.0120
+
+    # Lightbluebanner [普通] 原价=42.9
+    default.lightbluebanner:
+      base-price: 42.90
+      lambda: 0.0120
+
+    # Smoker [普通] 原价=42.6
+    default.smoker:
+      base-price: 42.64
+      lambda: 0.0120
+
+    # Deepslateemeraldore [普通] 原价=41.2
+    default.deepslateemeraldore:
+      base-price: 41.25
+      lambda: 0.0120
+
+    # Emeraldore [普通] 原价=41.2
+    default.emeraldore:
+      base-price: 41.25
+      lambda: 0.0120
+
+    # Weatheredchiseledcopper [普通] 原价=41.2
+    default.weatheredchiseledcopper:
+      base-price: 41.22
+      lambda: 0.0120
+
+    # Weatheredcopper [普通] 原价=41.2
+    default.weatheredcopper:
+      base-price: 41.22
+      lambda: 0.0120
+
+    # Weatheredcopperbars [普通] 原价=41.2
+    default.weatheredcopperbars:
+      base-price: 41.22
+      lambda: 0.0120
+
+    # Weatheredcopperbulb [普通] 原价=41.2
+    default.weatheredcopperbulb:
+      base-price: 41.22
+      lambda: 0.0120
+
+    # Weatheredcopperchain [普通] 原价=41.2
+    default.weatheredcopperchain:
+      base-price: 41.22
+      lambda: 0.0120
+
+    # Weatheredcopperchest [普通] 原价=41.2
+    default.weatheredcopperchest:
+      base-price: 41.22
+      lambda: 0.0120
+
+    # Weatheredcoppergolemstatue [普通] 原价=41.2
+    default.weatheredcoppergolemstatue:
+      base-price: 41.22
+      lambda: 0.0120
+
+    # Weatheredcoppergrate [普通] 原价=41.2
+    default.weatheredcoppergrate:
+      base-price: 41.22
+      lambda: 0.0120
+
+    # Weatheredcopperlantern [普通] 原价=41.2
+    default.weatheredcopperlantern:
+      base-price: 41.22
+      lambda: 0.0120
+
+    # Weatheredcutcopper [普通] 原价=41.2
+    default.weatheredcutcopper:
+      base-price: 41.22
+      lambda: 0.0120
+
+    # Weatheredcutcopperslab [普通] 原价=41.2
+    default.weatheredcutcopperslab:
+      base-price: 41.22
+      lambda: 0.0120
+
+    # Weatheredcutcopperstairs [普通] 原价=41.2
+    default.weatheredcutcopperstairs:
+      base-price: 41.22
+      lambda: 0.0120
+
+    # Weatheredlightningrod [普通] 原价=41.2
+    default.weatheredlightningrod:
+      base-price: 41.22
+      lambda: 0.0120
+
+    # Stickypiston [普通] 原价=40.9
+    default.stickypiston:
+      base-price: 40.94
+      lambda: 0.0120
+
+    # Splashpotion [普通] 原价=40.7
+    default.splashpotion:
+      base-price: 40.72
+      lambda: 0.0120
+
+    # Redbanner [普通] 原价=40.5
+    default.redbanner:
+      base-price: 40.48
+      lambda: 0.0120
+
+    # Magentabed [普通] 原价=40.0
+    default.magentabed:
+      base-price: 40.04
+      lambda: 0.0120
+
+    # Beehive [普通] 原价=39.9
+    default.beehive:
+      base-price: 39.87
+      lambda: 0.0120
+
+    # Beenest [普通] 原价=39.9
+    default.beenest:
+      base-price: 39.87
+      lambda: 0.0120
+
+    # Pinkbanner [普通] 原价=39.9
+    default.pinkbanner:
+      base-price: 39.86
+      lambda: 0.0120
+
+    # Waxedoxidizedchiseledcopper [普通] 原价=39.5
+    default.waxedoxidizedchiseledcopper:
+      base-price: 39.51
+      lambda: 0.0120
+
+    # Waxedoxidizedcopper [普通] 原价=39.5
+    default.waxedoxidizedcopper:
+      base-price: 39.51
+      lambda: 0.0120
+
+    # Waxedoxidizedcopperbulb [普通] 原价=39.5
+    default.waxedoxidizedcopperbulb:
+      base-price: 39.51
+      lambda: 0.0120
+
+    # Waxedoxidizedcopperchest [普通] 原价=39.5
+    default.waxedoxidizedcopperchest:
+      base-price: 39.51
+      lambda: 0.0120
+
+    # Waxedoxidizedcoppergolemstatue [普通] 原价=39.5
+    default.waxedoxidizedcoppergolemstatue:
+      base-price: 39.51
+      lambda: 0.0120
+
+    # Waxedoxidizedcoppergrate [普通] 原价=39.5
+    default.waxedoxidizedcoppergrate:
+      base-price: 39.51
+      lambda: 0.0120
+
+    # Waxedoxidizedcutcopper [普通] 原价=39.5
+    default.waxedoxidizedcutcopper:
+      base-price: 39.51
+      lambda: 0.0120
+
+    # Waxedoxidizedcutcopperslab [普通] 原价=39.5
+    default.waxedoxidizedcutcopperslab:
+      base-price: 39.51
+      lambda: 0.0120
+
+    # Waxedoxidizedcutcopperstairs [普通] 原价=39.5
+    default.waxedoxidizedcutcopperstairs:
+      base-price: 39.51
+      lambda: 0.0120
+
+    # Waxedoxidizedlightningrod [普通] 原价=39.5
+    default.waxedoxidizedlightningrod:
+      base-price: 39.51
+      lambda: 0.0120
+
+    # Copperaxe [普通] 原价=39.1
+    default.copperaxe:
+      base-price: 39.10
+      lambda: 0.0120
+
+    # Copperpickaxe [普通] 原价=39.1
+    default.copperpickaxe:
+      base-price: 39.10
+      lambda: 0.0120
+
+    # Soulcampfire [普通] 原价=39.0
+    default.soulcampfire:
+      base-price: 39.05
+      lambda: 0.0120
+
+    # Target [普通] 原价=38.9
+    default.target:
+      base-price: 38.90
+      lambda: 0.0120
+
+    # Melonblock [普通] 原价=38.5
+    default.melonblock:
+      base-price: 38.50
+      lambda: 0.0120
+
+    # Ironhoe [普通] 原价=38.0
+    default.ironhoe:
+      base-price: 38.02
+      lambda: 0.0120
+
+    # Leatherchestplate [普通] 原价=37.8
+    default.leatherchestplate:
+      base-price: 37.80
+      lambda: 0.0120
+
+    # Lightningrod [普通] 原价=37.7
+    default.lightningrod:
+      base-price: 37.72
+      lambda: 0.0120
+
+    # Brownbed [普通] 原价=37.4
+    default.brownbed:
+      base-price: 37.39
+      lambda: 0.0120
+
+    # Ironsword [普通] 原价=37.3
+    default.ironsword:
+      base-price: 37.32
+      lambda: 0.0120
+
+    # Ominousbottle [普通] 原价=37.1
+    default.ominousbottle:
+      base-price: 37.15
+      lambda: 0.0120
+
+    # Whitebanner [普通] 原价=37.1
+    default.whitebanner:
+      base-price: 37.15
+      lambda: 0.0120
+
+    # Campfire [普通] 原价=37.0
+    default.campfire:
+      base-price: 36.98
+      lambda: 0.0120
+
+    # Quartzslab [普通] 原价=36.6
+    default.quartzslab:
+      base-price: 36.60
+      lambda: 0.0120
+
+    # Heavyweightedpressureplate [普通] 原价=36.6
+    default.heavyweightedpressureplate:
+      base-price: 36.59
+      lambda: 0.0120
+
+    # Shears [普通] 原价=36.6
+    default.shears:
+      base-price: 36.59
+      lambda: 0.0120
+
+    # Rednetherbricks [普通] 原价=36.3
+    default.rednetherbricks:
+      base-price: 36.26
+      lambda: 0.0120
+
+    # Creakingheart [普通] 原价=36.2
+    default.creakingheart:
+      base-price: 36.25
+      lambda: 0.0120
+
+    # Waxedoxidizedcopperbars [普通] 原价=35.9
+    default.waxedoxidizedcopperbars:
+      base-price: 35.92
+      lambda: 0.0120
+
+    # Waxedoxidizedcopperchain [普通] 原价=35.9
+    default.waxedoxidizedcopperchain:
+      base-price: 35.92
+      lambda: 0.0120
+
+    # Waxedoxidizedcopperlantern [普通] 原价=35.9
+    default.waxedoxidizedcopperlantern:
+      base-price: 35.92
+      lambda: 0.0120
+
+    # Irondoor [普通] 原价=35.1
+    default.irondoor:
+      base-price: 35.11
+      lambda: 0.0120
+
+    # Limebed [普通] 原价=34.9
+    default.limebed:
+      base-price: 34.94
+      lambda: 0.0120
+
+    # Amethystblock [普通] 原价=34.9
+    default.amethystblock:
+      base-price: 34.92
+      lambda: 0.0120
+
+    # Honeycombblock [普通] 原价=34.9
+    default.honeycombblock:
+      base-price: 34.92
+      lambda: 0.0120
+
+    # Rednetherbrickwall [普通] 原价=34.5
+    default.rednetherbrickwall:
+      base-price: 34.45
+      lambda: 0.0120
+
+    # Netherbrickfence [普通] 原价=34.4
+    default.netherbrickfence:
+      base-price: 34.43
+      lambda: 0.0120
+
+    # Comparator [普通] 原价=34.3
+    default.comparator:
+      base-price: 34.34
+      lambda: 0.0120
+
+    # Shulkershell [普通] 原价=34.2
+    default.shulkershell:
+      base-price: 34.20
+      lambda: 0.0120
+
+    # Spyglass [普通] 原价=34.0
+    default.spyglass:
+      base-price: 33.97
+      lambda: 0.0120
+
+    # Blackbed [普通] 原价=33.8
+    default.blackbed:
+      base-price: 33.83
+      lambda: 0.0120
+
+    # Waxedexposedcoppertrapdoor [普通] 原价=33.5
+    default.waxedexposedcoppertrapdoor:
+      base-price: 33.55
+      lambda: 0.0120
+
+    # Lectern [普通] 原价=33.5
+    default.lectern:
+      base-price: 33.51
+      lambda: 0.0120
+
+    # Leatherhorsearmor [普通] 原价=33.4
+    default.leatherhorsearmor:
+      base-price: 33.43
+      lambda: 0.0120
+
+    # Leatherleggings [普通] 原价=33.4
+    default.leatherleggings:
+      base-price: 33.43
+      lambda: 0.0120
+
+    # Waxedcopperdoor [普通] 原价=33.0
+    default.waxedcopperdoor:
+      base-price: 33.05
+      lambda: 0.0120
+
+    # Deepslategoldore [普通] 原价=33.0
+    default.deepslategoldore:
+      base-price: 33.00
+      lambda: 0.0120
+
+    # Goldore [普通] 原价=33.0
+    default.goldore:
+      base-price: 33.00
+      lambda: 0.0120
+
+    # Nethergoldore [普通] 原价=33.0
+    default.nethergoldore:
+      base-price: 33.00
+      lambda: 0.0120
+
+    # Bamboochestraft [普通] 原价=32.6
+    default.bamboochestraft:
+      base-price: 32.64
+      lambda: 0.0120
+
+    # Driedkelpblock [普通] 原价=32.4
+    default.driedkelpblock:
+      base-price: 32.37
+      lambda: 0.0120
+
+    # Oxidizedchiseledcopper [普通] 原价=30.9
+    default.oxidizedchiseledcopper:
+      base-price: 30.91
+      lambda: 0.0120
+
+    # Oxidizedcopper [普通] 原价=30.9
+    default.oxidizedcopper:
+      base-price: 30.91
+      lambda: 0.0120
+
+    # Oxidizedcopperbars [普通] 原价=30.9
+    default.oxidizedcopperbars:
+      base-price: 30.91
+      lambda: 0.0120
+
+    # Oxidizedcopperbulb [普通] 原价=30.9
+    default.oxidizedcopperbulb:
+      base-price: 30.91
+      lambda: 0.0120
+
+    # Oxidizedcopperchain [普通] 原价=30.9
+    default.oxidizedcopperchain:
+      base-price: 30.91
+      lambda: 0.0120
+
+    # Oxidizedcopperchest [普通] 原价=30.9
+    default.oxidizedcopperchest:
+      base-price: 30.91
+      lambda: 0.0120
+
+    # Oxidizedcoppergolemstatue [普通] 原价=30.9
+    default.oxidizedcoppergolemstatue:
+      base-price: 30.91
+      lambda: 0.0120
+
+    # Oxidizedcoppergrate [普通] 原价=30.9
+    default.oxidizedcoppergrate:
+      base-price: 30.91
+      lambda: 0.0120
+
+    # Oxidizedcopperlantern [普通] 原价=30.9
+    default.oxidizedcopperlantern:
+      base-price: 30.91
+      lambda: 0.0120
+
+    # Oxidizedcutcopper [普通] 原价=30.9
+    default.oxidizedcutcopper:
+      base-price: 30.91
+      lambda: 0.0120
+
+    # Oxidizedcutcopperslab [普通] 原价=30.9
+    default.oxidizedcutcopperslab:
+      base-price: 30.91
+      lambda: 0.0120
+
+    # Oxidizedcutcopperstairs [普通] 原价=30.9
+    default.oxidizedcutcopperstairs:
+      base-price: 30.91
+      lambda: 0.0120
+
+    # Oxidizedlightningrod [普通] 原价=30.9
+    default.oxidizedlightningrod:
+      base-price: 30.91
+      lambda: 0.0120
+
+    # Pumpkinpie [普通] 原价=30.5
+    default.pumpkinpie:
+      base-price: 30.48
+      lambda: 0.0120
+
+    # Bookshelf [普通] 原价=30.5
+    default.bookshelf:
+      base-price: 30.47
+      lambda: 0.0120
+
+    # Prismarinestairs [普通] 原价=30.4
+    default.prismarinestairs:
+      base-price: 30.41
+      lambda: 0.0120
+
+    # Piston [普通] 原价=30.4
+    default.piston:
+      base-price: 30.35
+      lambda: 0.0120
+
+    # Shield [普通] 原价=30.2
+    default.shield:
+      base-price: 30.17
+      lambda: 0.0120
+
+    # Lightgraybed [普通] 原价=30.0
+    default.lightgraybed:
+      base-price: 29.98
+      lambda: 0.0120
+
+    # Orangebed [普通] 原价=30.0
+    default.orangebed:
+      base-price: 29.98
+      lambda: 0.0120
+
+    # Graybed [普通] 原价=29.9
+    default.graybed:
+      base-price: 29.95
+      lambda: 0.0120
+
+    # Observer [普通] 原价=29.9
+    default.observer:
+      base-price: 29.85
+      lambda: 0.0120
+
+    # Cherrychestboat [普通] 原价=29.1
+    default.cherrychestboat:
+      base-price: 29.08
+      lambda: 0.0120
+
+    # Paleoakchestboat [普通] 原价=29.1
+    default.paleoakchestboat:
+      base-price: 29.08
+      lambda: 0.0120
+
+    # Waxedweatheredcoppertrapdoor [普通] 原价=28.6
+    default.waxedweatheredcoppertrapdoor:
+      base-price: 28.62
+      lambda: 0.0120
+
+    # Yellowbed [普通] 原价=28.2
+    default.yellowbed:
+      base-price: 28.24
+      lambda: 0.0120
+
+    # Breezerod [普通] 原价=28.0
+    default.breezerod:
+      base-price: 28.00
+      lambda: 0.0120
+
+    # Lightbluebed [普通] 原价=27.6
+    default.lightbluebed:
+      base-price: 27.62
+      lambda: 0.0120
+
+    # Acaciachestboat [普通] 原价=27.5
+    default.acaciachestboat:
+      base-price: 27.51
+      lambda: 0.0120
+
+    # Birchchestboat [普通] 原价=27.5
+    default.birchchestboat:
+      base-price: 27.51
+      lambda: 0.0120
+
+    # Darkoakchestboat [普通] 原价=27.5
+    default.darkoakchestboat:
+      base-price: 27.51
+      lambda: 0.0120
+
+    # Junglechestboat [普通] 原价=27.5
+    default.junglechestboat:
+      base-price: 27.51
+      lambda: 0.0120
+
+    # Mangrovechestboat [普通] 原价=27.5
+    default.mangrovechestboat:
+      base-price: 27.51
+      lambda: 0.0120
+
+    # Oakchestboat [普通] 原价=27.5
+    default.oakchestboat:
+      base-price: 27.51
+      lambda: 0.0120
+
+    # Sprucechestboat [普通] 原价=27.5
+    default.sprucechestboat:
+      base-price: 27.51
+      lambda: 0.0120
+
+    # Chorusflower [普通] 原价=27.5
+    default.chorusflower:
+      base-price: 27.50
+      lambda: 0.0120
+
+    # Trappedchest [普通] 原价=27.3
+    default.trappedchest:
+      base-price: 27.33
+      lambda: 0.0120
+
+    # Hayblock [普通] 原价=27.3
+    default.hayblock:
+      base-price: 27.32
+      lambda: 0.0120
+
+    # Redstoneblock [普通] 原价=27.3
+    default.redstoneblock:
+      base-price: 27.32
+      lambda: 0.0120
+
+    # Copperhoe [普通] 原价=27.1
+    default.copperhoe:
+      base-price: 27.06
+      lambda: 0.0120
+
+    # Redbed [普通] 原价=26.4
+    default.redbed:
+      base-price: 26.39
+      lambda: 0.0120
+
+    # Coppersword [普通] 原价=26.2
+    default.coppersword:
+      base-price: 26.24
+      lambda: 0.0120
+
+    # Pinkbed [普通] 原价=26.1
+    default.pinkbed:
+      base-price: 26.08
+      lambda: 0.0120
+
+    # Experiencebottle [普通] 原价=25.0
+    default.experiencebottle:
+      base-price: 25.00
+      lambda: 0.0120
+
+    # Exposedcoppertrapdoor [普通] 原价=24.9
+    default.exposedcoppertrapdoor:
+      base-price: 24.89
+      lambda: 0.0120
+
+    # Whitebed [普通] 原价=24.7
+    default.whitebed:
+      base-price: 24.71
+      lambda: 0.0120
+
+    # Copperdoor [普通] 原价=24.4
+    default.copperdoor:
+      base-price: 24.38
+      lambda: 0.0120
+
+    # Leatherhelmet [普通] 原价=24.4
+    default.leatherhelmet:
+      base-price: 24.38
+      lambda: 0.0120
+
+    # Endstonebrickstairs [普通] 原价=24.2
+    default.endstonebrickstairs:
+      base-price: 24.18
+      lambda: 0.0120
+
+    # Endstonestairs [普通] 原价=24.2
+    default.endstonestairs:
+      base-price: 24.18
+      lambda: 0.0120
+
+    # Waxedoxidizedcoppertrapdoor [普通] 原价=23.7
+    default.waxedoxidizedcoppertrapdoor:
+      base-price: 23.69
+      lambda: 0.0120
+
+    # Bluecandle [普通] 原价=23.6
+    default.bluecandle:
+      base-price: 23.55
+      lambda: 0.0120
+
+    # Snifferegg [普通] 原价=23.2
+    default.snifferegg:
+      base-price: 23.24
+      lambda: 0.0120
+
+    # Bluebundle [普通] 原价=23.1
+    default.bluebundle:
+      base-price: 23.06
+      lambda: 0.0120
+
+    # Brickstairs [普通] 原价=22.8
+    default.brickstairs:
+      base-price: 22.79
+      lambda: 0.0120
+
+    # Prismarinebrickslab [普通] 原价=22.3
+    default.prismarinebrickslab:
+      base-price: 22.31
+      lambda: 0.0120
+
+    # Ironchain [普通] 原价=22.1
+    default.ironchain:
+      base-price: 22.13
+      lambda: 0.0120
+
+    # Rabbitfoot [普通] 原价=22.0
+    default.rabbitfoot:
+      base-price: 22.00
+      lambda: 0.0120
+
+    # Stonecutter [普通] 原价=21.9
+    default.stonecutter:
+      base-price: 21.94
+      lambda: 0.0120
+
+    # Waxedcopperchain [普通] 原价=21.9
+    default.waxedcopperchain:
+      base-price: 21.94
+      lambda: 0.0120
+
+    # Prismarine [普通] 原价=21.3
+    default.prismarine:
+      base-price: 21.34
+      lambda: 0.0120
+
+    # Darkprismarineslab [普通] 原价=21.3
+    default.darkprismarineslab:
+      base-price: 21.32
+      lambda: 0.0120
+
+    # Waxedexposedcopperdoor [普通] 原价=21.0
+    default.waxedexposedcopperdoor:
+      base-price: 20.98
+      lambda: 0.0120
+
+    # Ironshovel [普通] 原价=20.3
+    default.ironshovel:
+      base-price: 20.31
+      lambda: 0.0120
+
+    # Ironspear [普通] 原价=20.3
+    default.ironspear:
+      base-price: 20.31
+      lambda: 0.0120
+
+    # Blueglazedterracotta [普通] 原价=20.3
+    default.blueglazedterracotta:
+      base-price: 20.30
+      lambda: 0.0120
+
+    # Cyancandle [普通] 原价=20.3
+    default.cyancandle:
+      base-price: 20.29
+      lambda: 0.0120
+
+    # Prismarinewall [普通] 原价=20.3
+    default.prismarinewall:
+      base-price: 20.27
+      lambda: 0.0120
+
+    # Weatheredcoppertrapdoor [普通] 原价=19.9
+    default.weatheredcoppertrapdoor:
+      base-price: 19.91
+      lambda: 0.0200
+
+    # Waxedcopperlantern [普通] 原价=19.9
+    default.waxedcopperlantern:
+      base-price: 19.87
+      lambda: 0.0200
+
+    # Cyanglazedterracotta [普通] 原价=19.8
+    default.cyanglazedterracotta:
+      base-price: 19.84
+      lambda: 0.0200
+
+    # Soullantern [普通] 原价=19.8
+    default.soullantern:
+      base-price: 19.81
+      lambda: 0.0200
+
+    # Cyanbundle [普通] 原价=19.8
+    default.cyanbundle:
+      base-price: 19.80
+      lambda: 0.0200
+
+    # Noteblock [普通] 原价=19.7
+    default.noteblock:
+      base-price: 19.74
+      lambda: 0.0200
+
+    # Leatherboots [普通] 原价=19.7
+    default.leatherboots:
+      base-price: 19.71
+      lambda: 0.0200
+
+    # Bluewool [普通] 原价=19.4
+    default.bluewool:
+      base-price: 19.45
+      lambda: 0.0200
+
+    # Greenglazedterracotta [普通] 原价=19.4
+    default.greenglazedterracotta:
+      base-price: 19.39
+      lambda: 0.0200
+
+    # Purpleglazedterracotta [普通] 原价=19.4
+    default.purpleglazedterracotta:
+      base-price: 19.39
+      lambda: 0.0200
+
+    # Quartz [普通] 原价=19.2
+    default.quartz:
+      base-price: 19.25
+      lambda: 0.0200
+
+    # Magentaglazedterracotta [普通] 原价=19.2
+    default.magentaglazedterracotta:
+      base-price: 19.19
+      lambda: 0.0200
+
+    # Brownglazedterracotta [普通] 原价=19.1
+    default.brownglazedterracotta:
+      base-price: 19.05
+      lambda: 0.0200
+
+    # Turtleegg [普通] 原价=19.0
+    default.turtleegg:
+      base-price: 18.98
+      lambda: 0.0200
+
+    # Limeglazedterracotta [普通] 原价=18.9
+    default.limeglazedterracotta:
+      base-price: 18.93
+      lambda: 0.0200
+
+    # Blackglazedterracotta [普通] 原价=18.9
+    default.blackglazedterracotta:
+      base-price: 18.88
+      lambda: 0.0200
+
+    # Flintandsteel [普通] 原价=18.8
+    default.flintandsteel:
+      base-price: 18.84
+      lambda: 0.0200
+
+    # Chiseledresinbricks [普通] 原价=18.8
+    default.chiseledresinbricks:
+      base-price: 18.75
+      lambda: 0.0200
+
+    # Grayglazedterracotta [普通] 原价=18.7
+    default.grayglazedterracotta:
+      base-price: 18.68
+      lambda: 0.0200
+
+    # Lightgrayglazedterracotta [普通] 原价=18.7
+    default.lightgrayglazedterracotta:
+      base-price: 18.68
+      lambda: 0.0200
+
+    # Orangeglazedterracotta [普通] 原价=18.7
+    default.orangeglazedterracotta:
+      base-price: 18.68
+      lambda: 0.0200
+
+    # Yellowglazedterracotta [普通] 原价=18.6
+    default.yellowglazedterracotta:
+      base-price: 18.59
+      lambda: 0.0200
+
+    # Lightblueglazedterracotta [普通] 原价=18.6
+    default.lightblueglazedterracotta:
+      base-price: 18.56
+      lambda: 0.0200
+
+    # Waxedweatheredcopperdoor [普通] 原价=18.6
+    default.waxedweatheredcopperdoor:
+      base-price: 18.56
+      lambda: 0.0200
+
+    # Redglazedterracotta [普通] 原价=18.5
+    default.redglazedterracotta:
+      base-price: 18.50
+      lambda: 0.0200
+
+    # Whiteglazedterracotta [普通] 原价=18.5
+    default.whiteglazedterracotta:
+      base-price: 18.49
+      lambda: 0.0200
+
+    # Ironingot [普通] 原价=18.5
+    default.ironingot:
+      base-price: 18.48
+      lambda: 0.0200
+
+    # Pinkglazedterracotta [普通] 原价=18.5
+    default.pinkglazedterracotta:
+      base-price: 18.47
+      lambda: 0.0200
+
+    # Crimsonhangingsign [普通] 原价=18.4
+    default.crimsonhangingsign:
+      base-price: 18.41
+      lambda: 0.0200
+
+    # Warpedhangingsign [普通] 原价=18.4
+    default.warpedhangingsign:
+      base-price: 18.41
+      lambda: 0.0200
+
+    # Detectorrail [普通] 原价=18.1
+    default.detectorrail:
+      base-price: 18.12
+      lambda: 0.0200
+
+    # Activatorrail [普通] 原价=18.0
+    default.activatorrail:
+      base-price: 18.02
+      lambda: 0.0200
+
+    # Magmacream [普通] 原价=17.8
+    default.magmacream:
+      base-price: 17.82
+      lambda: 0.0200
+
+    # Rednetherbrickslab [普通] 原价=17.8
+    default.rednetherbrickslab:
+      base-price: 17.77
+      lambda: 0.0200
+
+    # Tintedglass [普通] 原价=17.6
+    default.tintedglass:
+      base-price: 17.61
+      lambda: 0.0200
+
+    # Endstone [普通] 原价=17.5
+    default.endstone:
+      base-price: 17.50
+      lambda: 0.0200
+
+    # Dispenser [普通] 原价=17.4
+    default.dispenser:
+      base-price: 17.38
+      lambda: 0.0200
+
+    # Lantern [普通] 原价=17.4
+    default.lantern:
+      base-price: 17.35
+      lambda: 0.0200
+
+    # Purplecandle [普通] 原价=17.3
+    default.purplecandle:
+      base-price: 17.26
+      lambda: 0.0200
+
+    # Greencandle [普通] 原价=17.2
+    default.greencandle:
+      base-price: 17.25
+      lambda: 0.0200
+
+    # Spectralarrow [普通] 原价=17.2
+    default.spectralarrow:
+      base-price: 17.16
+      lambda: 0.0200
+
+    # Endstonebricks [普通] 原价=17.0
+    default.endstonebricks:
+      base-price: 16.97
+      lambda: 0.0200
+
+    # Chest [普通] 原价=16.9
+    default.chest:
+      base-price: 16.89
+      lambda: 0.0200
+
+    # Chiselednetherbricks [普通] 原价=16.8
+    default.chiselednetherbricks:
+      base-price: 16.83
+      lambda: 0.0200
+
+    # Brewingstand [普通] 原价=16.8
+    default.brewingstand:
+      base-price: 16.78
+      lambda: 0.0200
+
+    # Purplebundle [普通] 原价=16.8
+    default.purplebundle:
+      base-price: 16.76
+      lambda: 0.0200
+
+    # Greenbundle [普通] 原价=16.8
+    default.greenbundle:
+      base-price: 16.75
+      lambda: 0.0200
+
+    # Netherwart [普通] 原价=16.5
+    default.netherwart:
+      base-price: 16.50
+      lambda: 0.0200
+
+    # Acaciahangingsign [普通] 原价=16.5
+    default.acaciahangingsign:
+      base-price: 16.49
+      lambda: 0.0200
+
+    # Birchhangingsign [普通] 原价=16.5
+    default.birchhangingsign:
+      base-price: 16.49
+      lambda: 0.0200
+
+    # Cherryhangingsign [普通] 原价=16.5
+    default.cherryhangingsign:
+      base-price: 16.49
+      lambda: 0.0200
+
+    # Darkoakhangingsign [普通] 原价=16.5
+    default.darkoakhangingsign:
+      base-price: 16.49
+      lambda: 0.0200
+
+    # Honeyblock [普通] 原价=16.5
+    default.honeyblock:
+      base-price: 16.49
+      lambda: 0.0200
+
+    # Junglehangingsign [普通] 原价=16.5
+    default.junglehangingsign:
+      base-price: 16.49
+      lambda: 0.0200
+
+    # Mangrovehangingsign [普通] 原价=16.5
+    default.mangrovehangingsign:
+      base-price: 16.49
+      lambda: 0.0200
+
+    # Oakhangingsign [普通] 原价=16.5
+    default.oakhangingsign:
+      base-price: 16.49
+      lambda: 0.0200
+
+    # Paleoakhangingsign [普通] 原价=16.5
+    default.paleoakhangingsign:
+      base-price: 16.49
+      lambda: 0.0200
+
+    # Sprucehangingsign [普通] 原价=16.5
+    default.sprucehangingsign:
+      base-price: 16.49
+      lambda: 0.0200
+
+    # Fieldmasonedbannerpattern [普通] 原价=16.4
+    default.fieldmasonedbannerpattern:
+      base-price: 16.36
+      lambda: 0.0200
+
+    # Glowitemframe [普通] 原价=16.3
+    default.glowitemframe:
+      base-price: 16.31
+      lambda: 0.0200
+
+    # Blueterracotta [普通] 原价=16.2
+    default.blueterracotta:
+      base-price: 16.24
+      lambda: 0.0200
+
+    # Cyanwool [普通] 原价=16.2
+    default.cyanwool:
+      base-price: 16.20
+      lambda: 0.0200
+
+    # Resinblock [普通] 原价=16.1
+    default.resinblock:
+      base-price: 16.15
+      lambda: 0.0200
+
+    # Waxedoxidizedcopperdoor [普通] 原价=16.1
+    default.waxedoxidizedcopperdoor:
+      base-price: 16.15
+      lambda: 0.0200
+
+    # Endstonebrickwall [普通] 原价=16.1
+    default.endstonebrickwall:
+      base-price: 16.12
+      lambda: 0.0200
+
+    # Endstonewall [普通] 原价=16.1
+    default.endstonewall:
+      base-price: 16.12
+      lambda: 0.0200
+
+    # Bambooraft [普通] 原价=16.1
+    default.bambooraft:
+      base-price: 16.08
+      lambda: 0.0200
+
+    # Strippedcrimsonhyphae [普通] 原价=16.1
+    default.strippedcrimsonhyphae:
+      base-price: 16.06
+      lambda: 0.0200
+
+    # Strippedwarpedhyphae [普通] 原价=16.1
+    default.strippedwarpedhyphae:
+      base-price: 16.06
+      lambda: 0.0200
+
+    # Terracotta [普通] 原价=16.0
+    default.terracotta:
+      base-price: 16.00
+      lambda: 0.0200
+
+    # Bricks [普通] 原价=16.0
+    default.bricks:
+      base-price: 15.99
+      lambda: 0.0200
+
+    # Decoratedpot [普通] 原价=16.0
+    default.decoratedpot:
+      base-price: 15.99
+      lambda: 0.0200
+
+    # Magentacandle [普通] 原价=15.9
+    default.magentacandle:
+      base-price: 15.88
+      lambda: 0.0200
+
+    # Cyanterracotta [普通] 原价=15.9
+    default.cyanterracotta:
+      base-price: 15.87
+      lambda: 0.0200
+
+    # Chiseledbookshelf [普通] 原价=15.6
+    default.chiseledbookshelf:
+      base-price: 15.59
+      lambda: 0.0200
+
+    # Greenterracotta [普通] 原价=15.5
+    default.greenterracotta:
+      base-price: 15.51
+      lambda: 0.0200
+
+    # Purpleterracotta [普通] 原价=15.5
+    default.purpleterracotta:
+      base-price: 15.51
+      lambda: 0.0200
+
+    # Repeater [普通] 原价=15.4
+    default.repeater:
+      base-price: 15.39
+      lambda: 0.0200
+
+    # Copperchain [普通] 原价=15.4
+    default.copperchain:
+      base-price: 15.38
+      lambda: 0.0200
+
+    # Magentabundle [普通] 原价=15.4
+    default.magentabundle:
+      base-price: 15.38
+      lambda: 0.0200
+
+    # Magentaterracotta [普通] 原价=15.3
+    default.magentaterracotta:
+      base-price: 15.35
+      lambda: 0.0200
+
+    # Crimsonhyphae [普通] 原价=15.3
+    default.crimsonhyphae:
+      base-price: 15.30
+      lambda: 0.0200
+
+    # Warpedhyphae [普通] 原价=15.3
+    default.warpedhyphae:
+      base-price: 15.30
+      lambda: 0.0200
+
+    # Brownterracotta [普通] 原价=15.2
+    default.brownterracotta:
+      base-price: 15.24
+      lambda: 0.0200
+
+    # Brickwall [普通] 原价=15.2
+    default.brickwall:
+      base-price: 15.19
+      lambda: 0.0200
+
+    # Limeterracotta [普通] 原价=15.1
+    default.limeterracotta:
+      base-price: 15.14
+      lambda: 0.0200
+
+    # Blackterracotta [普通] 原价=15.1
+    default.blackterracotta:
+      base-price: 15.10
+      lambda: 0.0200
+
+    # Jackolantern [普通] 原价=15.0
+    default.jackolantern:
+      base-price: 15.00
+      lambda: 0.0200
+
+    # Browncandle [普通] 原价=14.9
+    default.browncandle:
+      base-price: 14.95
+      lambda: 0.0200
+
+    # Grayterracotta [普通] 原价=14.9
+    default.grayterracotta:
+      base-price: 14.94
+      lambda: 0.0200
+
+    # Lightgrayterracotta [普通] 原价=14.9
+    default.lightgrayterracotta:
+      base-price: 14.94
+      lambda: 0.0200
+
+    # Orangeterracotta [普通] 原价=14.9
+    default.orangeterracotta:
+      base-price: 14.94
+      lambda: 0.0200
+
+    # Oxidizedcoppertrapdoor [普通] 原价=14.9
+    default.oxidizedcoppertrapdoor:
+      base-price: 14.93
+      lambda: 0.0200
+
+    # Yellowterracotta [普通] 原价=14.9
+    default.yellowterracotta:
+      base-price: 14.87
+      lambda: 0.0200
+
+    # Bamboofence [普通] 原价=14.9
+    default.bamboofence:
+      base-price: 14.86
+      lambda: 0.0200
+
+    # Lightblueterracotta [普通] 原价=14.8
+    default.lightblueterracotta:
+      base-price: 14.85
+      lambda: 0.0200
+
+    # Redterracotta [普通] 原价=14.8
+    default.redterracotta:
+      base-price: 14.80
+      lambda: 0.0200
+
+    # Whiteterracotta [普通] 原价=14.8
+    default.whiteterracotta:
+      base-price: 14.79
+      lambda: 0.0200
+
+    # Pinkterracotta [普通] 原价=14.8
+    default.pinkterracotta:
+      base-price: 14.78
+      lambda: 0.0200
+
+    # Coppershovel [普通] 原价=14.8
+    default.coppershovel:
+      base-price: 14.77
+      lambda: 0.0200
+
+    # Copperspear [普通] 原价=14.8
+    default.copperspear:
+      base-price: 14.77
+      lambda: 0.0200
+
+    # Barrel [普通] 原价=14.7
+    default.barrel:
+      base-price: 14.73
+      lambda: 0.0200
+
+    # Wolfarmor [普通] 原价=14.6
+    default.wolfarmor:
+      base-price: 14.59
+      lambda: 0.0200
+
+    # Brownbundle [普通] 原价=14.4
+    default.brownbundle:
+      base-price: 14.45
+      lambda: 0.0200
+
+    # Netherquartzore [普通] 原价=14.4
+    default.netherquartzore:
+      base-price: 14.44
+      lambda: 0.0200
+
+    # Brush [普通] 原价=14.2
+    default.brush:
+      base-price: 14.21
+      lambda: 0.0200
+
+    # Painting [普通] 原价=14.1
+    default.painting:
+      base-price: 14.13
+      lambda: 0.0200
+
+    # Limecandle [普通] 原价=14.1
+    default.limecandle:
+      base-price: 14.09
+      lambda: 0.0200
+
+    # Packedice [普通] 原价=14.1
+    default.packedice:
+      base-price: 14.08
+      lambda: 0.0200
+
+    # Blazerod [普通] 原价=14.0
+    default.blazerod:
+      base-price: 14.00
+      lambda: 0.0200
+
+    # Discfragment5 [普通] 原价=14.0
+    default.discfragment5:
+      base-price: 14.00
+      lambda: 0.0200
+
+    # Blackcandle [普通] 原价=13.7
+    default.blackcandle:
+      base-price: 13.70
+      lambda: 0.0200
+
+    # Limebundle [普通] 原价=13.6
+    default.limebundle:
+      base-price: 13.59
+      lambda: 0.0200
+
+    # Resinbrickstairs [普通] 原价=13.5
+    default.resinbrickstairs:
+      base-price: 13.49
+      lambda: 0.0200
+
+    # Cherrywood [普通] 原价=13.5
+    default.cherrywood:
+      base-price: 13.48
+      lambda: 0.0200
+
+    # Paleoakwood [普通] 原价=13.5
+    default.paleoakwood:
+      base-price: 13.48
+      lambda: 0.0200
+
+    # Strippedacaciawood [普通] 原价=13.4
+    default.strippedacaciawood:
+      base-price: 13.39
+      lambda: 0.0200
+
+    # Strippedbirchwood [普通] 原价=13.4
+    default.strippedbirchwood:
+      base-price: 13.39
+      lambda: 0.0200
+
+    # Strippedcherrywood [普通] 原价=13.4
+    default.strippedcherrywood:
+      base-price: 13.39
+      lambda: 0.0200
+
+    # Strippeddarkoakwood [普通] 原价=13.4
+    default.strippeddarkoakwood:
+      base-price: 13.39
+      lambda: 0.0200
+
+    # Strippedjunglewood [普通] 原价=13.4
+    default.strippedjunglewood:
+      base-price: 13.39
+      lambda: 0.0200
+
+    # Strippedmangrovewood [普通] 原价=13.4
+    default.strippedmangrovewood:
+      base-price: 13.39
+      lambda: 0.0200
+
+    # Strippedoakwood [普通] 原价=13.4
+    default.strippedoakwood:
+      base-price: 13.39
+      lambda: 0.0200
+
+    # Strippedpaleoakwood [普通] 原价=13.4
+    default.strippedpaleoakwood:
+      base-price: 13.39
+      lambda: 0.0200
+
+    # Strippedsprucewood [普通] 原价=13.4
+    default.strippedsprucewood:
+      base-price: 13.39
+      lambda: 0.0200
+
+    # Crimsonfence [普通] 原价=13.4
+    default.crimsonfence:
+      base-price: 13.38
+      lambda: 0.0200
+
+    # Warpedfence [普通] 原价=13.4
+    default.warpedfence:
+      base-price: 13.38
+      lambda: 0.0200
+
+    # Bluedye [普通] 原价=13.2
+    default.bluedye:
+      base-price: 13.25
+      lambda: 0.0200
+
+    # Lapislazuli [普通] 原价=13.2
+    default.lapislazuli:
+      base-price: 13.25
+      lambda: 0.0200
+
+    # Blackbundle [普通] 原价=13.2
+    default.blackbundle:
+      base-price: 13.21
+      lambda: 0.0200
+
+    # Rawiron [普通] 原价=13.2
+    default.rawiron:
+      base-price: 13.20
+      lambda: 0.0200
+
+    # Purplewool [普通] 原价=13.2
+    default.purplewool:
+      base-price: 13.16
+      lambda: 0.0200
+
+    # Greenwool [普通] 原价=13.2
+    default.greenwool:
+      base-price: 13.15
+      lambda: 0.0200
+
+    # Copperlantern [普通] 原价=13.1
+    default.copperlantern:
+      base-price: 13.08
+      lambda: 0.0200
+
+    # Tippedarrow [普通] 原价=13.0
+    default.tippedarrow:
+      base-price: 13.02
+      lambda: 0.0200
+
+    # Itemframe [普通] 原价=12.9
+    default.itemframe:
+      base-price: 12.92
+      lambda: 0.0200
+
+    # Bluecarpet [普通] 原价=12.8
+    default.bluecarpet:
+      base-price: 12.84
+      lambda: 0.0200
+
+    # Copperingot [普通] 原价=12.8
+    default.copperingot:
+      base-price: 12.83
+      lambda: 0.0200
+
+    # Clay [普通] 原价=12.8
+    default.clay:
+      base-price: 12.80
+      lambda: 0.0200
+
+    # Carvedpumpkin [普通] 原价=12.7
+    default.carvedpumpkin:
+      base-price: 12.69
+      lambda: 0.0200
+
+    # Chiseledredsandstone [普通] 原价=12.5
+    default.chiseledredsandstone:
+      base-price: 12.51
+      lambda: 0.0200
+
+    # Bamboohangingsign [普通] 原价=12.5
+    default.bamboohangingsign:
+      base-price: 12.48
+      lambda: 0.0200
+
+    # Cherryboat [普通] 原价=12.5
+    default.cherryboat:
+      base-price: 12.48
+      lambda: 0.0200
+
+    # Paleoakboat [普通] 原价=12.5
+    default.paleoakboat:
+      base-price: 12.48
+      lambda: 0.0200
+
+    # Strippedcrimsonstem [普通] 原价=12.4
+    default.strippedcrimsonstem:
+      base-price: 12.42
+      lambda: 0.0200
+
+    # Strippedwarpedstem [普通] 原价=12.4
+    default.strippedwarpedstem:
+      base-price: 12.42
+      lambda: 0.0200
+
+    # Lightgraycandle [普通] 原价=12.3
+    default.lightgraycandle:
+      base-price: 12.35
+      lambda: 0.0200
+
+    # Orangecandle [普通] 原价=12.3
+    default.orangecandle:
+      base-price: 12.35
+      lambda: 0.0200
+
+    # Graycandle [普通] 原价=12.3
+    default.graycandle:
+      base-price: 12.34
+      lambda: 0.0200
+
+    # Waxedcopperbars [普通] 原价=12.2
+    default.waxedcopperbars:
+      base-price: 12.21
+      lambda: 0.0200
+
+    # Exposedcopperdoor [普通] 原价=12.2
+    default.exposedcopperdoor:
+      base-price: 12.19
+      lambda: 0.0200
+
+    # Flowerpot [普通] 原价=12.1
+    default.flowerpot:
+      base-price: 12.11
+      lambda: 0.0200
+
+    # Netherbrickstairs [普通] 原价=12.1
+    default.netherbrickstairs:
+      base-price: 12.11
+      lambda: 0.0200
+
+    # Cherryfence [普通] 原价=12.0
+    default.cherryfence:
+      base-price: 12.01
+      lambda: 0.0200
+
+    # Paleoakfence [普通] 原价=12.0
+    default.paleoakfence:
+      base-price: 12.01
+      lambda: 0.0200
+
+    # Lightgraybundle [普通] 原价=11.8
+    default.lightgraybundle:
+      base-price: 11.85
+      lambda: 0.0200
+
+    # Orangebundle [普通] 原价=11.8
+    default.orangebundle:
+      base-price: 11.85
+      lambda: 0.0200
+
+    # Graybundle [普通] 原价=11.8
+    default.graybundle:
+      base-price: 11.84
+      lambda: 0.0200
+
+    # Crimsonstem [普通] 原价=11.8
+    default.crimsonstem:
+      base-price: 11.83
+      lambda: 0.0200
+
+    # Warpedstem [普通] 原价=11.8
+    default.warpedstem:
+      base-price: 11.83
+      lambda: 0.0200
+
+    # Crimsonshelf [普通] 原价=11.8
+    default.crimsonshelf:
+      base-price: 11.80
+      lambda: 0.0200
+
+    # Warpedshelf [普通] 原价=11.8
+    default.warpedshelf:
+      base-price: 11.80
+      lambda: 0.0200
+
+    # Magentawool [普通] 原价=11.8
+    default.magentawool:
+      base-price: 11.78
+      lambda: 0.0200
+
+    # Yellowcandle [普通] 原价=11.7
+    default.yellowcandle:
+      base-price: 11.74
+      lambda: 0.0200
+
+    # Acaciawood [普通] 原价=11.7
+    default.acaciawood:
+      base-price: 11.72
+      lambda: 0.0200
+
+    # Birchwood [普通] 原价=11.7
+    default.birchwood:
+      base-price: 11.72
+      lambda: 0.0200
+
+    # Darkoakwood [普通] 原价=11.7
+    default.darkoakwood:
+      base-price: 11.72
+      lambda: 0.0200
+
+    # Junglewood [普通] 原价=11.7
+    default.junglewood:
+      base-price: 11.72
+      lambda: 0.0200
+
+    # Mangrovewood [普通] 原价=11.7
+    default.mangrovewood:
+      base-price: 11.72
+      lambda: 0.0200
+
+    # Oakwood [普通] 原价=11.7
+    default.oakwood:
+      base-price: 11.72
+      lambda: 0.0200
+
+    # Sprucewood [普通] 原价=11.7
+    default.sprucewood:
+      base-price: 11.72
+      lambda: 0.0200
+
+    # Lightbluecandle [普通] 原价=11.5
+    default.lightbluecandle:
+      base-price: 11.52
+      lambda: 0.0200
+
+    # Charcoal [普通] 原价=11.3
+    default.charcoal:
+      base-price: 11.33
+      lambda: 0.0200
+
+    # Smoothredsandstonestairs [普通] 原价=11.3
+    default.smoothredsandstonestairs:
+      base-price: 11.26
+      lambda: 0.0200
+
+    # Yellowbundle [普通] 原价=11.2
+    default.yellowbundle:
+      base-price: 11.25
+      lambda: 0.0200
+
+    # Fireworkrocket [普通] 原价=11.1
+    default.fireworkrocket:
+      base-price: 11.12
+      lambda: 0.0200
+
+    # Redcandle [普通] 原价=11.1
+    default.redcandle:
+      base-price: 11.09
+      lambda: 0.0200
+
+    # Lightbluebundle [普通] 原价=11.0
+    default.lightbluebundle:
+      base-price: 11.03
+      lambda: 0.0200
+
+    # Whitecandle [普通] 原价=11.0
+    default.whitecandle:
+      base-price: 11.01
+      lambda: 0.0200
+
+    # Mycelium [普通] 原价=11.0
+    default.mycelium:
+      base-price: 11.00
+      lambda: 0.0200
+
+    # Slimeball [普通] 原价=11.0
+    default.slimeball:
+      base-price: 11.00
+      lambda: 0.0200
+
+    # Soulsand [普通] 原价=11.0
+    default.soulsand:
+      base-price: 11.00
+      lambda: 0.0200
+
+    # Soulsoil [普通] 原价=11.0
+    default.soulsoil:
+      base-price: 11.00
+      lambda: 0.0200
+
+    # Wetsponge [普通] 原价=11.0
+    default.wetsponge:
+      base-price: 11.00
+      lambda: 0.0200
+
+    # Pinkcandle [普通] 原价=11.0
+    default.pinkcandle:
+      base-price: 10.98
+      lambda: 0.0200
+
+    # Acaciaboat [普通] 原价=10.9
+    default.acaciaboat:
+      base-price: 10.90
+      lambda: 0.0200
+
+    # Birchboat [普通] 原价=10.9
+    default.birchboat:
+      base-price: 10.90
+      lambda: 0.0200
+
+    # Darkoakboat [普通] 原价=10.9
+    default.darkoakboat:
+      base-price: 10.90
+      lambda: 0.0200
+
+    # Jungleboat [普通] 原价=10.9
+    default.jungleboat:
+      base-price: 10.90
+      lambda: 0.0200
+
+    # Mangroveboat [普通] 原价=10.9
+    default.mangroveboat:
+      base-price: 10.90
+      lambda: 0.0200
+
+    # Oakboat [普通] 原价=10.9
+    default.oakboat:
+      base-price: 10.90
+      lambda: 0.0200
+
+    # Spruceboat [普通] 原价=10.9
+    default.spruceboat:
+      base-price: 10.90
+      lambda: 0.0200
+
+    # Brownwool [普通] 原价=10.8
+    default.brownwool:
+      base-price: 10.85
+      lambda: 0.0200
+
+    # Acaciafence [普通] 原价=10.8
+    default.acaciafence:
+      base-price: 10.75
+      lambda: 0.0200
+
+    # Birchfence [普通] 原价=10.8
+    default.birchfence:
+      base-price: 10.75
+      lambda: 0.0200
+
+    # Darkoakfence [普通] 原价=10.8
+    default.darkoakfence:
+      base-price: 10.75
+      lambda: 0.0200
+
+    # Junglefence [普通] 原价=10.8
+    default.junglefence:
+      base-price: 10.75
+      lambda: 0.0200
+
+    # Mangrovefence [普通] 原价=10.8
+    default.mangrovefence:
+      base-price: 10.75
+      lambda: 0.0200
+
+    # Oakfence [普通] 原价=10.8
+    default.oakfence:
+      base-price: 10.75
+      lambda: 0.0200
+
+    # Sprucefence [普通] 原价=10.8
+    default.sprucefence:
+      base-price: 10.75
+      lambda: 0.0200
+
+    # Tripwirehook [普通] 原价=10.7
+    default.tripwirehook:
+      base-price: 10.72
+      lambda: 0.0200
+
+    # Cyancarpet [普通] 原价=10.7
+    default.cyancarpet:
+      base-price: 10.69
+      lambda: 0.0200
+
+    # Bamboofencegate [普通] 原价=10.6
+    default.bamboofencegate:
+      base-price: 10.62
+      lambda: 0.0200
+
+    # Crackednetherbricks [普通] 原价=10.6
+    default.crackednetherbricks:
+      base-price: 10.62
+      lambda: 0.0200
+
+    # Redbundle [普通] 原价=10.6
+    default.redbundle:
+      base-price: 10.59
+      lambda: 0.0200
+
+    # Candle [普通] 原价=10.5
+    default.candle:
+      base-price: 10.54
+      lambda: 0.0200
+
+    # Whitebundle [普通] 原价=10.5
+    default.whitebundle:
+      base-price: 10.51
+      lambda: 0.0200
+
+    # Pinkbundle [普通] 原价=10.5
+    default.pinkbundle:
+      base-price: 10.48
+      lambda: 0.0200
+
+    # Writtenbook [普通] 原价=10.5
+    default.writtenbook:
+      base-price: 10.48
+      lambda: 0.0200
+
+    # Prismarineslab [普通] 原价=10.5
+    default.prismarineslab:
+      base-price: 10.46
+      lambda: 0.0200
+
+    # Cherrylog [普通] 原价=10.4
+    default.cherrylog:
+      base-price: 10.42
+      lambda: 0.0200
+
+    # Paleoaklog [普通] 原价=10.4
+    default.paleoaklog:
+      base-price: 10.42
+      lambda: 0.0200
+
+    # Strippedacacialog [普通] 原价=10.3
+    default.strippedacacialog:
+      base-price: 10.35
+      lambda: 0.0200
+
+    # Strippedbirchlog [普通] 原价=10.3
+    default.strippedbirchlog:
+      base-price: 10.35
+      lambda: 0.0200
+
+    # Strippedcherrylog [普通] 原价=10.3
+    default.strippedcherrylog:
+      base-price: 10.35
+      lambda: 0.0200
+
+    # Strippeddarkoaklog [普通] 原价=10.3
+    default.strippeddarkoaklog:
+      base-price: 10.35
+      lambda: 0.0200
+
+    # Strippedjunglelog [普通] 原价=10.3
+    default.strippedjunglelog:
+      base-price: 10.35
+      lambda: 0.0200
+
+    # Strippedmangrovelog [普通] 原价=10.3
+    default.strippedmangrovelog:
+      base-price: 10.35
+      lambda: 0.0200
+
+    # Strippedoaklog [普通] 原价=10.3
+    default.strippedoaklog:
+      base-price: 10.35
+      lambda: 0.0200
+
+    # Strippedpaleoaklog [普通] 原价=10.3
+    default.strippedpaleoaklog:
+      base-price: 10.35
+      lambda: 0.0200
+
+    # Strippedsprucelog [普通] 原价=10.3
+    default.strippedsprucelog:
+      base-price: 10.35
+      lambda: 0.0200
+
+    # Rawcopper [普通] 原价=10.3
+    default.rawcopper:
+      base-price: 10.26
+      lambda: 0.0200
+
+    # Dropper [普通] 原价=10.2
+    default.dropper:
+      base-price: 10.23
+      lambda: 0.0200
+
+    # Writablebook [普通] 原价=10.1
+    default.writablebook:
+      base-price: 10.14
+      lambda: 0.0200
+
+    # Bundle [普通] 原价=10.0
+    default.bundle:
+      base-price: 10.04
+      lambda: 0.0200
+
+    # Filledmap [普通] 原价=10.0
+    default.filledmap:
+      base-price: 10.00
+      lambda: 0.0200
+
+    # Limewool [普通] 原价=10.0
+    default.limewool:
+      base-price: 9.99
+      lambda: 0.0200
+
+    # Cyandye [普通] 原价=10.0
+    default.cyandye:
+      base-price: 9.96
+      lambda: 0.0200
+
+    # Deepslatelapisore [普通] 原价=9.9
+    default.deepslatelapisore:
+      base-price: 9.94
+      lambda: 0.0200
+
+    # Lapisore [普通] 原价=9.9
+    default.lapisore:
+      base-price: 9.94
+      lambda: 0.0200
+
+    # Deepslateironore [普通] 原价=9.9
+    default.deepslateironore:
+      base-price: 9.90
+      lambda: 0.0200
+
+    # Ironore [普通] 原价=9.9
+    default.ironore:
+      base-price: 9.90
+      lambda: 0.0200
+
+    # Crimsonfencegate [普通] 原价=9.9
+    default.crimsonfencegate:
+      base-price: 9.88
+      lambda: 0.0200
+
+    # Warpedfencegate [普通] 原价=9.9
+    default.warpedfencegate:
+      base-price: 9.88
+      lambda: 0.0200
+
+    # Acaciashelf [普通] 原价=9.8
+    default.acaciashelf:
+      base-price: 9.83
+      lambda: 0.0200
+
+    # Birchshelf [普通] 原价=9.8
+    default.birchshelf:
+      base-price: 9.83
+      lambda: 0.0200
+
+    # Cherryshelf [普通] 原价=9.8
+    default.cherryshelf:
+      base-price: 9.83
+      lambda: 0.0200
+
+    # Darkoakshelf [普通] 原价=9.8
+    default.darkoakshelf:
+      base-price: 9.83
+      lambda: 0.0200
+
+    # Jungleshelf [普通] 原价=9.8
+    default.jungleshelf:
+      base-price: 9.83
+      lambda: 0.0200
+
+    # Mangroveshelf [普通] 原价=9.8
+    default.mangroveshelf:
+      base-price: 9.83
+      lambda: 0.0200
+
+    # Oakshelf [普通] 原价=9.8
+    default.oakshelf:
+      base-price: 9.83
+      lambda: 0.0200
+
+    # Paleoakshelf [普通] 原价=9.8
+    default.paleoakshelf:
+      base-price: 9.83
+      lambda: 0.0200
+
+    # Spruceshelf [普通] 原价=9.8
+    default.spruceshelf:
+      base-price: 9.83
+      lambda: 0.0200
+
+    # Weatheredcopperdoor [普通] 原价=9.8
+    default.weatheredcopperdoor:
+      base-price: 9.75
+      lambda: 0.0200
+
+    # Bread [普通] 原价=9.7
+    default.bread:
+      base-price: 9.70
+      lambda: 0.0200
+
+    # Fletchingtable [普通] 原价=9.7
+    default.fletchingtable:
+      base-price: 9.67
+      lambda: 0.0200
+
+    # Cartographytable [普通] 原价=9.7
+    default.cartographytable:
+      base-price: 9.65
+      lambda: 0.0200
+
+    # Mossystonebrickstairs [普通] 原价=9.7
+    default.mossystonebrickstairs:
+      base-price: 9.65
+      lambda: 0.0200
+
+    # Blackwool [普通] 原价=9.6
+    default.blackwool:
+      base-price: 9.60
+      lambda: 0.0200
+
+    # Bambootrapdoor [普通] 原价=9.6
+    default.bambootrapdoor:
+      base-price: 9.55
+      lambda: 0.0200
+
+    # Purpurstairs [普通] 原价=9.5
+    default.purpurstairs:
+      base-price: 9.50
+      lambda: 0.0200
+
+    # Resinbricks [普通] 原价=9.5
+    default.resinbricks:
+      base-price: 9.47
+      lambda: 0.0200
+
+    # Mossycobblestonestairs [普通] 原价=9.3
+    default.mossycobblestonestairs:
+      base-price: 9.31
+      lambda: 0.0200
+
+    # Cherryfencegate [普通] 原价=9.2
+    default.cherryfencegate:
+      base-price: 9.20
+      lambda: 0.0200
+
+    # Paleoakfencegate [普通] 原价=9.2
+    default.paleoakfencegate:
+      base-price: 9.20
+      lambda: 0.0200
+
+    # Acacialog [普通] 原价=9.1
+    default.acacialog:
+      base-price: 9.06
+      lambda: 0.0200
+
+    # Birchlog [普通] 原价=9.1
+    default.birchlog:
+      base-price: 9.06
+      lambda: 0.0200
+
+    # Darkoaklog [普通] 原价=9.1
+    default.darkoaklog:
+      base-price: 9.06
+      lambda: 0.0200
+
+    # Junglelog [普通] 原价=9.1
+    default.junglelog:
+      base-price: 9.06
+      lambda: 0.0200
+
+    # Mangrovelog [普通] 原价=9.1
+    default.mangrovelog:
+      base-price: 9.06
+      lambda: 0.0200
+
+    # Oaklog [普通] 原价=9.1
+    default.oaklog:
+      base-price: 9.06
+      lambda: 0.0200
+
+    # Sprucelog [普通] 原价=9.1
+    default.sprucelog:
+      base-price: 9.06
+      lambda: 0.0200
+
+    # Redsandstonestairs [普通] 原价=9.0
+    default.redsandstonestairs:
+      base-price: 9.01
+      lambda: 0.0200
+
+    # Amethystshard [普通] 原价=9.0
+    default.amethystshard:
+      base-price: 9.00
+      lambda: 0.0200
+
+    # Honeycomb [普通] 原价=9.0
+    default.honeycomb:
+      base-price: 9.00
+      lambda: 0.0200
+
+    # Resinbrickwall [普通] 原价=9.0
+    default.resinbrickwall:
+      base-price: 9.00
+      lambda: 0.0200
+
+    # Craftingtable [普通] 原价=8.8
+    default.craftingtable:
+      base-price: 8.81
+      lambda: 0.0200
+
+    # Coal [普通] 原价=8.8
+    default.coal:
+      base-price: 8.80
+      lambda: 0.0200
+
+    # Glowstonedust [普通] 原价=8.8
+    default.glowstonedust:
+      base-price: 8.80
+      lambda: 0.0200
+
+    # Goathorn [普通] 原价=8.8
+    default.goathorn:
+      base-price: 8.79
+      lambda: 0.0200
+
+    # Firecharge [普通] 原价=8.8
+    default.firecharge:
+      base-price: 8.75
+      lambda: 0.0200
+
+    # Purplecarpet [普通] 原价=8.7
+    default.purplecarpet:
+      base-price: 8.69
+      lambda: 0.0200
+
+    # Woodenaxe [普通] 原价=8.7
+    default.woodenaxe:
+      base-price: 8.69
+      lambda: 0.0200
+
+    # Woodenpickaxe [普通] 原价=8.7
+    default.woodenpickaxe:
+      base-price: 8.69
+      lambda: 0.0200
+
+    # Greencarpet [普通] 原价=8.7
+    default.greencarpet:
+      base-price: 8.68
+      lambda: 0.0200
+
+    # Amethystcluster [普通] 原价=8.6
+    default.amethystcluster:
+      base-price: 8.58
+      lambda: 0.0200
+
+    # Acaciafencegate [普通] 原价=8.6
+    default.acaciafencegate:
+      base-price: 8.57
+      lambda: 0.0200
+
+    # Birchfencegate [普通] 原价=8.6
+    default.birchfencegate:
+      base-price: 8.57
+      lambda: 0.0200
+
+    # Darkoakfencegate [普通] 原价=8.6
+    default.darkoakfencegate:
+      base-price: 8.57
+      lambda: 0.0200
+
+    # Junglefencegate [普通] 原价=8.6
+    default.junglefencegate:
+      base-price: 8.57
+      lambda: 0.0200
+
+    # Mangrovefencegate [普通] 原价=8.6
+    default.mangrovefencegate:
+      base-price: 8.57
+      lambda: 0.0200
+
+    # Oakfencegate [普通] 原价=8.6
+    default.oakfencegate:
+      base-price: 8.57
+      lambda: 0.0200
+
+    # Sprucefencegate [普通] 原价=8.6
+    default.sprucefencegate:
+      base-price: 8.57
+      lambda: 0.0200
+
+    # Netherbricks [普通] 原价=8.5
+    default.netherbricks:
+      base-price: 8.50
+      lambda: 0.0200
+
+    # Crimsontrapdoor [普通] 原价=8.4
+    default.crimsontrapdoor:
+      base-price: 8.44
+      lambda: 0.0200
+
+    # Warpedtrapdoor [普通] 原价=8.4
+    default.warpedtrapdoor:
+      base-price: 8.44
+      lambda: 0.0200
+
+    # Endstonebrickslab [普通] 原价=8.3
+    default.endstonebrickslab:
+      base-price: 8.32
+      lambda: 0.0200
+
+    # Endstoneslab [普通] 原价=8.3
+    default.endstoneslab:
+      base-price: 8.32
+      lambda: 0.0200
+
+    # Lightgraywool [普通] 原价=8.2
+    default.lightgraywool:
+      base-price: 8.25
+      lambda: 0.0200
+
+    # Orangewool [普通] 原价=8.2
+    default.orangewool:
+      base-price: 8.25
+      lambda: 0.0200
+
+    # Prismarinecrystals [普通] 原价=8.2
+    default.prismarinecrystals:
+      base-price: 8.25
+      lambda: 0.0200
+
+    # Graywool [普通] 原价=8.2
+    default.graywool:
+      base-price: 8.24
+      lambda: 0.0200
+
+    # Furnace [普通] 原价=8.2
+    default.furnace:
+      base-price: 8.18
+      lambda: 0.0200
+
+    # Netherbrickwall [普通] 原价=8.1
+    default.netherbrickwall:
+      base-price: 8.07
+      lambda: 0.0200
+
+    # Smoothredsandstone [普通] 原价=7.9
+    default.smoothredsandstone:
+      base-price: 7.90
+      lambda: 0.0200
+
+    # Bow [普通] 原价=7.9
+    default.bow:
+      base-price: 7.89
+      lambda: 0.0200
+
+    # Brickslab [普通] 原价=7.8
+    default.brickslab:
+      base-price: 7.84
+      lambda: 0.0200
+
+    # Magentacarpet [普通] 原价=7.8
+    default.magentacarpet:
+      base-price: 7.77
+      lambda: 0.0200
+
+    # Copperore [普通] 原价=7.7
+    default.copperore:
+      base-price: 7.70
+      lambda: 0.0200
+
+    # Deepslatecopperore [普通] 原价=7.7
+    default.deepslatecopperore:
+      base-price: 7.70
+      lambda: 0.0200
+
+    # Yellowwool [普通] 原价=7.6
+    default.yellowwool:
+      base-price: 7.64
+      lambda: 0.0200
+
+    # Warpedfungusonastick [普通] 原价=7.6
+    default.warpedfungusonastick:
+      base-price: 7.63
+      lambda: 0.0200
+
+    # Loom [普通] 原价=7.6
+    default.loom:
+      base-price: 7.60
+      lambda: 0.0200
+
+    # Lightbluewool [普通] 原价=7.4
+    default.lightbluewool:
+      base-price: 7.42
+      lambda: 0.0200
+
+    # Cherrytrapdoor [普通] 原价=7.4
+    default.cherrytrapdoor:
+      base-price: 7.41
+      lambda: 0.0200
+
+    # Paleoaktrapdoor [普通] 原价=7.4
+    default.paleoaktrapdoor:
+      base-price: 7.41
+      lambda: 0.0200
+
+    # Oxidizedcopperdoor [普通] 原价=7.3
+    default.oxidizedcopperdoor:
+      base-price: 7.31
+      lambda: 0.0200
+
+    # Composter [普通] 原价=7.3
+    default.composter:
+      base-price: 7.30
+      lambda: 0.0200
+
+    # Largeamethystbud [普通] 原价=7.2
+    default.largeamethystbud:
+      base-price: 7.17
+      lambda: 0.0200
+
+    # Browncarpet [普通] 原价=7.2
+    default.browncarpet:
+      base-price: 7.16
+      lambda: 0.0200
+
+    # Grindstone [普通] 原价=7.2
+    default.grindstone:
+      base-price: 7.16
+      lambda: 0.0200
+
+    # Carrotonastick [普通] 原价=7.2
+    default.carrotonastick:
+      base-price: 7.15
+      lambda: 0.0200
+
+    # Armorstand [普通] 原价=7.1
+    default.armorstand:
+      base-price: 7.11
+      lambda: 0.0200
+
+    # Blazepowder [普通] 原价=7.0
+    default.blazepowder:
+      base-price: 7.00
+      lambda: 0.0200
+
+    # Windcharge [普通] 原价=7.0
+    default.windcharge:
+      base-price: 7.00
+      lambda: 0.0200
+
+    # Redwool [普通] 原价=7.0
+    default.redwool:
+      base-price: 6.99
+      lambda: 0.0200
+
+    # Purpledye [普通] 原价=6.9
+    default.purpledye:
+      base-price: 6.89
+      lambda: 0.0200
+
+    # Cookedbeef [普通] 原价=6.9
+    default.cookedbeef:
+      base-price: 6.88
+      lambda: 0.0200
+
+    # Greendye [普通] 原价=6.9
+    default.greendye:
+      base-price: 6.88
+      lambda: 0.0200
+
+    # Pinkwool [普通] 原价=6.9
+    default.pinkwool:
+      base-price: 6.88
+      lambda: 0.0200
+
+    # Poppedchorusfruit [普通] 原价=6.9
+    default.poppedchorusfruit:
+      base-price: 6.88
+      lambda: 0.0200
+
+    # Mossystonebricks [普通] 原价=6.8
+    default.mossystonebricks:
+      base-price: 6.77
+      lambda: 0.0200
+
+    # Bambooblock [普通] 原价=6.7
+    default.bambooblock:
+      base-price: 6.71
+      lambda: 0.0200
+
+    # Glowlichen [普通] 原价=6.7
+    default.glowlichen:
+      base-price: 6.70
+      lambda: 0.0200
+
+    # Purpurblock [普通] 原价=6.7
+    default.purpurblock:
+      base-price: 6.67
+      lambda: 0.0200
+
+    # Bamboosign [普通] 原价=6.7
+    default.bamboosign:
+      base-price: 6.65
+      lambda: 0.0200
+
+    # Bamboopressureplate [普通] 原价=6.6
+    default.bamboopressureplate:
+      base-price: 6.63
+      lambda: 0.0200
+
+    # Coalore [普通] 原价=6.6
+    default.coalore:
+      base-price: 6.60
+      lambda: 0.0200
+
+    # Deepslatecoalore [普通] 原价=6.6
+    default.deepslatecoalore:
+      base-price: 6.60
+      lambda: 0.0200
+
+    # Limecarpet [普通] 原价=6.6
+    default.limecarpet:
+      base-price: 6.59
+      lambda: 0.0200
+
+    # Ironbars [普通] 原价=6.6
+    default.ironbars:
+      base-price: 6.58
+      lambda: 0.0200
+
+    # Nautilusshell [普通] 原价=6.6
+    default.nautilusshell:
+      base-price: 6.58
+      lambda: 0.0200
+
+    # Woodenhoe [普通] 原价=6.6
+    default.woodenhoe:
+      base-price: 6.58
+      lambda: 0.0200
+
+    # Goldnugget [普通] 原价=6.5
+    default.goldnugget:
+      base-price: 6.55
+      lambda: 0.0200
+
+    # Mossycobblestone [普通] 原价=6.5
+    default.mossycobblestone:
+      base-price: 6.53
+      lambda: 0.0200
+
+    # Book [普通] 原价=6.5
+    default.book:
+      base-price: 6.50
+      lambda: 0.0200
+
+    # Acaciatrapdoor [普通] 原价=6.5
+    default.acaciatrapdoor:
+      base-price: 6.47
+      lambda: 0.0200
+
+    # Birchtrapdoor [普通] 原价=6.5
+    default.birchtrapdoor:
+      base-price: 6.47
+      lambda: 0.0200
+
+    # Darkoaktrapdoor [普通] 原价=6.5
+    default.darkoaktrapdoor:
+      base-price: 6.47
+      lambda: 0.0200
+
+    # Jungletrapdoor [普通] 原价=6.5
+    default.jungletrapdoor:
+      base-price: 6.47
+      lambda: 0.0200
+
+    # Mangrovetrapdoor [普通] 原价=6.5
+    default.mangrovetrapdoor:
+      base-price: 6.47
+      lambda: 0.0200
+
+    # Oaktrapdoor [普通] 原价=6.5
+    default.oaktrapdoor:
+      base-price: 6.47
+      lambda: 0.0200
+
+    # Purpurpillar [普通] 原价=6.5
+    default.purpurpillar:
+      base-price: 6.47
+      lambda: 0.0200
+
+    # Sprucetrapdoor [普通] 原价=6.5
+    default.sprucetrapdoor:
+      base-price: 6.47
+      lambda: 0.0200
+
+    # Twistingvines [普通] 原价=6.5
+    default.twistingvines:
+      base-price: 6.45
+      lambda: 0.0200
+
+    # Weepingvines [普通] 原价=6.5
+    default.weepingvines:
+      base-price: 6.45
+      lambda: 0.0200
+
+    # Mossystonebrickwall [普通] 原价=6.4
+    default.mossystonebrickwall:
+      base-price: 6.43
+      lambda: 0.0200
+
+    # Whitewool [普通] 原价=6.4
+    default.whitewool:
+      base-price: 6.40
+      lambda: 0.0200
+
+    # Fishingrod [普通] 原价=6.4
+    default.fishingrod:
+      base-price: 6.39
+      lambda: 0.0200
+
+    # Bamboodoor [普通] 原价=6.4
+    default.bamboodoor:
+      base-price: 6.36
+      lambda: 0.0200
+
+    # Blackcarpet [普通] 原价=6.3
+    default.blackcarpet:
+      base-price: 6.34
+      lambda: 0.0200
+
+    # Redsandstone [普通] 原价=6.3
+    default.redsandstone:
+      base-price: 6.32
+      lambda: 0.0200
+
+    # Mossycobblestonewall [普通] 原价=6.2
+    default.mossycobblestonewall:
+      base-price: 6.20
+      lambda: 0.0200
+
+    # Cutredsandstone [普通] 原价=6.1
+    default.cutredsandstone:
+      base-price: 6.13
+      lambda: 0.0200
+
+    # Rabbitstew [普通] 原价=6.1
+    default.rabbitstew:
+      base-price: 6.10
+      lambda: 0.0200
+
+    # Strippedbambooblock [普通] 原价=6.0
+    default.strippedbambooblock:
+      base-price: 6.04
+      lambda: 0.0200
+
+    # Redsandstonewall [普通] 原价=6.0
+    default.redsandstonewall:
+      base-price: 6.00
+      lambda: 0.0200
+
+    # Bordureindentedbannerpattern [普通] 原价=6.0
+    default.bordureindentedbannerpattern:
+      base-price: 5.98
+      lambda: 0.0200
+
+    # Crimsonsign [普通] 原价=5.9
+    default.crimsonsign:
+      base-price: 5.92
+      lambda: 0.0200
+
+    # Warpedsign [普通] 原价=5.9
+    default.warpedsign:
+      base-price: 5.92
+      lambda: 0.0200
+
+    # Crimsonpressureplate [普通] 原价=5.9
+    default.crimsonpressureplate:
+      base-price: 5.86
+      lambda: 0.0200
+
+    # Warpedpressureplate [普通] 原价=5.9
+    default.warpedpressureplate:
+      base-price: 5.86
+      lambda: 0.0200
+
+    # Bambooshelf [普通] 原价=5.7
+    default.bambooshelf:
+      base-price: 5.74
+      lambda: 0.0200
+
+    # Crimsondoor [普通] 原价=5.6
+    default.crimsondoor:
+      base-price: 5.62
+      lambda: 0.0200
+
+    # Warpeddoor [普通] 原价=5.6
+    default.warpeddoor:
+      base-price: 5.62
+      lambda: 0.0200
+
+    # Woodensword [普通] 原价=5.5
+    default.woodensword:
+      base-price: 5.55
+      lambda: 0.0200
+
+    # Allium [普通] 原价=5.5
+    default.allium:
+      base-price: 5.50
+      lambda: 0.0200
+
+    # Chorusfruit [普通] 原价=5.5
+    default.chorusfruit:
+      base-price: 5.50
+      lambda: 0.0200
+
+    # Cookedporkchop [普通] 原价=5.5
+    default.cookedporkchop:
+      base-price: 5.50
+      lambda: 0.0200
+
+    # Magentadye [普通] 原价=5.5
+    default.magentadye:
+      base-price: 5.50
+      lambda: 0.0200
+
+    # Prismarineshard [普通] 原价=5.5
+    default.prismarineshard:
+      base-price: 5.50
+      lambda: 0.0200
+
+    # Pufferfish [普通] 原价=5.5
+    default.pufferfish:
+      base-price: 5.50
+      lambda: 0.0200
+
+    # Vine [普通] 原价=5.5
+    default.vine:
+      base-price: 5.50
+      lambda: 0.0200
+
+    # Lightgraycarpet [普通] 原价=5.5
+    default.lightgraycarpet:
+      base-price: 5.45
+      lambda: 0.0200
+
+    # Orangecarpet [普通] 原价=5.5
+    default.orangecarpet:
+      base-price: 5.45
+      lambda: 0.0200
+
+    # Graycarpet [普通] 原价=5.4
+    default.graycarpet:
+      base-price: 5.44
+      lambda: 0.0200
+
+    # Stoneaxe [普通] 原价=5.3
+    default.stoneaxe:
+      base-price: 5.32
+      lambda: 0.0200
+
+    # Stonepickaxe [普通] 原价=5.3
+    default.stonepickaxe:
+      base-price: 5.32
+      lambda: 0.0200
+
+    # Mudbrickstairs [普通] 原价=5.3
+    default.mudbrickstairs:
+      base-price: 5.30
+      lambda: 0.0200
+
+    # Beetrootsoup [普通] 原价=5.3
+    default.beetrootsoup:
+      base-price: 5.29
+      lambda: 0.0200
+
+    # Turtlehelmet [普通] 原价=5.3
+    default.turtlehelmet:
+      base-price: 5.28
+      lambda: 0.0200
+
+    # Cherrysign [普通] 原价=5.2
+    default.cherrysign:
+      base-price: 5.24
+      lambda: 0.0200
+
+    # Paleoaksign [普通] 原价=5.2
+    default.paleoaksign:
+      base-price: 5.24
+      lambda: 0.0200
+
+    # Suspiciousstew [普通] 原价=5.2
+    default.suspiciousstew:
+      base-price: 5.20
+      lambda: 0.0200
+
+    # Endrod [普通] 原价=5.2
+    default.endrod:
+      base-price: 5.17
+      lambda: 0.0200
+
+    # Cherrypressureplate [普通] 原价=5.2
+    default.cherrypressureplate:
+      base-price: 5.15
+      lambda: 0.0200
+
+    # Paleoakpressureplate [普通] 原价=5.2
+    default.paleoakpressureplate:
+      base-price: 5.15
+      lambda: 0.0200
+
+    # Soultorch [普通] 原价=5.1
+    default.soultorch:
+      base-price: 5.13
+      lambda: 0.0200
+
+    # Yellowcarpet [普通] 原价=5.0
+    default.yellowcarpet:
+      base-price: 5.04
+      lambda: 0.0200
+
+    # Cherrydoor [普通] 原价=4.9
+    default.cherrydoor:
+      base-price: 4.94
+      lambda: 0.0200
+
+    # Paleoakdoor [普通] 原价=4.9
+    default.paleoakdoor:
+      base-price: 4.94
+      lambda: 0.0200
+
+    # Lightbluecarpet [普通] 原价=4.9
+    default.lightbluecarpet:
+      base-price: 4.90
+      lambda: 0.0200
+
+    # Fermentedspidereye [普通] 原价=4.8
+    default.fermentedspidereye:
+      base-price: 4.85
+      lambda: 0.0200
+
+    # Boneblock [普通] 原价=4.8
+    default.boneblock:
+      base-price: 4.80
+      lambda: 0.0200
+
+    # Bamboostairs [普通] 原价=4.8
+    default.bamboostairs:
+      base-price: 4.77
+      lambda: 0.0200
+
+    # Mediumamethystbud [普通] 原价=4.7
+    default.mediumamethystbud:
+      base-price: 4.69
+      lambda: 0.0200
+
+    # Melonslice [普通] 原价=4.7
+    default.melonslice:
+      base-price: 4.65
+      lambda: 0.0200
+
+    # Resinbrickslab [普通] 原价=4.6
+    default.resinbrickslab:
+      base-price: 4.64
+      lambda: 0.0200
+
+    # Bamboomosaicstairs [普通] 原价=4.6
+    default.bamboomosaicstairs:
+      base-price: 4.63
+      lambda: 0.0200
+
+    # Acaciasign [普通] 原价=4.6
+    default.acaciasign:
+      base-price: 4.62
+      lambda: 0.0200
+
+    # Birchsign [普通] 原价=4.6
+    default.birchsign:
+      base-price: 4.62
+      lambda: 0.0200
+
+    # Darkoaksign [普通] 原价=4.6
+    default.darkoaksign:
+      base-price: 4.62
+      lambda: 0.0200
+
+    # Junglesign [普通] 原价=4.6
+    default.junglesign:
+      base-price: 4.62
+      lambda: 0.0200
+
+    # Mangrovesign [普通] 原价=4.6
+    default.mangrovesign:
+      base-price: 4.62
+      lambda: 0.0200
+
+    # Oaksign [普通] 原价=4.6
+    default.oaksign:
+      base-price: 4.62
+      lambda: 0.0200
+
+    # Sprucesign [普通] 原价=4.6
+    default.sprucesign:
+      base-price: 4.62
+      lambda: 0.0200
+
+    # Redcarpet [普通] 原价=4.6
+    default.redcarpet:
+      base-price: 4.61
+      lambda: 0.0200
+
+    # Copperbars [普通] 原价=4.6
+    default.copperbars:
+      base-price: 4.57
+      lambda: 0.0200
+
+    # Browndye [普通] 原价=4.6
+    default.browndye:
+      base-price: 4.56
+      lambda: 0.0200
+
+    # Cocoabeans [普通] 原价=4.6
+    default.cocoabeans:
+      base-price: 4.56
+      lambda: 0.0200
+
+    # Pinkcarpet [普通] 原价=4.5
+    default.pinkcarpet:
+      base-price: 4.54
+      lambda: 0.0200
+
+    # Melonseeds [普通] 原价=4.5
+    default.melonseeds:
+      base-price: 4.50
+      lambda: 0.0200
+
+    # Pumpkinseeds [普通] 原价=4.5
+    default.pumpkinseeds:
+      base-price: 4.50
+      lambda: 0.0200
+
+    # Acaciapressureplate [普通] 原价=4.5
+    default.acaciapressureplate:
+      base-price: 4.49
+      lambda: 0.0200
+
+    # Birchpressureplate [普通] 原价=4.5
+    default.birchpressureplate:
+      base-price: 4.49
+      lambda: 0.0200
+
+    # Darkoakpressureplate [普通] 原价=4.5
+    default.darkoakpressureplate:
+      base-price: 4.49
+      lambda: 0.0200
+
+    # Junglepressureplate [普通] 原价=4.5
+    default.junglepressureplate:
+      base-price: 4.49
+      lambda: 0.0200
+
+    # Mangrovepressureplate [普通] 原价=4.5
+    default.mangrovepressureplate:
+      base-price: 4.49
+      lambda: 0.0200
+
+    # Oakpressureplate [普通] 原价=4.5
+    default.oakpressureplate:
+      base-price: 4.49
+      lambda: 0.0200
+
+    # Sprucepressureplate [普通] 原价=4.5
+    default.sprucepressureplate:
+      base-price: 4.49
+      lambda: 0.0200
+
+    # Cookedsalmon [普通] 原价=4.5
+    default.cookedsalmon:
+      base-price: 4.47
+      lambda: 0.0200
+
+    # Woodenshovel [普通] 原价=4.4
+    default.woodenshovel:
+      base-price: 4.42
+      lambda: 0.0200
+
+    # Woodenspear [普通] 原价=4.4
+    default.woodenspear:
+      base-price: 4.42
+      lambda: 0.0200
+
+    # Porkchop [普通] 原价=4.4
+    default.porkchop:
+      base-price: 4.40
+      lambda: 0.0200
+
+    # Redstonetorch [普通] 原价=4.4
+    default.redstonetorch:
+      base-price: 4.38
+      lambda: 0.0200
+
+    # Acaciadoor [普通] 原价=4.3
+    default.acaciadoor:
+      base-price: 4.31
+      lambda: 0.0200
+
+    # Birchdoor [普通] 原价=4.3
+    default.birchdoor:
+      base-price: 4.31
+      lambda: 0.0200
+
+    # Darkoakdoor [普通] 原价=4.3
+    default.darkoakdoor:
+      base-price: 4.31
+      lambda: 0.0200
+
+    # Jungledoor [普通] 原价=4.3
+    default.jungledoor:
+      base-price: 4.31
+      lambda: 0.0200
+
+    # Mangrovedoor [普通] 原价=4.3
+    default.mangrovedoor:
+      base-price: 4.31
+      lambda: 0.0200
+
+    # Oakdoor [普通] 原价=4.3
+    default.oakdoor:
+      base-price: 4.31
+      lambda: 0.0200
+
+    # Sprucedoor [普通] 原价=4.3
+    default.sprucedoor:
+      base-price: 4.31
+      lambda: 0.0200
+
+    # Stonehoe [普通] 原价=4.3
+    default.stonehoe:
+      base-price: 4.31
+      lambda: 0.0200
+
+    # Snowblock [普通] 原价=4.3
+    default.snowblock:
+      base-price: 4.27
+      lambda: 0.0200
+
+    # Honeybottle [普通] 原价=4.2
+    default.honeybottle:
+      base-price: 4.25
+      lambda: 0.0200
+
+    # Chiseledsandstone [普通] 原价=4.2
+    default.chiseledsandstone:
+      base-price: 4.22
+      lambda: 0.0200
+
+    # Crimsonstairs [普通] 原价=4.2
+    default.crimsonstairs:
+      base-price: 4.22
+      lambda: 0.0200
+
+    # Warpedstairs [普通] 原价=4.2
+    default.warpedstairs:
+      base-price: 4.22
+      lambda: 0.0200
+
+    # Whitecarpet [普通] 原价=4.2
+    default.whitecarpet:
+      base-price: 4.22
+      lambda: 0.0200
+
+    # Netherbrickslab [普通] 原价=4.2
+    default.netherbrickslab:
+      base-price: 4.17
+      lambda: 0.0200
+
+    # Brick [普通] 原价=4.1
+    default.brick:
+      base-price: 4.12
+      lambda: 0.0200
+
+    # Cookedcod [普通] 原价=4.1
+    default.cookedcod:
+      base-price: 4.12
+      lambda: 0.0200
+
+    # Dripstoneblock [普通] 原价=3.9
+    default.dripstoneblock:
+      base-price: 3.92
+      lambda: 0.0200
+
+    # Driedkelp [普通] 原价=3.9
+    default.driedkelp:
+      base-price: 3.91
+      lambda: 0.0200
+
+    # Smoothredsandstoneslab [普通] 原价=3.9
+    default.smoothredsandstoneslab:
+      base-price: 3.87
+      lambda: 0.0200
+
+    # Packedmud [普通] 原价=3.8
+    default.packedmud:
+      base-price: 3.84
+      lambda: 0.0200
+
+    # Sporeblossom [普通] 原价=3.8
+    default.sporeblossom:
+      base-price: 3.80
+      lambda: 0.0200
+
+    # Mushroomstew [普通] 原价=3.8
+    default.mushroomstew:
+      base-price: 3.79
+      lambda: 0.0200
+
+    # Smoothsandstonestairs [普通] 原价=3.8
+    default.smoothsandstonestairs:
+      base-price: 3.79
+      lambda: 0.0200
+
+    # Seapickle [普通] 原价=3.7
+    default.seapickle:
+      base-price: 3.74
+      lambda: 0.0200
+
+    # Mudbricks [普通] 原价=3.7
+    default.mudbricks:
+      base-price: 3.72
+      lambda: 0.0200
+
+    # Cherrystairs [普通] 原价=3.7
+    default.cherrystairs:
+      base-price: 3.71
+      lambda: 0.0200
+
+    # Paleoakstairs [普通] 原价=3.7
+    default.paleoakstairs:
+      base-price: 3.71
+      lambda: 0.0200
+
+    # Limedye [普通] 原价=3.7
+    default.limedye:
+      base-price: 3.69
+      lambda: 0.0200
+
+    # Salmon [普通] 原价=3.6
+    default.salmon:
+      base-price: 3.58
+      lambda: 0.0200
+
+    # Glowinksac [普通] 原价=3.5
+    default.glowinksac:
+      base-price: 3.55
+      lambda: 0.0200
+
+    # Mudbrickwall [普通] 原价=3.5
+    default.mudbrickwall:
+      base-price: 3.53
+      lambda: 0.0200
+
+    # Bigdripleaf [普通] 原价=3.5
+    default.bigdripleaf:
+      base-price: 3.50
+      lambda: 0.0200
+
+    # Closedeyeblossom [普通] 原价=3.5
+    default.closedeyeblossom:
+      base-price: 3.50
+      lambda: 0.0200
+
+    # Openeyeblossom [普通] 原价=3.5
+    default.openeyeblossom:
+      base-price: 3.50
+      lambda: 0.0200
+
+    # Cookedchicken [普通] 原价=3.4
+    default.cookedchicken:
+      base-price: 3.44
+      lambda: 0.0200
+
+    # Braincoralblock [普通] 原价=3.4
+    default.braincoralblock:
+      base-price: 3.43
+      lambda: 0.0200
+
+    # Bubblecoralblock [普通] 原价=3.4
+    default.bubblecoralblock:
+      base-price: 3.43
+      lambda: 0.0200
+
+    # Firecoralblock [普通] 原价=3.4
+    default.firecoralblock:
+      base-price: 3.43
+      lambda: 0.0200
+
+    # Horncoralblock [普通] 原价=3.4
+    default.horncoralblock:
+      base-price: 3.43
+      lambda: 0.0200
+
+    # Tubecoralblock [普通] 原价=3.4
+    default.tubecoralblock:
+      base-price: 3.43
+      lambda: 0.0200
+
+    # Bamboobutton [普通] 原价=3.4
+    default.bamboobutton:
+      base-price: 3.35
+      lambda: 0.0200
+
+    # Bambooplanks [普通] 原价=3.4
+    default.bambooplanks:
+      base-price: 3.35
+      lambda: 0.0200
+
+    # Mossystonebrickslab [普通] 原价=3.3
+    default.mossystonebrickslab:
+      base-price: 3.32
+      lambda: 0.0200
+
+    # Blackdye [普通] 原价=3.3
+    default.blackdye:
+      base-price: 3.30
+      lambda: 0.0200
+
+    # Clayball [普通] 原价=3.3
+    default.clayball:
+      base-price: 3.30
+      lambda: 0.0200
+
+    # Cod [普通] 原价=3.3
+    default.cod:
+      base-price: 3.30
+      lambda: 0.0200
+
+    # Glowberries [普通] 原价=3.3
+    default.glowberries:
+      base-price: 3.30
+      lambda: 0.0200
+
+    # Inksac [普通] 原价=3.3
+    default.inksac:
+      base-price: 3.30
+      lambda: 0.0200
+
+    # Lilypad [普通] 原价=3.3
+    default.lilypad:
+      base-price: 3.30
+      lambda: 0.0200
+
+    # Spidereye [普通] 原价=3.3
+    default.spidereye:
+      base-price: 3.30
+      lambda: 0.0200
+
+    # Sunflower [普通] 原价=3.3
+    default.sunflower:
+      base-price: 3.30
+      lambda: 0.0200
+
+    # Sweetberries [普通] 原价=3.3
+    default.sweetberries:
+      base-price: 3.30
+      lambda: 0.0200
+
+    # Purpurslab [普通] 原价=3.3
+    default.purpurslab:
+      base-price: 3.27
+      lambda: 0.0200
+
+    # Stoneshovel [普通] 原价=3.3
+    default.stoneshovel:
+      base-price: 3.27
+      lambda: 0.0200
+
+    # Stonespear [普通] 原价=3.3
+    default.stonespear:
+      base-price: 3.27
+      lambda: 0.0200
+
+    # Bamboomosaic [普通] 原价=3.2
+    default.bamboomosaic:
+      base-price: 3.25
+      lambda: 0.0200
+
+    # Stonesword [普通] 原价=3.2
+    default.stonesword:
+      base-price: 3.25
+      lambda: 0.0200
+
+    # Acaciastairs [普通] 原价=3.2
+    default.acaciastairs:
+      base-price: 3.23
+      lambda: 0.0200
+
+    # Birchstairs [普通] 原价=3.2
+    default.birchstairs:
+      base-price: 3.23
+      lambda: 0.0200
+
+    # Darkoakstairs [普通] 原价=3.2
+    default.darkoakstairs:
+      base-price: 3.23
+      lambda: 0.0200
+
+    # Junglestairs [普通] 原价=3.2
+    default.junglestairs:
+      base-price: 3.23
+      lambda: 0.0200
+
+    # Mangrovestairs [普通] 原价=3.2
+    default.mangrovestairs:
+      base-price: 3.23
+      lambda: 0.0200
+
+    # Oakstairs [普通] 原价=3.2
+    default.oakstairs:
+      base-price: 3.23
+      lambda: 0.0200
+
+    # Sprucestairs [普通] 原价=3.2
+    default.sprucestairs:
+      base-price: 3.23
+      lambda: 0.0200
+
+    # Mossycobblestoneslab [普通] 原价=3.2
+    default.mossycobblestoneslab:
+      base-price: 3.20
+      lambda: 0.0200
+
+    # Braincoralfan [普通] 原价=3.2
+    default.braincoralfan:
+      base-price: 3.17
+      lambda: 0.0200
+
+    # Bubblecoralfan [普通] 原价=3.2
+    default.bubblecoralfan:
+      base-price: 3.17
+      lambda: 0.0200
+
+    # Firecoralfan [普通] 原价=3.2
+    default.firecoralfan:
+      base-price: 3.17
+      lambda: 0.0200
+
+    # Horncoralfan [普通] 原价=3.2
+    default.horncoralfan:
+      base-price: 3.17
+      lambda: 0.0200
+
+    # Tubecoralfan [普通] 原价=3.2
+    default.tubecoralfan:
+      base-price: 3.17
+      lambda: 0.0200
+
+    # Redsandstoneslab [普通] 原价=3.1
+    default.redsandstoneslab:
+      base-price: 3.10
+      lambda: 0.0200
+
+    # Sandstonestairs [普通] 原价=3.0
+    default.sandstonestairs:
+      base-price: 3.04
+      lambda: 0.0200
+
+    # Cutredsandstoneslab [普通] 原价=3.0
+    default.cutredsandstoneslab:
+      base-price: 3.00
+      lambda: 0.0200
+
+    # Crimsonbutton [普通] 原价=3.0
+    default.crimsonbutton:
+      base-price: 2.96
+      lambda: 0.0200
+
+    # Crimsonplanks [普通] 原价=3.0
+    default.crimsonplanks:
+      base-price: 2.96
+      lambda: 0.0200
+
+    # Warpedbutton [普通] 原价=3.0
+    default.warpedbutton:
+      base-price: 2.96
+      lambda: 0.0200
+
+    # Warpedplanks [普通] 原价=3.0
+    default.warpedplanks:
+      base-price: 2.96
+      lambda: 0.0200
+
+    # Chiseledpolishedblackstone [普通] 原价=3.0
+    default.chiseledpolishedblackstone:
+      base-price: 2.95
+      lambda: 0.0200
+
+    # Polishedblackstonepressureplate [普通] 原价=3.0
+    default.polishedblackstonepressureplate:
+      base-price: 2.95
+      lambda: 0.0200
+
+    # Braincoral [普通] 原价=2.9
+    default.braincoral:
+      base-price: 2.87
+      lambda: 0.0200
+
+    # Bubblecoral [普通] 原价=2.9
+    default.bubblecoral:
+      base-price: 2.87
+      lambda: 0.0200
+
+    # Firecoral [普通] 原价=2.9
+    default.firecoral:
+      base-price: 2.87
+      lambda: 0.0200
+
+    # Horncoral [普通] 原价=2.9
+    default.horncoral:
+      base-price: 2.87
+      lambda: 0.0200
+
+    # Tubecoral [普通] 原价=2.9
+    default.tubecoral:
+      base-price: 2.87
+      lambda: 0.0200
+
+    # Coppertorch [普通] 原价=2.8
+    default.coppertorch:
+      base-price: 2.78
+      lambda: 0.0200
+
+    # Deepslate [普通] 原价=2.8
+    default.deepslate:
+      base-price: 2.77
+      lambda: 0.0200
+
+    # Cornflower [普通] 原价=2.8
+    default.cornflower:
+      base-price: 2.75
+      lambda: 0.0200
+
+    # Leaflitter [普通] 原价=2.8
+    default.leaflitter:
+      base-price: 2.75
+      lambda: 0.0200
+
+    # Lilac [普通] 原价=2.8
+    default.lilac:
+      base-price: 2.75
+      lambda: 0.0200
+
+    # Lilyofthevalley [普通] 原价=2.8
+    default.lilyofthevalley:
+      base-price: 2.75
+      lambda: 0.0200
+
+    # Stonepressureplate [普通] 原价=2.7
+    default.stonepressureplate:
+      base-price: 2.73
+      lambda: 0.0200
+
+    # Granitestairs [普通] 原价=2.7
+    default.granitestairs:
+      base-price: 2.71
+      lambda: 0.0200
+
+    # Smoothsandstone [普通] 原价=2.7
+    default.smoothsandstone:
+      base-price: 2.66
+      lambda: 0.0200
+
+    # Chiseledstonebricks [普通] 原价=2.6
+    default.chiseledstonebricks:
+      base-price: 2.65
+      lambda: 0.0200
+
+    # Podzol [普通] 原价=2.6
+    default.podzol:
+      base-price: 2.63
+      lambda: 0.0200
+
+    # Polishedgranitestairs [普通] 原价=2.6
+    default.polishedgranitestairs:
+      base-price: 2.62
+      lambda: 0.0200
+
+    # Chiseleddeepslate [普通] 原价=2.6
+    default.chiseleddeepslate:
+      base-price: 2.61
+      lambda: 0.0200
+
+    # Azalealeavesflowers [普通] 原价=2.6
+    default.azalealeavesflowers:
+      base-price: 2.60
+      lambda: 0.0200
+
+    # Cherrybutton [普通] 原价=2.6
+    default.cherrybutton:
+      base-price: 2.60
+      lambda: 0.0200
+
+    # Cherryplanks [普通] 原价=2.6
+    default.cherryplanks:
+      base-price: 2.60
+      lambda: 0.0200
+
+    # Floweringazalealeaves [普通] 原价=2.6
+    default.floweringazalealeaves:
+      base-price: 2.60
+      lambda: 0.0200
+
+    # Paleoakbutton [普通] 原价=2.6
+    default.paleoakbutton:
+      base-price: 2.60
+      lambda: 0.0200
+
+    # Paleoakplanks [普通] 原价=2.6
+    default.paleoakplanks:
+      base-price: 2.60
+      lambda: 0.0200
+
+    # Armadilloscute [普通] 原价=2.6
+    default.armadilloscute:
+      base-price: 2.56
+      lambda: 0.0200
+
+    # Deepslateredstoneore [普通] 原价=2.5
+    default.deepslateredstoneore:
+      base-price: 2.47
+      lambda: 0.0200
+
+    # Redstoneore [普通] 原价=2.5
+    default.redstoneore:
+      base-price: 2.47
+      lambda: 0.0200
+
+    # Ladder [普通] 原价=2.5
+    default.ladder:
+      base-price: 2.46
+      lambda: 0.0200
+
+    # Torch [普通] 原价=2.5
+    default.torch:
+      base-price: 2.46
+      lambda: 0.0200
+
+    # Resinbrick [普通] 原价=2.4
+    default.resinbrick:
+      base-price: 2.44
+      lambda: 0.0200
+
+    # Andesitestairs [普通] 原价=2.4
+    default.andesitestairs:
+      base-price: 2.42
+      lambda: 0.0200
+
+    # Palemossblock [普通] 原价=2.4
+    default.palemossblock:
+      base-price: 2.40
+      lambda: 0.0200
+
+    # Polishedandesitestairs [普通] 原价=2.4
+    default.polishedandesitestairs:
+      base-price: 2.35
+      lambda: 0.0200
+
+    # Pinkpetals [普通] 原价=2.3
+    default.pinkpetals:
+      base-price: 2.34
+      lambda: 0.0200
+
+    # Smalldripleaf [普通] 原价=2.3
+    default.smalldripleaf:
+      base-price: 2.30
+      lambda: 0.0200
+
+    # Acaciabutton [普通] 原价=2.3
+    default.acaciabutton:
+      base-price: 2.27
+      lambda: 0.0200
+
+    # Acaciaplanks [普通] 原价=2.3
+    default.acaciaplanks:
+      base-price: 2.27
+      lambda: 0.0200
+
+    # Birchbutton [普通] 原价=2.3
+    default.birchbutton:
+      base-price: 2.27
+      lambda: 0.0200
+
+    # Birchplanks [普通] 原价=2.3
+    default.birchplanks:
+      base-price: 2.27
+      lambda: 0.0200
+
+    # Darkoakbutton [普通] 原价=2.3
+    default.darkoakbutton:
+      base-price: 2.27
+      lambda: 0.0200
+
+    # Darkoakplanks [普通] 原价=2.3
+    default.darkoakplanks:
+      base-price: 2.27
+      lambda: 0.0200
+
+    # Junglebutton [普通] 原价=2.3
+    default.junglebutton:
+      base-price: 2.27
+      lambda: 0.0200
+
+    # Jungleplanks [普通] 原价=2.3
+    default.jungleplanks:
+      base-price: 2.27
+      lambda: 0.0200
+
+    # Mangrovebutton [普通] 原价=2.3
+    default.mangrovebutton:
+      base-price: 2.27
+      lambda: 0.0200
+
+    # Mangroveplanks [普通] 原价=2.3
+    default.mangroveplanks:
+      base-price: 2.27
+      lambda: 0.0200
+
+    # Oakbutton [普通] 原价=2.3
+    default.oakbutton:
+      base-price: 2.27
+      lambda: 0.0200
+
+    # Oakplanks [普通] 原价=2.3
+    default.oakplanks:
+      base-price: 2.27
+      lambda: 0.0200
+
+    # Sprucebutton [普通] 原价=2.3
+    default.sprucebutton:
+      base-price: 2.27
+      lambda: 0.0200
+
+    # Spruceplanks [普通] 原价=2.3
+    default.spruceplanks:
+      base-price: 2.27
+      lambda: 0.0200
+
+    # Crimsonnylium [普通] 原价=2.2
+    default.crimsonnylium:
+      base-price: 2.25
+      lambda: 0.0200
+
+    # Smallamethystbud [普通] 原价=2.2
+    default.smallamethystbud:
+      base-price: 2.25
+      lambda: 0.0200
+
+    # Warpednylium [普通] 原价=2.2
+    default.warpednylium:
+      base-price: 2.25
+      lambda: 0.0200
+
+    # Acacialeaves [普通] 原价=2.2
+    default.acacialeaves:
+      base-price: 2.20
+      lambda: 0.0200
+
+    # Azalealeaves [普通] 原价=2.2
+    default.azalealeaves:
+      base-price: 2.20
+      lambda: 0.0200
+
+    # Birchleaves [普通] 原价=2.2
+    default.birchleaves:
+      base-price: 2.20
+      lambda: 0.0200
+
+    # Brownmushroomblock [普通] 原价=2.2
+    default.brownmushroomblock:
+      base-price: 2.20
+      lambda: 0.0200
+
+    # Cherryleaves [普通] 原价=2.2
+    default.cherryleaves:
+      base-price: 2.20
+      lambda: 0.0200
+
+    # Darkoakleaves [普通] 原价=2.2
+    default.darkoakleaves:
+      base-price: 2.20
+      lambda: 0.0200
+
+    # Jungleleaves [普通] 原价=2.2
+    default.jungleleaves:
+      base-price: 2.20
+      lambda: 0.0200
+
+    # Lever [普通] 原价=2.2
+    default.lever:
+      base-price: 2.20
+      lambda: 0.0200
+
+    # Mangroveleaves [普通] 原价=2.2
+    default.mangroveleaves:
+      base-price: 2.20
+      lambda: 0.0200
+
+    # Mossblock [普通] 原价=2.2
+    default.mossblock:
+      base-price: 2.20
+      lambda: 0.0200
+
+    # Mushroomstem [普通] 原价=2.2
+    default.mushroomstem:
+      base-price: 2.20
+      lambda: 0.0200
+
+    # Oakleaves [普通] 原价=2.2
+    default.oakleaves:
+      base-price: 2.20
+      lambda: 0.0200
+
+    # Paleoakleaves [普通] 原价=2.2
+    default.paleoakleaves:
+      base-price: 2.20
+      lambda: 0.0200
+
+    # Redmushroomblock [普通] 原价=2.2
+    default.redmushroomblock:
+      base-price: 2.20
+      lambda: 0.0200
+
+    # Spruceleaves [普通] 原价=2.2
+    default.spruceleaves:
+      base-price: 2.20
+      lambda: 0.0200
+
+    # Blackstonestairs [普通] 原价=2.2
+    default.blackstonestairs:
+      base-price: 2.19
+      lambda: 0.0200
+
+    # Netherbrick [普通] 原价=2.2
+    default.netherbrick:
+      base-price: 2.19
+      lambda: 0.0200
+
+    # Flowerbannerpattern [普通] 原价=2.2
+    default.flowerbannerpattern:
+      base-price: 2.17
+      lambda: 0.0200
+
+    # Bluestainedglass [普通] 原价=2.2
+    default.bluestainedglass:
+      base-price: 2.16
+      lambda: 0.0200
+
+    # Cactusflower [普通] 原价=2.1
+    default.cactusflower:
+      base-price: 2.14
+      lambda: 0.0200
+
+    # Dioritestairs [普通] 原价=2.1
+    default.dioritestairs:
+      base-price: 2.14
+      lambda: 0.0200
+
+    # Sandstone [普通] 原价=2.1
+    default.sandstone:
+      base-price: 2.13
+      lambda: 0.0200
+
+    # Polishedblackstonestairs [普通] 原价=2.1
+    default.polishedblackstonestairs:
+      base-price: 2.12
+      lambda: 0.0200
+
+    # Snow [普通] 原价=2.1
+    default.snow:
+      base-price: 2.09
+      lambda: 0.0200
+
+    # Polisheddioritestairs [普通] 原价=2.1
+    default.polisheddioritestairs:
+      base-price: 2.08
+      lambda: 0.0200
+
+    # Cutsandstone [普通] 原价=2.1
+    default.cutsandstone:
+      base-price: 2.07
+      lambda: 0.0200
+
+    # Polishedblackstonebrickstairs [普通] 原价=2.1
+    default.polishedblackstonebrickstairs:
+      base-price: 2.07
+      lambda: 0.0200
+
+    # Cookedrabbit [普通] 原价=2.1
+    default.cookedrabbit:
+      base-price: 2.06
+      lambda: 0.0200
+
+    # Ironnugget [普通] 原价=2.0
+    default.ironnugget:
+      base-price: 2.05
+      lambda: 0.0200
+
+    # Blueconcrete [普通] 原价=2.0
+    default.blueconcrete:
+      base-price: 2.03
+      lambda: 0.0200
+
+    # Blueconcretepowder [普通] 原价=2.0
+    default.blueconcretepowder:
+      base-price: 2.03
+      lambda: 0.0200
+
+    # Sandstonewall [普通] 原价=2.0
+    default.sandstonewall:
+      base-price: 2.02
+      lambda: 0.0200
+
+    # Stonestairs [普通] 原价=2.0
+    default.stonestairs:
+      base-price: 1.97
+      lambda: 0.0300
+
+    # Resinclump [普通] 原价=1.9
+    default.resinclump:
+      base-price: 1.95
+      lambda: 0.0300
+
+    # Azurebluet [普通] 原价=1.9
+    default.azurebluet:
+      base-price: 1.93
+      lambda: 0.0300
+
+    # Lightgraydye [普通] 原价=1.9
+    default.lightgraydye:
+      base-price: 1.93
+      lambda: 0.0300
+
+    # Orangedye [普通] 原价=1.9
+    default.orangedye:
+      base-price: 1.93
+      lambda: 0.0300
+
+    # Orangetulip [普通] 原价=1.9
+    default.orangetulip:
+      base-price: 1.93
+      lambda: 0.0300
+
+    # Pinktulip [普通] 原价=1.9
+    default.pinktulip:
+      base-price: 1.93
+      lambda: 0.0300
+
+    # Redtulip [普通] 原价=1.9
+    default.redtulip:
+      base-price: 1.93
+      lambda: 0.0300
+
+    # Whitetulip [普通] 原价=1.9
+    default.whitetulip:
+      base-price: 1.93
+      lambda: 0.0300
+
+    # Graydye [普通] 原价=1.9
+    default.graydye:
+      base-price: 1.92
+      lambda: 0.0300
+
+    # Stonebrickstairs [普通] 原价=1.9
+    default.stonebrickstairs:
+      base-price: 1.91
+      lambda: 0.0300
+
+    # Granite [普通] 原价=1.9
+    default.granite:
+      base-price: 1.90
+      lambda: 0.0300
+
+    # Cobbleddeepslatestairs [普通] 原价=1.9
+    default.cobbleddeepslatestairs:
+      base-price: 1.88
+      lambda: 0.0300
+
+    # Polishedgranite [普通] 原价=1.8
+    default.polishedgranite:
+      base-price: 1.84
+      lambda: 0.0300
+
+    # Mudbrickslab [普通] 原价=1.8
+    default.mudbrickslab:
+      base-price: 1.82
+      lambda: 0.0300
+
+    # Polisheddeepslatestairs [普通] 原价=1.8
+    default.polisheddeepslatestairs:
+      base-price: 1.82
+      lambda: 0.0300
+
+    # Crackedpolishedblackstonebricks [普通] 原价=1.8
+    default.crackedpolishedblackstonebricks:
+      base-price: 1.81
+      lambda: 0.0300
+
+    # Acaciasapling [普通] 原价=1.8
+    default.acaciasapling:
+      base-price: 1.80
+      lambda: 0.0300
+
+    # Azalea [普通] 原价=1.8
+    default.azalea:
+      base-price: 1.80
+      lambda: 0.0300
+
+    # Birchsapling [普通] 原价=1.8
+    default.birchsapling:
+      base-price: 1.80
+      lambda: 0.0300
+
+    # Cherrysapling [普通] 原价=1.8
+    default.cherrysapling:
+      base-price: 1.80
+      lambda: 0.0300
+
+    # Darkoaksapling [普通] 原价=1.8
+    default.darkoaksapling:
+      base-price: 1.80
+      lambda: 0.0300
+
+    # Floweringazalea [普通] 原价=1.8
+    default.floweringazalea:
+      base-price: 1.80
+      lambda: 0.0300
+
+    # Granitewall [普通] 原价=1.8
+    default.granitewall:
+      base-price: 1.80
+      lambda: 0.0300
+
+    # Junglesapling [普通] 原价=1.8
+    default.junglesapling:
+      base-price: 1.80
+      lambda: 0.0300
+
+    # Mangrovepropagule [普通] 原价=1.8
+    default.mangrovepropagule:
+      base-price: 1.80
+      lambda: 0.0300
+
+    # Oaksapling [普通] 原价=1.8
+    default.oaksapling:
+      base-price: 1.80
+      lambda: 0.0300
+
+    # Paleoaksapling [普通] 原价=1.8
+    default.paleoaksapling:
+      base-price: 1.80
+      lambda: 0.0300
+
+    # Sprucesapling [普通] 原价=1.8
+    default.sprucesapling:
+      base-price: 1.80
+      lambda: 0.0300
+
+    # Torchflower [普通] 原价=1.8
+    default.torchflower:
+      base-price: 1.80
+      lambda: 0.0300
+
+    # Cyanstainedglass [普通] 原价=1.8
+    default.cyanstainedglass:
+      base-price: 1.78
+      lambda: 0.0300
+
+    # Deepslatebrickstairs [普通] 原价=1.8
+    default.deepslatebrickstairs:
+      base-price: 1.77
+      lambda: 0.0300
+
+    # Netherrack [普通] 原价=1.8
+    default.netherrack:
+      base-price: 1.75
+      lambda: 0.0300
+
+    # Smoothstone [普通] 原价=1.7
+    default.smoothstone:
+      base-price: 1.72
+      lambda: 0.0300
+
+    # Deepslatetilestairs [普通] 原价=1.7
+    default.deepslatetilestairs:
+      base-price: 1.71
+      lambda: 0.0300
+
+    # Andesite [普通] 原价=1.7
+    default.andesite:
+      base-price: 1.70
+      lambda: 0.0300
+
+    # Ice [普通] 原价=1.7
+    default.ice:
+      base-price: 1.70
+      lambda: 0.0300
+
+    # Crackedstonebricks [普通] 原价=1.7
+    default.crackedstonebricks:
+      base-price: 1.68
+      lambda: 0.0300
+
+    # Bowl [普通] 原价=1.7
+    default.bowl:
+      base-price: 1.67
+      lambda: 0.0300
+
+    # Cyanconcrete [普通] 原价=1.6
+    default.cyanconcrete:
+      base-price: 1.65
+      lambda: 0.0300
+
+    # Cyanconcretepowder [普通] 原价=1.6
+    default.cyanconcretepowder:
+      base-price: 1.65
+      lambda: 0.0300
+
+    # Oxeyedaisy [普通] 原价=1.6
+    default.oxeyedaisy:
+      base-price: 1.65
+      lambda: 0.0300
+
+    # Polishedandesite [普通] 原价=1.6
+    default.polishedandesite:
+      base-price: 1.65
+      lambda: 0.0300
+
+    # Rabbit [普通] 原价=1.6
+    default.rabbit:
+      base-price: 1.65
+      lambda: 0.0300
+
+    # Tropicalfish [普通] 原价=1.6
+    default.tropicalfish:
+      base-price: 1.65
+      lambda: 0.0300
+
+    # Bambooslab [普通] 原价=1.6
+    default.bambooslab:
+      base-price: 1.64
+      lambda: 0.0300
+
+    # Redsand [普通] 原价=1.6
+    default.redsand:
+      base-price: 1.63
+      lambda: 0.0300
+
+    # Andesitewall [普通] 原价=1.6
+    default.andesitewall:
+      base-price: 1.61
+      lambda: 0.0300
+
+    # Bamboomosaicslab [普通] 原价=1.6
+    default.bamboomosaicslab:
+      base-price: 1.59
+      lambda: 0.0300
+
+    # Palemosscarpet [普通] 原价=1.6
+    default.palemosscarpet:
+      base-price: 1.58
+      lambda: 0.0300
+
+    # Cobblestonestairs [普通] 原价=1.6
+    default.cobblestonestairs:
+      base-price: 1.57
+      lambda: 0.0300
+
+    # Crackeddeepslatebricks [普通] 原价=1.6
+    default.crackeddeepslatebricks:
+      base-price: 1.55
+      lambda: 0.0300
+
+    # Blackstone [普通] 原价=1.5
+    default.blackstone:
+      base-price: 1.54
+      lambda: 0.0300
+
+    # Crackeddeepslatetiles [普通] 原价=1.5
+    default.crackeddeepslatetiles:
+      base-price: 1.50
+      lambda: 0.0300
+
+    # Diorite [普通] 原价=1.5
+    default.diorite:
+      base-price: 1.50
+      lambda: 0.0300
+
+    # Polishedblackstone [普通] 原价=1.5
+    default.polishedblackstone:
+      base-price: 1.49
+      lambda: 0.0300
+
+    # Polishedblackstonebutton [普通] 原价=1.5
+    default.polishedblackstonebutton:
+      base-price: 1.49
+      lambda: 0.0300
+
+    # Blackstonewall [普通] 原价=1.5
+    default.blackstonewall:
+      base-price: 1.46
+      lambda: 0.0300
+
+    # Polisheddiorite [普通] 原价=1.5
+    default.polisheddiorite:
+      base-price: 1.46
+      lambda: 0.0300
+
+    # Crimsonslab [普通] 原价=1.4
+    default.crimsonslab:
+      base-price: 1.45
+      lambda: 0.0300
+
+    # Mosscarpet [普通] 原价=1.4
+    default.mosscarpet:
+      base-price: 1.45
+      lambda: 0.0300
+
+    # Polishedblackstonebricks [普通] 原价=1.4
+    default.polishedblackstonebricks:
+      base-price: 1.45
+      lambda: 0.0300
+
+    # Warpedslab [普通] 原价=1.4
+    default.warpedslab:
+      base-price: 1.45
+      lambda: 0.0300
+
+    # Coppernugget [普通] 原价=1.4
+    default.coppernugget:
+      base-price: 1.43
+      lambda: 0.0300
+
+    # Greenstainedglass [普通] 原价=1.4
+    default.greenstainedglass:
+      base-price: 1.43
+      lambda: 0.0300
+
+    # Purplestainedglass [普通] 原价=1.4
+    default.purplestainedglass:
+      base-price: 1.43
+      lambda: 0.0300
+
+    # Dioritewall [普通] 原价=1.4
+    default.dioritewall:
+      base-price: 1.42
+      lambda: 0.0300
+
+    # Polishedblackstonewall [普通] 原价=1.4
+    default.polishedblackstonewall:
+      base-price: 1.42
+      lambda: 0.0300
+
+    # Phantommembrane [普通] 原价=1.4
+    default.phantommembrane:
+      base-price: 1.40
+      lambda: 0.0300
+
+    # Cookedmutton [普通] 原价=1.4
+    default.cookedmutton:
+      base-price: 1.38
+      lambda: 0.0300
+
+    # Polishedblackstonebrickwall [普通] 原价=1.4
+    default.polishedblackstonebrickwall:
+      base-price: 1.38
+      lambda: 0.0300
+
+    # Stonebutton [普通] 原价=1.4
+    default.stonebutton:
+      base-price: 1.38
+      lambda: 0.0300
+
+    # Cookie [普通] 原价=1.4
+    default.cookie:
+      base-price: 1.37
+      lambda: 0.0300
+
+    # Stonebricks [普通] 原价=1.3
+    default.stonebricks:
+      base-price: 1.34
+      lambda: 0.0300
+
+    # Cobbleddeepslate [普通] 原价=1.3
+    default.cobbleddeepslate:
+      base-price: 1.32
+      lambda: 0.0300
+
+    # Crimsonfungus [普通] 原价=1.3
+    default.crimsonfungus:
+      base-price: 1.32
+      lambda: 0.0300
+
+    # Dandelion [普通] 原价=1.3
+    default.dandelion:
+      base-price: 1.32
+      lambda: 0.0300
+
+    # Warpedfungus [普通] 原价=1.3
+    default.warpedfungus:
+      base-price: 1.32
+      lambda: 0.0300
+
+    # Yellowdye [普通] 原价=1.3
+    default.yellowdye:
+      base-price: 1.32
+      lambda: 0.0300
+
+    # Rabbithide [普通] 原价=1.3
+    default.rabbithide:
+      base-price: 1.31
+      lambda: 0.0300
+
+    # Greenconcrete [普通] 原价=1.3
+    default.greenconcrete:
+      base-price: 1.30
+      lambda: 0.0300
+
+    # Greenconcretepowder [普通] 原价=1.3
+    default.greenconcretepowder:
+      base-price: 1.30
+      lambda: 0.0300
+
+    # Purpleconcrete [普通] 原价=1.3
+    default.purpleconcrete:
+      base-price: 1.30
+      lambda: 0.0300
+
+    # Purpleconcretepowder [普通] 原价=1.3
+    default.purpleconcretepowder:
+      base-price: 1.30
+      lambda: 0.0300
+
+    # Smoothsandstoneslab [普通] 原价=1.3
+    default.smoothsandstoneslab:
+      base-price: 1.30
+      lambda: 0.0300
+
+    # Polisheddeepslate [普通] 原价=1.3
+    default.polisheddeepslate:
+      base-price: 1.28
+      lambda: 0.0300
+
+    # Cherryslab [普通] 原价=1.3
+    default.cherryslab:
+      base-price: 1.27
+      lambda: 0.0300
+
+    # Magentastainedglass [普通] 原价=1.3
+    default.magentastainedglass:
+      base-price: 1.27
+      lambda: 0.0300
+
+    # Paleoakslab [普通] 原价=1.3
+    default.paleoakslab:
+      base-price: 1.27
+      lambda: 0.0300
+
+    # Stonebrickwall [普通] 原价=1.3
+    default.stonebrickwall:
+      base-price: 1.27
+      lambda: 0.0300
+
+    # Cobbleddeepslatewall [普通] 原价=1.2
+    default.cobbleddeepslatewall:
+      base-price: 1.25
+      lambda: 0.0300
+
+    # Deepslatebricks [普通] 原价=1.2
+    default.deepslatebricks:
+      base-price: 1.24
+      lambda: 0.0300
+
+    # Polisheddeepslatewall [普通] 原价=1.2
+    default.polisheddeepslatewall:
+      base-price: 1.22
+      lambda: 0.0300
+
+    # Deepslatetiles [普通] 原价=1.2
+    default.deepslatetiles:
+      base-price: 1.20
+      lambda: 0.0300
+
+    # Deepslatebrickwall [普通] 原价=1.2
+    default.deepslatebrickwall:
+      base-price: 1.18
+      lambda: 0.0300
+
+    # Brownstainedglass [普通] 原价=1.2
+    default.brownstainedglass:
+      base-price: 1.16
+      lambda: 0.0300
+
+    # Deepslatetilewall [普通] 原价=1.1
+    default.deepslatetilewall:
+      base-price: 1.14
+      lambda: 0.0300
+
+    # Magentaconcrete [普通] 原价=1.1
+    default.magentaconcrete:
+      base-price: 1.14
+      lambda: 0.0300
+
+    # Magentaconcretepowder [普通] 原价=1.1
+    default.magentaconcretepowder:
+      base-price: 1.14
+      lambda: 0.0300
+
+    # Acaciaslab [普通] 原价=1.1
+    default.acaciaslab:
+      base-price: 1.11
+      lambda: 0.0300
+
+    # Birchslab [普通] 原价=1.1
+    default.birchslab:
+      base-price: 1.11
+      lambda: 0.0300
+
+    # Darkoakslab [普通] 原价=1.1
+    default.darkoakslab:
+      base-price: 1.11
+      lambda: 0.0300
+
+    # Jungleslab [普通] 原价=1.1
+    default.jungleslab:
+      base-price: 1.11
+      lambda: 0.0300
+
+    # Mangroveslab [普通] 原价=1.1
+    default.mangroveslab:
+      base-price: 1.11
+      lambda: 0.0300
+
+    # Oakslab [普通] 原价=1.1
+    default.oakslab:
+      base-price: 1.11
+      lambda: 0.0300
+
+    # Spruceslab [普通] 原价=1.1
+    default.spruceslab:
+      base-price: 1.11
+      lambda: 0.0300
+
+    # Blueorchid [普通] 原价=1.1
+    default.blueorchid:
+      base-price: 1.10
+      lambda: 0.0300
+
+    # Brownmushroom [普通] 原价=1.1
+    default.brownmushroom:
+      base-price: 1.10
+      lambda: 0.0300
+
+    # Calcite [普通] 原价=1.1
+    default.calcite:
+      base-price: 1.10
+      lambda: 0.0300
+
+    # Lightbluedye [普通] 原价=1.1
+    default.lightbluedye:
+      base-price: 1.10
+      lambda: 0.0300
+
+    # Peony [普通] 原价=1.1
+    default.peony:
+      base-price: 1.10
+      lambda: 0.0300
+
+    # Pitcherplant [普通] 原价=1.1
+    default.pitcherplant:
+      base-price: 1.10
+      lambda: 0.0300
+
+    # Redmushroom [普通] 原价=1.1
+    default.redmushroom:
+      base-price: 1.10
+      lambda: 0.0300
+
+    # Rosebush [普通] 原价=1.1
+    default.rosebush:
+      base-price: 1.10
+      lambda: 0.0300
+
+    # Scute [普通] 原价=1.1
+    default.scute:
+      base-price: 1.10
+      lambda: 0.0300
+
+    # Snowball [普通] 原价=1.1
+    default.snowball:
+      base-price: 1.10
+      lambda: 0.0300
+
+    # Turtlescute [普通] 原价=1.1
+    default.turtlescute:
+      base-price: 1.10
+      lambda: 0.0300
+
+    # Wheatseeds [普通] 原价=1.1
+    default.wheatseeds:
+      base-price: 1.10
+      lambda: 0.0300
+
+    # Limestainedglass [普通] 原价=1.1
+    default.limestainedglass:
+      base-price: 1.06
+      lambda: 0.0300
+
+    # Cobblestonewall [普通] 原价=1.1
+    default.cobblestonewall:
+      base-price: 1.05
+      lambda: 0.0300
+
+    # Sandstoneslab [普通] 原价=1.0
+    default.sandstoneslab:
+      base-price: 1.04
+      lambda: 0.0300
+
+    # Brownconcrete [普通] 原价=1.0
+    default.brownconcrete:
+      base-price: 1.03
+      lambda: 0.0300
+
+    # Brownconcretepowder [普通] 原价=1.0
+    default.brownconcretepowder:
+      base-price: 1.03
+      lambda: 0.0300
+
+    # Scaffolding [普通] 原价=1.0
+    default.scaffolding:
+      base-price: 1.02
+      lambda: 0.0300
+
+    # Blackstainedglass [普通] 原价=1.0
+    default.blackstainedglass:
+      base-price: 1.01
+      lambda: 0.0300
+
+    # Cutsandstoneslab [普通] 原价=1.0
+    default.cutsandstoneslab:
+      base-price: 1.01
+      lambda: 0.0300
+
+    # Pointeddripstone [普通] 原价=1.0
+    default.pointeddripstone:
+      base-price: 1.01
+      lambda: 0.0300
+
+    # Graniteslab [普通] 原价=0.9
+    default.graniteslab:
+      base-price: 0.93
+      lambda: 0.0300
+
+    # Limeconcrete [普通] 原价=0.9
+    default.limeconcrete:
+      base-price: 0.93
+      lambda: 0.0300
+
+    # Limeconcretepowder [普通] 原价=0.9
+    default.limeconcretepowder:
+      base-price: 0.93
+      lambda: 0.0300
+
+    # Pitcherpod [普通] 原价=0.9
+    default.pitcherpod:
+      base-price: 0.90
+      lambda: 0.0300
+
+    # Polishedgraniteslab [普通] 原价=0.9
+    default.polishedgraniteslab:
+      base-price: 0.90
+      lambda: 0.0300
+
+    # Blackconcrete [普通] 原价=0.9
+    default.blackconcrete:
+      base-price: 0.89
+      lambda: 0.0300
+
+    # Blackconcretepowder [普通] 原价=0.9
+    default.blackconcretepowder:
+      base-price: 0.89
+      lambda: 0.0300
+
+    # Graystainedglass [普通] 原价=0.9
+    default.graystainedglass:
+      base-price: 0.86
+      lambda: 0.0300
+
+    # Lightgraystainedglass [普通] 原价=0.9
+    default.lightgraystainedglass:
+      base-price: 0.86
+      lambda: 0.0300
+
+    # Orangestainedglass [普通] 原价=0.9
+    default.orangestainedglass:
+      base-price: 0.86
+      lambda: 0.0300
+
+    # Smoothstoneslab [普通] 原价=0.8
+    default.smoothstoneslab:
+      base-price: 0.84
+      lambda: 0.0300
+
+    # Andesiteslab [普通] 原价=0.8
+    default.andesiteslab:
+      base-price: 0.83
+      lambda: 0.0300
+
+    # Polishedandesiteslab [普通] 原价=0.8
+    default.polishedandesiteslab:
+      base-price: 0.81
+      lambda: 0.0300
+
+    # Yellowstainedglass [普通] 原价=0.8
+    default.yellowstainedglass:
+      base-price: 0.79
+      lambda: 0.0300
+
+    # Bluestainedglasspane [普通] 原价=0.8
+    default.bluestainedglasspane:
+      base-price: 0.77
+      lambda: 0.0300
+
+    # Blueegg [普通] 原价=0.8
+    default.blueegg:
+      base-price: 0.76
+      lambda: 0.0300
+
+    # Brownegg [普通] 原价=0.8
+    default.brownegg:
+      base-price: 0.76
+      lambda: 0.0300
+
+    # Lightbluestainedglass [普通] 原价=0.8
+    default.lightbluestainedglass:
+      base-price: 0.76
+      lambda: 0.0300
+
+    # Blackstoneslab [普通] 原价=0.8
+    default.blackstoneslab:
+      base-price: 0.75
+      lambda: 0.0300
+
+    # Dioriteslab [普通] 原价=0.7
+    default.dioriteslab:
+      base-price: 0.73
+      lambda: 0.0300
+
+    # Grayconcrete [普通] 原价=0.7
+    default.grayconcrete:
+      base-price: 0.73
+      lambda: 0.0300
+
+    # Grayconcretepowder [普通] 原价=0.7
+    default.grayconcretepowder:
+      base-price: 0.73
+      lambda: 0.0300
+
+    # Lightgrayconcrete [普通] 原价=0.7
+    default.lightgrayconcrete:
+      base-price: 0.73
+      lambda: 0.0300
+
+    # Lightgrayconcretepowder [普通] 原价=0.7
+    default.lightgrayconcretepowder:
+      base-price: 0.73
+      lambda: 0.0300
+
+    # Orangeconcrete [普通] 原价=0.7
+    default.orangeconcrete:
+      base-price: 0.73
+      lambda: 0.0300
+
+    # Orangeconcretepowder [普通] 原价=0.7
+    default.orangeconcretepowder:
+      base-price: 0.73
+      lambda: 0.0300
+
+    # Polishedblackstoneslab [普通] 原价=0.7
+    default.polishedblackstoneslab:
+      base-price: 0.73
+      lambda: 0.0300
+
+    # Polisheddioriteslab [普通] 原价=0.7
+    default.polisheddioriteslab:
+      base-price: 0.72
+      lambda: 0.0300
+
+    # Polishedblackstonebrickslab [普通] 原价=0.7
+    default.polishedblackstonebrickslab:
+      base-price: 0.71
+      lambda: 0.0300
+
+    # Redstainedglass [普通] 原价=0.7
+    default.redstainedglass:
+      base-price: 0.71
+      lambda: 0.0300
+
+    # Pinkstainedglass [普通] 原价=0.7
+    default.pinkstainedglass:
+      base-price: 0.70
+      lambda: 0.0300
+
+    # Whitestainedglass [普通] 原价=0.7
+    default.whitestainedglass:
+      base-price: 0.70
+      lambda: 0.0300
+
+    # Bakedpotato [普通] 原价=0.7
+    default.bakedpotato:
+      base-price: 0.69
+      lambda: 0.0300
+
+    # Glass [普通] 原价=0.7
+    default.glass:
+      base-price: 0.69
+      lambda: 0.0300
+
+    # Glassbottle [普通] 原价=0.7
+    default.glassbottle:
+      base-price: 0.68
+      lambda: 0.0300
+
+    # Stoneslab [普通] 原价=0.7
+    default.stoneslab:
+      base-price: 0.68
+      lambda: 0.0300
+
+    # Reddye [普通] 原价=0.7
+    default.reddye:
+      base-price: 0.66
+      lambda: 0.0300
+
+    # Stonebrickslab [普通] 原价=0.7
+    default.stonebrickslab:
+      base-price: 0.66
+      lambda: 0.0300
+
+    # Yellowconcrete [普通] 原价=0.7
+    default.yellowconcrete:
+      base-price: 0.66
+      lambda: 0.0300
+
+    # Yellowconcretepowder [普通] 原价=0.7
+    default.yellowconcretepowder:
+      base-price: 0.66
+      lambda: 0.0300
+
+    # Cobbleddeepslateslab [普通] 原价=0.7
+    default.cobbleddeepslateslab:
+      base-price: 0.65
+      lambda: 0.0300
+
+    # Cyanstainedglasspane [普通] 原价=0.6
+    default.cyanstainedglasspane:
+      base-price: 0.63
+      lambda: 0.0300
+
+    # Grassblock [普通] 原价=0.6
+    default.grassblock:
+      base-price: 0.63
+      lambda: 0.0300
+
+    # Lightblueconcrete [普通] 原价=0.6
+    default.lightblueconcrete:
+      base-price: 0.63
+      lambda: 0.0300
+
+    # Lightblueconcretepowder [普通] 原价=0.6
+    default.lightblueconcretepowder:
+      base-price: 0.63
+      lambda: 0.0300
+
+    # Polisheddeepslateslab [普通] 原价=0.6
+    default.polisheddeepslateslab:
+      base-price: 0.63
+      lambda: 0.0300
+
+    # Deepslatebrickslab [普通] 原价=0.6
+    default.deepslatebrickslab:
+      base-price: 0.61
+      lambda: 0.0300
+
+    # Deepslatetileslab [普通] 原价=0.6
+    default.deepslatetileslab:
+      base-price: 0.59
+      lambda: 0.0300
+
+    # Bonemeal [普通] 原价=0.6
+    default.bonemeal:
+      base-price: 0.58
+      lambda: 0.0300
+
+    # Coarsedirt [普通] 原价=0.6
+    default.coarsedirt:
+      base-price: 0.58
+      lambda: 0.0300
+
+    # Mud [普通] 原价=0.6
+    default.mud:
+      base-price: 0.58
+      lambda: 0.0300
+
+    # Redconcrete [普通] 原价=0.6
+    default.redconcrete:
+      base-price: 0.58
+      lambda: 0.0300
+
+    # Redconcretepowder [普通] 原价=0.6
+    default.redconcretepowder:
+      base-price: 0.58
+      lambda: 0.0300
+
+    # Rooteddirt [普通] 原价=0.6
+    default.rooteddirt:
+      base-price: 0.58
+      lambda: 0.0300
+
+    # Whitedye [普通] 原价=0.6
+    default.whitedye:
+      base-price: 0.58
+      lambda: 0.0300
+
+    # Pinkconcrete [普通] 原价=0.6
+    default.pinkconcrete:
+      base-price: 0.57
+      lambda: 0.0300
+
+    # Pinkconcretepowder [普通] 原价=0.6
+    default.pinkconcretepowder:
+      base-price: 0.57
+      lambda: 0.0300
+
+    # Whiteconcrete [普通] 原价=0.6
+    default.whiteconcrete:
+      base-price: 0.57
+      lambda: 0.0300
+
+    # Whiteconcretepowder [普通] 原价=0.6
+    default.whiteconcretepowder:
+      base-price: 0.57
+      lambda: 0.0300
+
+    # Flint [普通] 原价=0.6
+    default.flint:
+      base-price: 0.55
+      lambda: 0.0300
+
+    # Pinkdye [普通] 原价=0.6
+    default.pinkdye:
+      base-price: 0.55
+      lambda: 0.0300
+
+    # Sugarcane [普通] 原价=0.6
+    default.sugarcane:
+      base-price: 0.55
+      lambda: 0.0300
+
+    # Cobblestoneslab [普通] 原价=0.5
+    default.cobblestoneslab:
+      base-price: 0.54
+      lambda: 0.0300
+
+    # Paper [普通] 原价=0.5
+    default.paper:
+      base-price: 0.54
+      lambda: 0.0300
+
+    # Dirt [普通] 原价=0.5
+    default.dirt:
+      base-price: 0.53
+      lambda: 0.0300
+
+    # Chiseledtuff [普通] 原价=0.5
+    default.chiseledtuff:
+      base-price: 0.51
+      lambda: 0.0300
+
+    # Greenstainedglasspane [普通] 原价=0.5
+    default.greenstainedglasspane:
+      base-price: 0.51
+      lambda: 0.0300
+
+    # Purplestainedglasspane [普通] 原价=0.5
+    default.purplestainedglasspane:
+      base-price: 0.51
+      lambda: 0.0300
+
+    # Chiseledtuffbricks [普通] 原价=0.5
+    default.chiseledtuffbricks:
+      base-price: 0.48
+      lambda: 0.0300
+
+    # Dirtpath [普通] 原价=0.5
+    default.dirtpath:
+      base-price: 0.48
+      lambda: 0.0300
+
+    # Farmland [普通] 原价=0.5
+    default.farmland:
+      base-price: 0.48
+      lambda: 0.0300
+
+    # Magentastainedglasspane [普通] 原价=0.5
+    default.magentastainedglasspane:
+      base-price: 0.45
+      lambda: 0.0300
+
+    # Brownstainedglasspane [普通] 原价=0.4
+    default.brownstainedglasspane:
+      base-price: 0.41
+      lambda: 0.0300
+
+    # Rottenflesh [普通] 原价=0.4
+    default.rottenflesh:
+      base-price: 0.39
+      lambda: 0.0300
+
+    # Limestainedglasspane [普通] 原价=0.4
+    default.limestainedglasspane:
+      base-price: 0.38
+      lambda: 0.0300
+
+    # Tuffstairs [普通] 原价=0.4
+    default.tuffstairs:
+      base-price: 0.37
+      lambda: 0.0300
+
+    # Blackstainedglasspane [普通] 原价=0.4
+    default.blackstainedglasspane:
+      base-price: 0.36
+      lambda: 0.0300
+
+    # Polishedtuffstairs [普通] 原价=0.4
+    default.polishedtuffstairs:
+      base-price: 0.36
+      lambda: 0.0300
+
+    # Tuffbrickstairs [普通] 原价=0.3
+    default.tuffbrickstairs:
+      base-price: 0.34
+      lambda: 0.0300
+
+    # Smoothbasalt [普通] 原价=0.3
+    default.smoothbasalt:
+      base-price: 0.33
+      lambda: 0.0300
+
+    # Graystainedglasspane [普通] 原价=0.3
+    default.graystainedglasspane:
+      base-price: 0.31
+      lambda: 0.0300
+
+    # Lightgraystainedglasspane [普通] 原价=0.3
+    default.lightgraystainedglasspane:
+      base-price: 0.31
+      lambda: 0.0300
+
+    # Orangestainedglasspane [普通] 原价=0.3
+    default.orangestainedglasspane:
+      base-price: 0.31
+      lambda: 0.0300
+
+    # Poisonouspotato [普通] 原价=0.3
+    default.poisonouspotato:
+      base-price: 0.28
+      lambda: 0.0300
+
+    # Yellowstainedglasspane [普通] 原价=0.3
+    default.yellowstainedglasspane:
+      base-price: 0.28
+      lambda: 0.0300
+
+    # Lightbluestainedglasspane [普通] 原价=0.3
+    default.lightbluestainedglasspane:
+      base-price: 0.27
+      lambda: 0.0300
+
+    # Basalt [普通] 原价=0.3
+    default.basalt:
+      base-price: 0.26
+      lambda: 0.0300
+
+    # Tuff [普通] 原价=0.3
+    default.tuff:
+      base-price: 0.26
+      lambda: 0.0300
+
+    # Glasspane [普通] 原价=0.2
+    default.glasspane:
+      base-price: 0.25
+      lambda: 0.0300
+
+    # Pinkstainedglasspane [普通] 原价=0.2
+    default.pinkstainedglasspane:
+      base-price: 0.25
+      lambda: 0.0300
+
+    # Polishedbasalt [普通] 原价=0.2
+    default.polishedbasalt:
+      base-price: 0.25
+      lambda: 0.0300
+
+    # Polishedtuff [普通] 原价=0.2
+    default.polishedtuff:
+      base-price: 0.25
+      lambda: 0.0300
+
+    # Redstainedglasspane [普通] 原价=0.2
+    default.redstainedglasspane:
+      base-price: 0.25
+      lambda: 0.0300
+
+    # Tuffwall [普通] 原价=0.2
+    default.tuffwall:
+      base-price: 0.25
+      lambda: 0.0300
+
+    # Whitestainedglasspane [普通] 原价=0.2
+    default.whitestainedglasspane:
+      base-price: 0.25
+      lambda: 0.0300
+
+    # Polishedtuffwall [普通] 原价=0.2
+    default.polishedtuffwall:
+      base-price: 0.24
+      lambda: 0.0300
+
+    # Tuffbricks [普通] 原价=0.2
+    default.tuffbricks:
+      base-price: 0.24
+      lambda: 0.0300
+
+    # Wildflowers [普通] 原价=0.2
+    default.wildflowers:
+      base-price: 0.24
+      lambda: 0.0300
+
+    # Tuffbrickwall [普通] 原价=0.2
+    default.tuffbrickwall:
+      base-price: 0.23
+      lambda: 0.0300
+
+    # Beetrootseeds [普通] 原价=0.2
+    default.beetrootseeds:
+      base-price: 0.22
+      lambda: 0.0300
+
+    # Tuffslab [普通] 原价=0.1
+    default.tuffslab:
+      base-price: 0.13
+      lambda: 0.0300
+
+    # Polishedtuffslab [普通] 原价=0.1
+    default.polishedtuffslab:
+      base-price: 0.12
+      lambda: 0.0300
+
+    # Torchflowerseeds [普通] 原价=0.1
+    default.torchflowerseeds:
+      base-price: 0.12
+      lambda: 0.0300
+
+    # Tuffbrickslab [普通] 原价=0.1
+    default.tuffbrickslab:
+      base-price: 0.12
+      lambda: 0.0300
+
+    # Mangroveroots [普通] 原价=0.1
+    default.mangroveroots:
+      base-price: 0.09
+      lambda: 0.0300
+
+    # Muddymangroveroots [普通] 原价=0.1
+    default.muddymangroveroots:
+      base-price: 0.05
+      lambda: 0.0300
+
+    # Palehangingmoss [普通] 原价=0.1
+    default.palehangingmoss:
+      base-price: 0.05
+      lambda: 0.0300
+
+    # Fireflybush [普通] 原价=0.0
+    default.fireflybush:
+      base-price: 0.04
+      lambda: 0.0300
+
+    # Crimsonroots [普通] 原价=0.0
+    default.crimsonroots:
+      base-price: 0.03
+      lambda: 0.0300
+
+    # Deadbraincoralblock [普通] 原价=0.0
+    default.deadbraincoralblock:
+      base-price: 0.03
+      lambda: 0.0300
+
+    # Deadbraincoralfan [普通] 原价=0.0
+    default.deadbraincoralfan:
+      base-price: 0.03
+      lambda: 0.0300
+
+    # Deadbubblecoralblock [普通] 原价=0.0
+    default.deadbubblecoralblock:
+      base-price: 0.03
+      lambda: 0.0300
+
+    # Deadbubblecoralfan [普通] 原价=0.0
+    default.deadbubblecoralfan:
+      base-price: 0.03
+      lambda: 0.0300
+
+    # Deadfirecoralblock [普通] 原价=0.0
+    default.deadfirecoralblock:
+      base-price: 0.03
+      lambda: 0.0300
+
+    # Deadfirecoralfan [普通] 原价=0.0
+    default.deadfirecoralfan:
+      base-price: 0.03
+      lambda: 0.0300
+
+    # Deadhorncoralblock [普通] 原价=0.0
+    default.deadhorncoralblock:
+      base-price: 0.03
+      lambda: 0.0300
+
+    # Deadhorncoralfan [普通] 原价=0.0
+    default.deadhorncoralfan:
+      base-price: 0.03
+      lambda: 0.0300
+
+    # Deadtubecoralblock [普通] 原价=0.0
+    default.deadtubecoralblock:
+      base-price: 0.03
+      lambda: 0.0300
+
+    # Deadtubecoralfan [普通] 原价=0.0
+    default.deadtubecoralfan:
+      base-price: 0.03
+      lambda: 0.0300
+
+    # Hangingroots [普通] 原价=0.0
+    default.hangingroots:
+      base-price: 0.03
+      lambda: 0.0300
+
+    # Warpedroots [普通] 原价=0.0
+    default.warpedroots:
+      base-price: 0.03
+      lambda: 0.0300
+
+    # Bush [普通] 原价=0.0
+    default.bush:
+      base-price: 0.02
+      lambda: 0.0300
+
+    # Nethersprouts [普通] 原价=0.0
+    default.nethersprouts:
+      base-price: 0.02
+      lambda: 0.0300
+
+    # Seagrass [普通] 原价=0.0
+    default.seagrass:
+      base-price: 0.02
+      lambda: 0.0300
+
+    # Cobweb [普通] 原价=0.0
+    default.cobweb:
+      base-price: 0.01
+      lambda: 0.0300
+
+    # Deadbraincoral [普通] 原价=0.0
+    default.deadbraincoral:
+      base-price: 0.01
+      lambda: 0.0300
+
+    # Deadbubblecoral [普通] 原价=0.0
+    default.deadbubblecoral:
+      base-price: 0.01
+      lambda: 0.0300
+
+    # Deadbush [普通] 原价=0.0
+    default.deadbush:
+      base-price: 0.01
+      lambda: 0.0300
+
+    # Deadfirecoral [普通] 原价=0.0
+    default.deadfirecoral:
+      base-price: 0.01
+      lambda: 0.0300
+
+    # Deadhorncoral [普通] 原价=0.0
+    default.deadhorncoral:
+      base-price: 0.01
+      lambda: 0.0300
+
+    # Deadtubecoral [普通] 原价=0.0
+    default.deadtubecoral:
+      base-price: 0.01
+      lambda: 0.0300
+
+    # Dryshortgrass [普通] 原价=0.0
+    default.dryshortgrass:
+      base-price: 0.01
+      lambda: 0.0300
+
+    # Drytallgrass [普通] 原价=0.0
+    default.drytallgrass:
+      base-price: 0.01
+      lambda: 0.0300
+
+    # Fern [普通] 原价=0.0
+    default.fern:
+      base-price: 0.01
+      lambda: 0.0300
+
+    # Grass [普通] 原价=0.0
+    default.grass:
+      base-price: 0.01
+      lambda: 0.0300
+
+    # Largefern [普通] 原价=0.0
+    default.largefern:
+      base-price: 0.01
+      lambda: 0.0300
+
+    # Shortgrass [普通] 原价=0.0
+    default.shortgrass:
+      base-price: 0.01
+      lambda: 0.0300
+
+    # Tallgrass [普通] 原价=0.0
+    default.tallgrass:
+      base-price: 0.01
+      lambda: 0.0300
+
+    # Web [普通] 原价=0.0
+    default.web:
+      base-price: 0.01
+      lambda: 0.0300
