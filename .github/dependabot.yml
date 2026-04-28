@@ -51,6 +51,9 @@ updates:
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
       # jextract / JDK early-access — manual upgrade only
       - dependency-name: "org.openjdk.jextract:*"
+      # JUnit 6 has breaking API changes — pin to 5.x
+      - dependency-name: "org.junit:*"
+        update-types: ["version-update:semver-major"]
 
   # --- GitHub Actions ---
   - package-ecosystem: "github-actions"

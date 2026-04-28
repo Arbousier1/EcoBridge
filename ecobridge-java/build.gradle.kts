@@ -333,7 +333,7 @@ dependencies {
 
     compileOnly("com.google.code.gson:gson:2.11.0")
 
-    testImplementation(platform("org.junit:junit-bom:6.0.3"))
+    testImplementation(platform("org.junit:junit-bom:5.12.2"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testImplementation("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
     testImplementation("org.ow2.asm:asm:9.9.1")
