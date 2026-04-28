@@ -19,13 +19,13 @@ jobs:
         include:
           - os: ubuntu-latest
             artifact_name: libecobridge_rust.so
-            rust_flags: ""
+            rust_flags: "-C lto=fat -C codegen-units=1"
           - os: windows-latest
             artifact_name: ecobridge_rust.dll
-            rust_flags: "-C link-arg=/DEBUG:NONE"
+            rust_flags: "-C link-arg=/DEBUG:NONE -C lto=off -C codegen-units=16"
           - os: macos-latest
             artifact_name: libecobridge_rust.dylib
-            rust_flags: ""
+            rust_flags: "-C lto=off -C codegen-units=8"
 
     steps:
       - uses: actions/checkout@v6
@@ -48,7 +48,12 @@ jobs:
         run: |
           cd ecobridge-rust
           export RUSTFLAGS="${{ matrix.rust_flags }}"
-          cargo build --release
+          # Windows/macOS: only compile the cdylib, skip tests
+          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+            cargo build --release
+          else
+            cargo build --release --lib
+          fi
 
       - name: Run Rust Tests (ubuntu only)
         if: matrix.os == 'ubuntu-latest'

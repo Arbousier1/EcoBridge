@@ -38,12 +38,9 @@ default = ["parallel"]
 parallel = []
 
 [profile.release]
-# 开启最高等级优化
 opt-level = 3
-# 开启全量链接时优化，压榨跨语言调用性能
-lto = "fat"
-codegen-units = 1
-# 移除符号表以减小二进制体积
+# LTO + codegen-units controlled via RUSTFLAGS in CI (Linux only)
+# Windows/macOS skip LTO for fast CI builds
 strip = "symbols"
 
 # 保持默认以支持 FFM 异常捕获
