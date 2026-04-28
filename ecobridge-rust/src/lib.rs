@@ -132,7 +132,7 @@ pub extern "C" fn ecobridge_init_threading(num_threads: c_int) -> c_int {
 // -----------------------------------------------------------------------------
 
 #[no_mangle]
-pub unsafe extern C fn ecobridge_append_trade_to_memory(
+pub unsafe extern "C" fn ecobridge_append_trade_to_memory(
     ts: c_longlong,
     amount: c_double,
     market_key_ptr: *const c_char,
@@ -148,7 +148,7 @@ pub unsafe extern C fn ecobridge_append_trade_to_memory(
 }
 
 #[no_mangle]
-pub unsafe extern C fn ecobridge_bulk_load_history(
+pub unsafe extern "C" fn ecobridge_bulk_load_history(
     records_ptr: *const HistoryRecord,
     count: u64,
 ) -> c_int {
@@ -162,7 +162,7 @@ pub unsafe extern C fn ecobridge_bulk_load_history(
 }
 
 #[no_mangle]
-pub unsafe extern C fn ecobridge_query_neff_in_memory(
+pub unsafe extern "C" fn ecobridge_query_neff_in_memory(
     current_ts: c_longlong,
     tau: c_double,
     market_key_ptr: *const c_char,
@@ -177,7 +177,7 @@ pub unsafe extern C fn ecobridge_query_neff_in_memory(
 }
 
 #[no_mangle]
-pub unsafe extern C fn ecobridge_query_neff_global_in_memory(
+pub unsafe extern "C" fn ecobridge_query_neff_global_in_memory(
     current_ts: c_longlong,
     tau: c_double,
     out_result: *mut c_double,
@@ -190,7 +190,7 @@ pub unsafe extern C fn ecobridge_query_neff_global_in_memory(
 }
 
 #[no_mangle]
-pub unsafe extern C fn ecobridge_get_health_stats(
+pub unsafe extern "C" fn ecobridge_get_health_stats(
     out_total: *mut u64,
     out_dropped: *mut u64,
 ) -> c_int {
