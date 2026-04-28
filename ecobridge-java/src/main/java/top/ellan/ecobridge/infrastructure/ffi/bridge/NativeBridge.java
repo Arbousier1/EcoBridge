@@ -120,6 +120,8 @@ public class NativeBridge {
     private static volatile MethodHandle calcDecayMH;
     private static volatile MethodHandle computeTierPriceMH;
     private static volatile MethodHandle computePriceFinalMH;
+    private static volatile MethodHandle computePlayerSellPriceMH;
+    private static volatile MethodHandle computeLogisticDecayMH;
     private static volatile MethodHandle computeSystemBidMH;
     private static volatile MethodHandle computePriceBoundedMH;
     private static volatile MethodHandle computeBatchPricesMH;
@@ -268,6 +270,8 @@ public class NativeBridge {
         calcDecayMH = bind(linker, "ecobridge_calc_decay", FunctionDescriptor.of(JAVA_INT, JAVA_DOUBLE, JAVA_DOUBLE, ADDRESS), Linker.Option.critical(true));
         computeTierPriceMH = bind(linker, "ecobridge_compute_tier_price", FunctionDescriptor.of(JAVA_INT, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_INT, ADDRESS), Linker.Option.critical(true));
         computePriceFinalMH = bind(linker, "ecobridge_compute_price_final", FunctionDescriptor.of(JAVA_INT, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, ADDRESS));
+        computePlayerSellPriceMH = bind(linker, "ecobridge_compute_player_sell_price", FunctionDescriptor.of(JAVA_INT, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, ADDRESS));
+        computeLogisticDecayMH = bind(linker, "ecobridge_compute_logistic_decay", FunctionDescriptor.of(JAVA_INT, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, ADDRESS));
         computeSystemBidMH = bind(linker, "ecobridge_compute_system_bid", FunctionDescriptor.of(JAVA_INT, JAVA_DOUBLE, JAVA_DOUBLE, ADDRESS));
         computePriceBoundedMH = bind(linker, "ecobridge_compute_price_bounded", FunctionDescriptor.of(JAVA_INT, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, ADDRESS), Linker.Option.critical(true));
         
@@ -350,7 +354,7 @@ public class NativeBridge {
         queryNeffVectorizedMH = null; computePriceMH = null; calculateEpsilonMH = null;
         checkTransferMH = null; computePidMH = null; resetPidMH = null;
         calcInflationMH = null; calcStabilityMH = null; calcDecayMH = null;
-        computeSystemBidMH = null; computePriceFinalMH = null; computeTierPriceMH = null; computePriceBoundedMH = null; computeBatchPricesMH = null;
+        computePlayerSellPriceMH = null; computeLogisticDecayMH = null; computeSystemBidMH = null; computePriceFinalMH = null; computeTierPriceMH = null; computePriceBoundedMH = null; computeBatchPricesMH = null;
         injectRemoteTradeMH = null; getDynamicLimitMH = null;
         injectRemoteTradeForKeyMH = null; queryNeffForKeyMH = null;
         moneyToMicrosMH = null; microsToMoneyMH = null; computeVolatilityFromStabilityMH = null;
@@ -434,6 +438,17 @@ public class NativeBridge {
                 return status == 0 ? out.get(JAVA_DOUBLE, 0) : base;
             }
         }, base, false);
+    }
+
+    /** Logistic decay for per-player sell history. */
+    public static double computeLogisticDecay(double soldCount, double daysAgo, double delta, double tau) {
+        return executeSafely(() -> {
+            try (Arena arena = Arena.ofConfined()) {
+                MemorySegment out = arena.allocate(JAVA_DOUBLE);
+                int status = (int) computeLogisticDecayMH.invokeExact(soldCount, daysAgo, delta, tau, out);
+                return status == 0 ? out.get(JAVA_DOUBLE, 0) : 0.0;
+            }
+        }, 0.0, false);
     }
 
     /** System Bid — guaranteed minimum buy price (like OSRS High Alchemy). */

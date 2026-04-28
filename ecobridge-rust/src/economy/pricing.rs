@@ -253,6 +253,46 @@ pub unsafe fn compute_batch_prices_internal(
         });
 }
 
+/// Logistic decay for per-player sell history.
+/// Models how past sales fade over time using a logistic curve:
+///   n(t) = n(0) / (e^(δ·(t - τ)) + 1)
+/// where δ = decay rate, τ = half-life point.
+/// This is more realistic than exponential decay — old sales fade slowly
+/// at first, then rapidly, then asymptotically approach zero.
+/// From: kyochigo.com "一种解决Minecraft服务器常见经济问题的新尝试"
+pub fn logistic_decay(sold_count: f64, days_ago: f64, delta: f64, tau: f64) -> f64 {
+    if days_ago < 0.0 || sold_count <= 0.0 { return 0.0; }
+    let exponent = delta * (days_ago - tau);
+    // Clamp exponent to prevent overflow
+    let safe_exp = exponent.clamp(-50.0, 50.0);
+    sold_count / (safe_exp.exp() + 1.0)
+}
+
+/// Per-player sell price — each player's selling price depends on THEIR OWN
+/// sell history, not the global supply. This is fairer: a player who farms
+/// diamonds all day only lowers their OWN diamond sell price.
+/// Formula: p = p₀ × ε × exp(-λ × Σ logistic_decay(n_i, t_i))
+pub fn compute_player_sell_price(
+    base_price_micros: i64,
+    epsilon: f64,
+    lambda: f64,
+    sell_history: &[(f64, f64)], // (amount_sold, days_ago)
+    delta: f64,
+    tau: f64,
+) -> f64 {
+    let base = (base_price_micros as f64) / 1_000_000.0;
+    if !base.is_finite() || base <= 0.0 { return 0.01; }
+    if !epsilon.is_finite() || epsilon <= 0.0 { return 0.01; }
+
+    // Sum decayed per-player sell volume
+    let n_effective: f64 = sell_history.iter()
+        .map(|&(amount, days)| logistic_decay(amount, days, delta, tau))
+        .sum();
+
+    let raw_price = base * epsilon * (-lambda * n_effective).exp();
+    raw_price.max(base * SYSTEM_BID_RATIO).max(0.01)
+}
+
 /// Compute the System Bid — the guaranteed minimum buy price.
 /// This is the price at which the server will always purchase items from players,
 /// serving as the ultimate economic floor and item sink.

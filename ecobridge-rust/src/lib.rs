@@ -500,6 +500,40 @@ pub unsafe extern "C" fn ecobridge_compute_price_bounded(
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn ecobridge_compute_player_sell_price(
+    base: c_double,
+    epsilon: c_double,
+    lambda: c_double,
+    delta: c_double,
+    tau: c_double,
+    out_result: *mut c_double,
+) -> c_int {
+    ffi_guard!(|| {
+        if out_result.is_null() { return EconStatus::NullPointer; }
+        let base_micros = to_micros_saturating(base);
+        // Player sell history is accumulated per-key in Java; FFI passes empty history
+        // and Java computes the effective n_eff from stored per-player data
+        *out_result = economy::pricing::compute_player_sell_price(base_micros, epsilon, lambda, &[], delta, tau);
+        EconStatus::Ok
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ecobridge_compute_logistic_decay(
+    sold_count: c_double,
+    days_ago: c_double,
+    delta: c_double,
+    tau: c_double,
+    out_result: *mut c_double,
+) -> c_int {
+    ffi_guard!(|| {
+        if out_result.is_null() { return EconStatus::NullPointer; }
+        *out_result = economy::pricing::logistic_decay(sold_count, days_ago, delta, tau);
+        EconStatus::Ok
+    })
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn ecobridge_compute_system_bid(
     base: c_double,
     hist_avg: c_double,
