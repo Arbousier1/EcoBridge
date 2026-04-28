@@ -59,10 +59,17 @@ public class UltimateShopHook implements Listener {
     String productId = item.getProduct();
     String shopId = item.getShop();
 
+    double unitPrice;
     if (isBuy) {
-      processBuy(event, player, shopId, productId, amount);
+      unitPrice = processBuy(event, player, shopId, productId, amount);
     } else {
-      processSell(event, player, shopId, productId, amount);
+      unitPrice = processSell(event, player, shopId, productId, amount);
+    }
+
+    // Record settlement immediately — ItemPreTransactionEvent HAS getTakeResult/getGiveResult
+    if (unitPrice > 0) {
+      recordSettlement(event, player, shopId, productId, amount, unitPrice, isBuy);
+      feedRustKernel(shopId, productId, unitPrice);
     }
   }
 
@@ -87,21 +94,18 @@ public class UltimateShopHook implements Listener {
             player.getUniqueId(), PricingManager.toMarketKey(shopId, productId), amount);
       }
     }
-
-    recordFinalSettlement(event, player, shopId, productId, isBuy);
-    recordTransactionDetail(player, shopId, productId, amount, isBuy, event);
-    feedRustKernel(shopId, productId, amount, isBuy);
   }
 
-  private void processBuy(
+  /** @return the unit price used, or 0 if cancelled */
+  private double processBuy(
       ItemPreTransactionEvent event, Player player, String shopId, String productId, int amount) {
     if (limitManager.isBlockedByDynamicLimit(player.getUniqueId(), productId, amount)) {
       simulateCancellation(event, player, "Dynamic buy limit reached");
-      return;
+      return 0;
     }
 
     double dynamicUnitPrice = pricingManager.calculateBuyPrice(shopId, productId);
-    if (dynamicUnitPrice <= 0) return;
+    if (dynamicUnitPrice <= 0) return 0;
 
     double totalBasePrice = dynamicUnitPrice * amount;
     NativeTransferResult rustResult = transferManager.previewTransaction(player, totalBasePrice);
@@ -109,7 +113,7 @@ public class UltimateShopHook implements Listener {
     if (rustResult.isBlocked()) {
       simulateCancellation(
           event, player, "Transfer blocked by regulator (Code: " + rustResult.warningCode() + ")");
-      return;
+      return 0;
     }
 
     double finalTax = rustResult.finalTax();
@@ -122,27 +126,30 @@ public class UltimateShopHook implements Listener {
       String taxMsg = String.format("(Base: %.1f | Tax: %.1f)", totalBasePrice, finalTax);
       player.sendActionBar(Component.text(taxMsg));
     }
+    return dynamicUnitPrice;
   }
 
-  private void processSell(
+  /** @return the unit price used, or 0 if cancelled */
+  private double processSell(
       ItemPreTransactionEvent event, Player player, String shopId, String productId, int amount) {
     if (limitManager.isBlockedBySellLimit(player.getUniqueId(), productId, amount)) {
       simulateCancellation(event, player, "Dynamic sell limit reached");
-      return;
+      return 0;
     }
 
     if (limitManager.isBlockedByPlayerQuota(player.getUniqueId(), shopId, productId, amount)) {
       simulateCancellation(event, player, "Player quota pool exhausted");
-      return;
+      return 0;
     }
 
     double dynamicUnitPrice =
         pricingManager.calculateSellPriceForPlayer(player.getUniqueId(), shopId, productId);
-    if (dynamicUnitPrice <= 0) return;
+    if (dynamicUnitPrice <= 0) return 0;
 
     double finalPayout = dynamicUnitPrice * amount;
     GiveResult originalGive = event.getGiveResult();
     modifyMoneyInResult(originalGive.getResultMap(), finalPayout);
+    return dynamicUnitPrice;
   }
 
   private ObjectItem resolveItemFromEvent(Object event) {
@@ -197,113 +204,64 @@ public class UltimateShopHook implements Listener {
     return modified;
   }
 
-  private void recordFinalSettlement(
-      ItemFinishTransactionEvent event,
-      Player player,
-      String shopId,
-      String productId,
-      boolean isBuy) {
-    double settledMoney = resolveFinalEconomyMoney(event, isBuy);
-    if (!Double.isFinite(settledMoney) || settledMoney <= 0.0) return;
+  /** [v2.0] Record settlement from pre-event (which HAS getTakeResult/getGiveResult). */
+  private void recordSettlement(
+      ItemPreTransactionEvent event, Player player, String shopId,
+      String productId, int amount, double unitPrice, boolean isBuy) {
+    double total = isBuy
+        ? resolveEconomyTotal(event.getTakeResult())
+        : resolveEconomyTotal(event.getGiveResult());
+    if (!Double.isFinite(total) || total <= 0.0) {
+      total = unitPrice * amount;
+    }
 
     EconomyManager economyManager = EconomyManager.getInstance();
     if (economyManager != null) {
-      economyManager.recordTradeVolume(settledMoney);
+      economyManager.recordTradeVolume(total);
     }
 
     String marketKey = PricingManager.toMarketKey(shopId, productId);
-    String signedSide = isBuy ? "BUY" : "SELL";
-    double signedAmount = isBuy ? -settledMoney : settledMoney;
+    double signedAmount = isBuy ? -total : total;
     AsyncLogger.log(
-        player.getUniqueId(),
-        signedAmount,
-        0.0,
-        System.currentTimeMillis(),
-        "MARKET_SETTLEMENT:" + signedSide + ":" + marketKey);
+        player.getUniqueId(), signedAmount, 0.0, System.currentTimeMillis(),
+        String.format("TRADE_DETAIL:%s:%s:player=%s:unitPrice=%.4f:qty=%d:total=%.2f",
+            isBuy ? "BUY" : "SELL", marketKey, player.getUniqueId(),
+            unitPrice, amount, total));
   }
 
-  private double resolveFinalEconomyMoney(ItemFinishTransactionEvent event, boolean isBuy) {
-    Object resultObj =
-        isBuy ? invokeNoArg(event, "getTakeResult") : invokeNoArg(event, "getGiveResult");
+  private double resolveEconomyTotal(Object resultObj) {
     if (resultObj == null) return 0.0;
-
     Object mapObj = invokeNoArg(resultObj, "getResultMap");
     if (!(mapObj instanceof Map<?, ?> map) || map.isEmpty()) return 0.0;
-
     double total = 0.0;
     for (Map.Entry<?, ?> entry : map.entrySet()) {
-      Object thing = entry.getKey();
-      if (!(thing instanceof AbstractSingleThing singleThing) || !isEconomyEntry(singleThing)) continue;
-      Object value = entry.getValue();
-      if (value instanceof BigDecimal decimal) {
-        total += Math.abs(decimal.doubleValue());
-      } else if (value instanceof Number number) {
-        total += Math.abs(number.doubleValue());
-      }
+      if (!(entry.getKey() instanceof AbstractSingleThing thing) || !isEconomyEntry(thing)) continue;
+      if (entry.getValue() instanceof BigDecimal d) total += Math.abs(d.doubleValue());
+      else if (entry.getValue() instanceof Number n) total += Math.abs(n.doubleValue());
     }
     return total;
   }
 
-  /** [v2.0] Detect economy entries via plugin type AND field heuristics. */
+  /** [v2.0] Detect economy entries — matches UltimateShop's ThingType classification. */
   private boolean isEconomyEntry(AbstractSingleThing thing) {
     ConfigurationSection section = thing.getSingleSection();
     if (section == null) return false;
 
-    // 1. Check known economy plugin types
-    String ecoType = section.getString("economy-plugin", "");
-    if (KNOWN_ECONOMY_TYPES.contains(ecoType)) return true;
+    // Match UltimateShop's AbstractSingleThing.initType():
+    // HOOK_ECONOMY uses "economy-plugin", VANILLA_ECONOMY uses "economy-type"
+    String ecoPlugin = section.getString("economy-plugin", "");
+    if (!ecoPlugin.isEmpty() && KNOWN_ECONOMY_TYPES.contains(ecoPlugin)) return true;
 
-    // 2. Check economy-type field (UltimateShop v4+)
-    String ecoTypeAlt = section.getString("economy-type", "");
-    if (!ecoTypeAlt.isEmpty() && KNOWN_ECONOMY_TYPES.contains(ecoTypeAlt)) return true;
-
-    // 3. Heuristic: if section has amount/price-like keys, treat as economy entry
-    if (section.contains("amount") || section.contains("base-amount")
-        || section.contains("economy-type") || section.contains("start-amount")) return true;
-
-    return false;
+    String ecoType = section.getString("economy-type", "");
+    return !ecoType.isEmpty() && KNOWN_ECONOMY_TYPES.contains(ecoType);
   }
 
-  /** [v2.0] Log unit-price + quantity for every completed transaction. */
-  private void recordTransactionDetail(
-      Player player, String shopId, String productId,
-      int amount, boolean isBuy, ItemFinishTransactionEvent event) {
-    try {
-      double unitPrice = isBuy
-          ? pricingManager.calculateBuyPrice(shopId, productId)
-          : pricingManager.calculateSellPriceForPlayer(player.getUniqueId(), shopId, productId);
-      double total = resolveFinalEconomyMoney(event, isBuy);
-
-      AsyncLogger.log(
-          player.getUniqueId(),
-          isBuy ? -total : total,
-          0.0,
-          System.currentTimeMillis(),
-          String.format("TRADE_DETAIL:%s:%s:%s:unitPrice=%.4f:qty=%d:total=%.2f",
-              isBuy ? "BUY" : "SELL",
-              PricingManager.toMarketKey(shopId, productId),
-              player.getUniqueId(),
-              unitPrice,
-              amount,
-              total));
-    } catch (Exception ignored) {
-    }
-  }
-
-  /** [v2.0] Feed each transaction into the Rust kernel's GARCH volatility and Kalman filter state. */
-  private void feedRustKernel(String shopId, String productId, int amount, boolean isBuy) {
-    if (!NativeBridge.isLoaded()) return;
-
+  /** [v2.0] Feed transaction price into Rust GARCH/Kalman state tracking. */
+  private void feedRustKernel(String shopId, String productId, double currentPrice) {
+    if (!NativeBridge.isLoaded() || currentPrice <= 0) return;
     try {
       String marketKey = PricingManager.toMarketKey(shopId, productId);
-      double currentPrice = pricingManager.calculateBuyPrice(shopId, productId);
-      if (currentPrice <= 0) return;
-
-      // Feed GARCH: the Rust side tracks per-key price return history
-      // Initial call seeds the state; subsequent calls compute actual return
-      NativeBridge.garchUpdate(marketKey, 0.0); // seed if needed
-
-      // Feed Kalman filter with actual price observation and quantity
+      NativeBridge.garchUpdate(marketKey, 0.0);
       NativeBridge.kalmanFilter(marketKey, currentPrice, 3600.0);
     } catch (Exception ignored) {
     }
