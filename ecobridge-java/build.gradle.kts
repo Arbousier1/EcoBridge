@@ -307,7 +307,7 @@ detekt {
 }
 
 dependencies {
-    compileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
+    compileOnly("io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT")
     compileOnly("me.clip:placeholderapi:2.12.2")
     compileOnly("su.nightexpress.nightcore:main:2.13.0")
     compileOnly("su.nightexpress.excellenteconomy:ExcellentEconomy:2.8.0")
@@ -338,7 +338,7 @@ dependencies {
 
     testImplementation(platform("org.junit:junit-bom:6.0.3"))
     testImplementation("org.junit.jupiter:junit-jupiter")
-    testImplementation("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
+    testImplementation("io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT")
     testImplementation("org.ow2.asm:asm:9.9.1")
     testImplementation("org.mockito:mockito-core:5.23.0")
     testImplementation("org.mockito:mockito-junit-jupiter:5.23.0")

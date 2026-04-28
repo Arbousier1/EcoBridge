@@ -95,9 +95,9 @@ jobs:
           cd test-server
           mkdir plugins
 
-          echo "Querying PaperMC API for latest 1.21.11 build..."
+          echo "Querying PaperMC API for latest 1.21.4 build..."
 
-          MC_VER="1.21.11"
+          MC_VER="1.21.4"
           PROJECT="paper"
 
           LATEST_BUILD=$(curl -s "https://api.papermc.io/v2/projects/${PROJECT}/versions/${MC_VER}/builds" | jq -r '.builds[-1].build')
