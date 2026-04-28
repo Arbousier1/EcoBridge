@@ -174,6 +174,11 @@ public class VaultEconomyBridge implements Economy {
     }
 
     @Override
+    public EconomyResponse withdrawPlayer(OfflinePlayer player, String world, double amount) {
+        return withdrawPlayer(player, amount);
+    }
+
+    @Override
     public EconomyResponse depositPlayer(OfflinePlayer player, double amount) {
         if (player == null || amount < 0) {
             return new EconomyResponse(0, 0, EconomyResponse.ResponseType.FAILURE, "Invalid arguments");
@@ -185,6 +190,11 @@ public class VaultEconomyBridge implements Economy {
         eeApi().deposit(player.getPlayer(), primaryCurrency, amount);
         double newBalance = getBalance(player);
         return new EconomyResponse(amount, newBalance, EconomyResponse.ResponseType.SUCCESS, "");
+    }
+
+    @Override
+    public EconomyResponse depositPlayer(OfflinePlayer player, String world, double amount) {
+        return depositPlayer(player, amount);
     }
 
     // ==================== Bank methods (not supported — return empty) ====================

@@ -440,8 +440,8 @@ public class EconomyStabilityLongRunTest {
     }
 
     // After 48 hours of extreme shock, the system should not have collapsed
-    assertTrue(priceIndex >= 0.10, () -> "price should not collapse below absolute floor during extreme supply shock");
-    assertTrue(priceIndex <= 5.0, () -> "price should not explode beyond 5x during shock");
+    Assertions.assertTrue(priceIndex >= 0.10, () -> "price should not collapse below absolute floor during extreme supply shock");
+    Assertions.assertTrue(priceIndex <= 5.0, () -> "price should not explode beyond 5x during shock");
   }
 
   @Test
@@ -493,7 +493,8 @@ public class EconomyStabilityLongRunTest {
     }
 
     // After spike subsides, system should stabilize near equilibrium
-    assertTrue(lastPriceIndex > 0.60 && lastPriceIndex < 1.80, () -> "price should stabilize near equilibrium after demand spike subsides, got: " + lastPriceIndex);
+    final double finalPrice = lastPriceIndex;
+    Assertions.assertTrue(finalPrice > 0.60 && finalPrice < 1.80, () -> "price should stabilize near equilibrium after demand spike subsides, got: " + finalPrice);
   }
 
   @Test
@@ -543,7 +544,8 @@ public class EconomyStabilityLongRunTest {
         .average()
         .orElse(1.0);
 
-    assertTrue(avgLastDayDeviation < 0.25, () -> "system should converge to near-target supply under constant flow, avg deviation: " + avgLastDayDeviation);
+    final double finalDev = avgLastDayDeviation;
+    Assertions.assertTrue(finalDev < 0.25, () -> "system should converge to near-target supply under constant flow, avg deviation: " + finalDev);
   }
 
   private record SimResult(
