@@ -25,6 +25,7 @@ import top.ellan.ecobridge.util.LogUtil;
  * automatically benefits from EcoBridge's tax calculation, transfer limits, puppet detection, and
  * wealth-gap regulation.
  */
+@SuppressWarnings("deprecation")
 public class VaultEconomyBridge implements Economy {
 
   private final EcoBridge plugin;
