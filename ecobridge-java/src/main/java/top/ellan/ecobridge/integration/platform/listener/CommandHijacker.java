@@ -7,6 +7,7 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.SimpleCommandMap;
 import org.jetbrains.annotations.NotNull;
+import org.bukkit.plugin.RegisteredServiceProvider;
 import su.nightexpress.excellenteconomy.api.ExcellentEconomyAPI;
 import su.nightexpress.excellenteconomy.api.currency.ExcellentCurrency;
 import top.ellan.ecobridge.EcoBridge;
@@ -58,7 +59,9 @@ public class CommandHijacker {
     }
 
     // 1. 劫持 ExcellentEconomy 所有货币的主指令 (例如 /coins, /gold)
-    for (ExcellentCurrency currency : ExcellentEconomyAPI.getCurrencies()) {
+    var provider = Bukkit.getServicesManager().getRegistration(ExcellentEconomyAPI.class);
+    if (provider == null) return;
+    for (ExcellentCurrency currency : provider.getProvider().getCurrencies()) {
       for (String alias : currency.getCommandAliases()) {
         // true = 需要参数偏移 (例如 /coins pay -> 偏移为 /ecopay)
         applyPhysicalHijack(alias.toLowerCase(), ecopay, true);

@@ -9,6 +9,7 @@ import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.RegisteredServiceProvider;
 import su.nightexpress.excellenteconomy.api.ExcellentEconomyAPI;
 import su.nightexpress.excellenteconomy.api.currency.ExcellentCurrency;
 import top.ellan.ecobridge.EcoBridge;
@@ -51,6 +52,12 @@ public class TransferManager {
 
     private static final String BYPASS_TAX_PERMISSION = "ecobridge.bypass.tax";
     private static final String BYPASS_BLOCK_PERMISSION = "ecobridge.bypass.block";
+
+    private static ExcellentEconomyAPI api() {
+        RegisteredServiceProvider<ExcellentEconomyAPI> provider =
+            Bukkit.getServicesManager().getRegistration(ExcellentEconomyAPI.class);
+        return provider != null ? provider.getProvider() : null;
+    }
 
     // Rust Panic 错误码 (对应 Rust 层的 EconStatus::Panic)
     private static final int CODE_PANIC = 101;
@@ -125,12 +132,12 @@ public class TransferManager {
     }
 
     public void initiateTransfer(Player sender, Player receiver, double amount) {
-        ExcellentExcellentCurrency currency = ExcellentEconomyAPI.getCurrency(mainCurrencyId);
+        ExcellentCurrency currency = api().getCurrency(mainCurrencyId);
         if (currency == null) {
             sender.sendMessage(Component.text("系统故障：找不到核心货币配置 (ID: " + mainCurrencyId + ")。"));
             return;
         }
-        double senderBal = ExcellentEconomyAPI.getBalance(sender, currency);
+        double senderBal = api().getBalance(sender, currency);
         if (senderBal < amount) {
             sender.sendMessage(EcoBridge.getMiniMessage().deserialize(
                 "<red>✘ 交易失败</red> <dark_gray>| <gray>账户余额不足，无法支付 <gold><amount></gold>",
@@ -141,7 +148,7 @@ public class TransferManager {
         captureAndAudit(sender, receiver, currency, amount, senderBal);
     }
 
-    private void captureAndAudit(Player sender, Player receiver, ExcellentExcellentCurrency currency, double amount, double senderBal) {
+    private void captureAndAudit(Player sender, Player receiver, ExcellentCurrency currency, double amount, double senderBal) {
         if (!sender.hasPermission(BYPASS_BLOCK_PERMISSION)) {
             sender.sendActionBar(EcoBridge.getMiniMessage().deserialize(
                 "<dark_gray>[</dark_gray><gradient:blue:aqua>Audit</gradient><dark_gray>]</dark_gray> <gray>正在同步 <aqua>Native</aqua> 算力核心..."
@@ -183,8 +190,8 @@ public class TransferManager {
             MemorySegment cfgSeg = arena.allocate(NativeBridge.Layouts.REGULATOR_CONFIG);
             MemorySegment resSeg = arena.allocate(NativeBridge.Layouts.TRANSFER_RESULT);
 
-            ExcellentCurrency cur = ExcellentEconomyAPI.getCurrency(mainCurrencyId);
-            double senderBal = (cur != null) ? ExcellentEconomyAPI.getBalance(player, cur) : 0.0;
+            ExcellentCurrency cur = api().getCurrency(mainCurrencyId);
+            double senderBal = (cur != null) ? api().getBalance(player, cur) : 0.0;
 
             fillTransferContext(ctxSeg, player, null, cur, amount, senderBal);
             populateRegulatorConfig(cfgSeg);
@@ -211,7 +218,7 @@ public class TransferManager {
 
         final long amountMicros = NativeBridge.moneyToMicros(amount);
         final long senderBalMicros = NativeBridge.moneyToMicros(senderBal);
-        final long receiverBalMicros = (receiver != null) ? NativeBridge.moneyToMicros(ExcellentEconomyAPI.getBalance(receiver, cur)) : 0L;
+        final long receiverBalMicros = (receiver != null) ? NativeBridge.moneyToMicros(api().getBalance(receiver, cur)) : 0L;
 
         VH_TR_AMOUNT.set(ctx, 0L, amountMicros);
         VH_TR_S_BAL.set(ctx, 0L, senderBalMicros);
@@ -228,7 +235,7 @@ public class TransferManager {
         VH_TCTX_VELOCITY.set(ctx, 0L, individualVelocity);
     }
 
-    public void executeSettlement(Player sender, Player receiver, ExcellentExcellentCurrency currency, double amount, NativeTransferResult audit) {
+    public void executeSettlement(Player sender, Player receiver, ExcellentCurrency currency, double amount, NativeTransferResult audit) {
         Preconditions.checkState(Bukkit.isPrimaryThread(), "结算逻辑必须在主线程执行！");
 
         if (plugin.isShadowMode()) {
@@ -247,7 +254,7 @@ public class TransferManager {
             return;
         }
 
-        double currentSenderBal = ExcellentEconomyAPI.getBalance(sender, currency);
+        double currentSenderBal = api().getBalance(sender, currency);
         if (currentSenderBal < amount) {
             sender.sendMessage(EcoBridge.getMiniMessage().deserialize("<red>转账失败：账户资金发生并发冲突。"));
             return;
@@ -278,13 +285,13 @@ public class TransferManager {
             // [Fix] 开启交易上下文，标记为市场行为
             TransactionContext.setMarketTrade(true);
 
-            if (!ExcellentEconomyAPI.removeBalance(sender.getUniqueId(), currency, amount)) {
+            if (!api().withdraw(sender, currency, amount)) {
                 throw new IllegalStateException("余额不足或引擎拒绝");
             }
             debitSuccess = true;
 
             if (receiver != null) {
-                ExcellentEconomyAPI.addBalance(receiver.getUniqueId(), currency, netAmount);
+                api().deposit(receiver, currency, netAmount);
             }
             creditSuccess = true;
 
@@ -296,7 +303,7 @@ public class TransferManager {
             
             if (debitSuccess && !creditSuccess) {
                 try {
-                    boolean rollbackSuccess = ExcellentEconomyAPI.addBalance(sender.getUniqueId(), currency, amount);
+                    boolean rollbackSuccess = api().deposit(sender, currency, amount);
                     
                     if (rollbackSuccess) {
                         TransactionJournal.markForRollback(txId);
@@ -318,7 +325,7 @@ public class TransferManager {
         }
     }
 
-    private void postTransactionActions(Player sender, Player receiver, double amount, double netAmount, double tax, boolean isTaxFree, ExcellentExcellentCurrency currency) {
+    private void postTransactionActions(Player sender, Player receiver, double amount, double netAmount, double tax, boolean isTaxFree, ExcellentCurrency currency) {
         // [Fix] 移除手动调用 recordTradeVolume，完全交由 Listener 监听
         // EconomyManager.getInstance().recordTradeVolume(amount);
         
