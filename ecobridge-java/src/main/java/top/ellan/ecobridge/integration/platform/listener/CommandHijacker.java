@@ -7,9 +7,6 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.SimpleCommandMap;
 import org.jetbrains.annotations.NotNull;
-import org.bukkit.plugin.RegisteredServiceProvider;
-import su.nightexpress.excellenteconomy.api.ExcellentEconomyAPI;
-import su.nightexpress.excellenteconomy.api.currency.ExcellentCurrency;
 import top.ellan.ecobridge.EcoBridge;
 import top.ellan.ecobridge.util.LogUtil;
 
@@ -60,12 +57,12 @@ public class CommandHijacker {
 
     // 1. 劫持 ExcellentEconomy 货币命令
     // Default currency commands: /coins, /money, /balance
-    for (String alias : new String[]{"coins", "money", "balance", "gold", "eco"}) {
+    for (String alias : new String[] {"coins", "money", "balance", "gold", "eco"}) {
       applyPhysicalHijack(alias, ecopay, true);
     }
 
     // 2. 劫持纯支付指令
-    for (String label : new String[]{"pay", "transfer", "epay"}) {
+    for (String label : new String[] {"pay", "transfer", "epay"}) {
       applyPhysicalHijack(label, ecopay, false);
     }
   }
@@ -109,7 +106,7 @@ public class CommandHijacker {
   public void hijackShopCommands() {
     if (knownCommands == null) return;
 
-    for (String label : new String[]{"ultimateshop", "us", "ushop", "usadmin"}) {
+    for (String label : new String[] {"ultimateshop", "us", "ushop", "usadmin"}) {
       Command original = knownCommands.get(label);
       if (original != null && !(original instanceof HijackedCommandWrapper)) {
         ShopAdminWrapper wrapper = new ShopAdminWrapper(label, original);
@@ -131,7 +128,8 @@ public class CommandHijacker {
     }
 
     @Override
-    public boolean execute(@NotNull CommandSender sender, @NotNull String label, @NotNull String[] args) {
+    public boolean execute(
+        @NotNull CommandSender sender, @NotNull String label, @NotNull String[] args) {
       // Pass through to original — our hooks (ASM + Event) already capture the price path.
       // Admin give/set operations that bypass the normal transaction flow will still
       // be recorded via CoinsEngineListener.onBalanceChange() for M1 tracking.
@@ -140,7 +138,8 @@ public class CommandHijacker {
 
     @NotNull
     @Override
-    public List<String> tabComplete(@NotNull CommandSender sender, @NotNull String alias, @NotNull String[] args) {
+    public List<String> tabComplete(
+        @NotNull CommandSender sender, @NotNull String alias, @NotNull String[] args) {
       return original.tabComplete(sender, alias, args);
     }
   }

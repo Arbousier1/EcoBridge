@@ -34,11 +34,18 @@ public class UltimateShopHook implements Listener {
   private final LimitManager limitManager;
 
   // [v2.0] Expanded economy plugin detection — covers all known types + heuristics
-  private static final java.util.Set<String> KNOWN_ECONOMY_TYPES = java.util.Set.of(
-      "Vault", "PlayerPoints", "CMI", "CoinsEngine",
-      "Treasury", "EconomyAPI", "BedrockEconomy",
-      "XP", "ItemsAdder", "MythicMobs"
-  );
+  private static final java.util.Set<String> KNOWN_ECONOMY_TYPES =
+      java.util.Set.of(
+          "Vault",
+          "PlayerPoints",
+          "CMI",
+          "CoinsEngine",
+          "Treasury",
+          "EconomyAPI",
+          "BedrockEconomy",
+          "XP",
+          "ItemsAdder",
+          "MythicMobs");
 
   public UltimateShopHook(
       TransferManager transferManager, PricingManager pricingManager, LimitManager limitManager) {
@@ -96,7 +103,9 @@ public class UltimateShopHook implements Listener {
     }
   }
 
-  /** @return the unit price used, or 0 if cancelled */
+  /**
+   * @return the unit price used, or 0 if cancelled
+   */
   private double processBuy(
       ItemPreTransactionEvent event, Player player, String shopId, String productId, int amount) {
     if (limitManager.isBlockedByDynamicLimit(player.getUniqueId(), productId, amount)) {
@@ -129,7 +138,9 @@ public class UltimateShopHook implements Listener {
     return dynamicUnitPrice;
   }
 
-  /** @return the unit price used, or 0 if cancelled */
+  /**
+   * @return the unit price used, or 0 if cancelled
+   */
   private double processSell(
       ItemPreTransactionEvent event, Player player, String shopId, String productId, int amount) {
     if (limitManager.isBlockedBySellLimit(player.getUniqueId(), productId, amount)) {
@@ -206,11 +217,17 @@ public class UltimateShopHook implements Listener {
 
   /** [v2.0] Record settlement from pre-event (which HAS getTakeResult/getGiveResult). */
   private void recordSettlement(
-      ItemPreTransactionEvent event, Player player, String shopId,
-      String productId, int amount, double unitPrice, boolean isBuy) {
-    double total = isBuy
-        ? resolveEconomyTotal(event.getTakeResult())
-        : resolveEconomyTotal(event.getGiveResult());
+      ItemPreTransactionEvent event,
+      Player player,
+      String shopId,
+      String productId,
+      int amount,
+      double unitPrice,
+      boolean isBuy) {
+    double total =
+        isBuy
+            ? resolveEconomyTotal(event.getTakeResult())
+            : resolveEconomyTotal(event.getGiveResult());
     if (!Double.isFinite(total) || total <= 0.0) {
       total = unitPrice * amount;
     }
@@ -223,10 +240,13 @@ public class UltimateShopHook implements Listener {
     String marketKey = PricingManager.toMarketKey(shopId, productId);
     double signedAmount = isBuy ? -total : total;
     AsyncLogger.log(
-        player.getUniqueId(), signedAmount, 0.0, System.currentTimeMillis(),
-        String.format("TRADE_DETAIL:%s:%s:player=%s:unitPrice=%.4f:qty=%d:total=%.2f",
-            isBuy ? "BUY" : "SELL", marketKey, player.getUniqueId(),
-            unitPrice, amount, total));
+        player.getUniqueId(),
+        signedAmount,
+        0.0,
+        System.currentTimeMillis(),
+        String.format(
+            "TRADE_DETAIL:%s:%s:player=%s:unitPrice=%.4f:qty=%d:total=%.2f",
+            isBuy ? "BUY" : "SELL", marketKey, player.getUniqueId(), unitPrice, amount, total));
   }
 
   private double resolveEconomyTotal(Object resultObj) {
@@ -235,7 +255,8 @@ public class UltimateShopHook implements Listener {
     if (!(mapObj instanceof Map<?, ?> map) || map.isEmpty()) return 0.0;
     double total = 0.0;
     for (Map.Entry<?, ?> entry : map.entrySet()) {
-      if (!(entry.getKey() instanceof AbstractSingleThing thing) || !isEconomyEntry(thing)) continue;
+      if (!(entry.getKey() instanceof AbstractSingleThing thing) || !isEconomyEntry(thing))
+        continue;
       if (entry.getValue() instanceof BigDecimal d) total += Math.abs(d.doubleValue());
       else if (entry.getValue() instanceof Number n) total += Math.abs(n.doubleValue());
     }

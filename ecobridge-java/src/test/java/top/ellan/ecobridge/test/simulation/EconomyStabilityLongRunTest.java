@@ -40,13 +40,18 @@ public class EconomyStabilityLongRunTest {
         stddev(result.supplyRatios.subList(tailStart, result.supplyRatios.size()));
     double tailPriceStd = stddev(result.priceIndex.subList(tailStart, result.priceIndex.size()));
 
-    Assertions.assertTrue(minSupplyRatio >= 0.50, () -> "Supply collapsed too much: " + minSupplyRatio);
-    Assertions.assertTrue(maxSupplyRatio <= 1.80, () -> "Supply exploded too much: " + maxSupplyRatio);
+    Assertions.assertTrue(
+        minSupplyRatio >= 0.50, () -> "Supply collapsed too much: " + minSupplyRatio);
+    Assertions.assertTrue(
+        maxSupplyRatio <= 1.80, () -> "Supply exploded too much: " + maxSupplyRatio);
     Assertions.assertTrue(
         minPriceIndex >= 0.30, () -> "Price index collapsed too much: " + minPriceIndex);
-    Assertions.assertTrue(maxPriceIndex <= 2.80, () -> "Price index exploded too much: " + maxPriceIndex);
-    Assertions.assertTrue(tailSupplyStd < 0.16, () -> "Tail supply variance too high: " + tailSupplyStd);
-    Assertions.assertTrue(tailPriceStd < 0.16, () -> "Tail price variance too high: " + tailPriceStd);
+    Assertions.assertTrue(
+        maxPriceIndex <= 2.80, () -> "Price index exploded too much: " + maxPriceIndex);
+    Assertions.assertTrue(
+        tailSupplyStd < 0.16, () -> "Tail supply variance too high: " + tailSupplyStd);
+    Assertions.assertTrue(
+        tailPriceStd < 0.16, () -> "Tail price variance too high: " + tailPriceStd);
 
     exportArtifacts(result);
   }
@@ -421,8 +426,16 @@ public class EconomyStabilityLongRunTest {
 
       EconomyControlSignals signals =
           new EconomyControlSignals(
-              inflationRate, marketHeat, ecoSaturation,
-              m1, faucetBase, sinkBase, 120, dtSeconds, 0.04, targetM1);
+              inflationRate,
+              marketHeat,
+              ecoSaturation,
+              m1,
+              faucetBase,
+              sinkBase,
+              120,
+              dtSeconds,
+              0.04,
+              targetM1);
       MacroControlDecision decision = controller.decide(signals);
 
       double netFlowPerSecond =
@@ -433,15 +446,22 @@ public class EconomyStabilityLongRunTest {
       double supplyRatio = m1 / targetM1;
 
       inflationRate = 0.5 * inflationRate + 0.5 * ((supplyRatio - 1.0) * 0.08);
-      marketHeat = 0.8 * marketHeat + 0.2 * (120 * 0.04 * (1.0 - 0.5 * Math.max(0.0, priceIndex - 1.0)));
+      marketHeat =
+          0.8 * marketHeat + 0.2 * (120 * 0.04 * (1.0 - 0.5 * Math.max(0.0, priceIndex - 1.0)));
       marketHeat = Math.max(0.01, marketHeat);
-      priceIndex = priceIndex * (1.0 + 0.02 * decision.lambdaMultiplier() * (supplyRatio - 1.0 + 0.3 * inflationRate));
+      priceIndex =
+          priceIndex
+              * (1.0
+                  + 0.02 * decision.lambdaMultiplier() * (supplyRatio - 1.0 + 0.3 * inflationRate));
       priceIndex = clamp(priceIndex, 0.10, 5.0);
     }
 
     // After 48 hours of extreme shock, the system should not have collapsed
-    Assertions.assertTrue(priceIndex >= 0.10, () -> "price should not collapse below absolute floor during extreme supply shock");
-    Assertions.assertTrue(priceIndex <= 5.0, () -> "price should not explode beyond 5x during shock");
+    Assertions.assertTrue(
+        priceIndex >= 0.10,
+        () -> "price should not collapse below absolute floor during extreme supply shock");
+    Assertions.assertTrue(
+        priceIndex <= 5.0, () -> "price should not explode beyond 5x during shock");
   }
 
   @Test
@@ -475,18 +495,33 @@ public class EconomyStabilityLongRunTest {
 
       EconomyControlSignals signals =
           new EconomyControlSignals(
-              inflationRate, marketHeat, ecoSaturation,
-              m1, faucetBase, sinkBase, 120, dtSeconds, 0.04, targetM1);
+              inflationRate,
+              marketHeat,
+              ecoSaturation,
+              m1,
+              faucetBase,
+              sinkBase,
+              120,
+              dtSeconds,
+              0.04,
+              targetM1);
       MacroControlDecision decision = controller.decide(signals);
 
       double netFlowPerSecond = faucetBase - sinkBase;
       m1 = clamp(m1 + netFlowPerSecond * dtSeconds, targetM1 * 0.50, targetM1 * 1.80);
       double supplyRatio = m1 / targetM1;
 
-      inflationRate = 0.55 * inflationRate + 0.45 * ((supplyRatio - 1.0) * 0.06 + (random.nextDouble() - 0.5) * 0.004);
+      inflationRate =
+          0.55 * inflationRate
+              + 0.45 * ((supplyRatio - 1.0) * 0.06 + (random.nextDouble() - 0.5) * 0.004);
       marketHeat = 0.82 * marketHeat + 0.18 * (120 * 0.04);
       marketHeat = Math.max(0.02, marketHeat);
-      priceIndex = priceIndex * (1.0 + 0.015 * decision.lambdaMultiplier() * (0.45 * inflationRate + 0.55 * (supplyRatio - 1.0)));
+      priceIndex =
+          priceIndex
+              * (1.0
+                  + 0.015
+                      * decision.lambdaMultiplier()
+                      * (0.45 * inflationRate + 0.55 * (supplyRatio - 1.0)));
       priceIndex = clamp(priceIndex, 0.30, 2.80);
 
       lastPriceIndex = priceIndex;
@@ -494,7 +529,11 @@ public class EconomyStabilityLongRunTest {
 
     // After spike subsides, system should stabilize near equilibrium
     final double finalPrice = lastPriceIndex;
-    Assertions.assertTrue(finalPrice > 0.60 && finalPrice < 1.80, () -> "price should stabilize near equilibrium after demand spike subsides, got: " + finalPrice);
+    Assertions.assertTrue(
+        finalPrice > 0.60 && finalPrice < 1.80,
+        () ->
+            "price should stabilize near equilibrium after demand spike subsides, got: "
+                + finalPrice);
   }
 
   @Test
@@ -522,8 +561,16 @@ public class EconomyStabilityLongRunTest {
 
       EconomyControlSignals signals =
           new EconomyControlSignals(
-              inflationRate, marketHeat, ecoSaturation,
-              m1, faucetBase, sinkBase, 120, dtSeconds, 0.04, targetM1);
+              inflationRate,
+              marketHeat,
+              ecoSaturation,
+              m1,
+              faucetBase,
+              sinkBase,
+              120,
+              dtSeconds,
+              0.04,
+              targetM1);
       MacroControlDecision decision = controller.decide(signals);
 
       double netFlowPerSecond = faucetBase - sinkBase;
@@ -533,19 +580,29 @@ public class EconomyStabilityLongRunTest {
       inflationRate = 0.55 * inflationRate + 0.45 * ((m1 / targetM1 - 1.0) * 0.06);
       marketHeat = 0.82 * marketHeat + 0.18 * (120 * 0.04);
       marketHeat = Math.max(0.02, marketHeat);
-      priceIndex = priceIndex * (1.0 + 0.015 * decision.lambdaMultiplier() * (0.45 * inflationRate + 0.55 * (m1 / targetM1 - 1.0)));
+      priceIndex =
+          priceIndex
+              * (1.0
+                  + 0.015
+                      * decision.lambdaMultiplier()
+                      * (0.45 * inflationRate + 0.55 * (m1 / targetM1 - 1.0)));
       priceIndex = clamp(priceIndex, 0.30, 2.80);
     }
 
     // In the last 24 hours, deviation from target should be small
-    double avgLastDayDeviation = supplyDeviations.stream()
-        .skip(totalHours - 24)
-        .mapToDouble(Double::doubleValue)
-        .average()
-        .orElse(1.0);
+    double avgLastDayDeviation =
+        supplyDeviations.stream()
+            .skip(totalHours - 24)
+            .mapToDouble(Double::doubleValue)
+            .average()
+            .orElse(1.0);
 
     final double finalDev = avgLastDayDeviation;
-    Assertions.assertTrue(finalDev < 0.25, () -> "system should converge to near-target supply under constant flow, avg deviation: " + finalDev);
+    Assertions.assertTrue(
+        finalDev < 0.25,
+        () ->
+            "system should converge to near-target supply under constant flow, avg deviation: "
+                + finalDev);
   }
 
   private record SimResult(
