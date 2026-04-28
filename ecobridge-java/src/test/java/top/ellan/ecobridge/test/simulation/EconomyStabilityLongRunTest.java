@@ -40,13 +40,13 @@ public class EconomyStabilityLongRunTest {
         stddev(result.supplyRatios.subList(tailStart, result.supplyRatios.size()));
     double tailPriceStd = stddev(result.priceIndex.subList(tailStart, result.priceIndex.size()));
 
-    Assertions.assertTrue(minSupplyRatio >= 0.50, "Supply collapsed too much: " + minSupplyRatio);
-    Assertions.assertTrue(maxSupplyRatio <= 1.80, "Supply exploded too much: " + maxSupplyRatio);
+    Assertions.assertTrue(minSupplyRatio >= 0.50() -> "Supply collapsed too much: " + minSupplyRatio);
+    Assertions.assertTrue(maxSupplyRatio <= 1.80() -> "Supply exploded too much: " + maxSupplyRatio);
     Assertions.assertTrue(
-        minPriceIndex >= 0.30, "Price index collapsed too much: " + minPriceIndex);
-    Assertions.assertTrue(maxPriceIndex <= 2.80, "Price index exploded too much: " + maxPriceIndex);
-    Assertions.assertTrue(tailSupplyStd < 0.16, "Tail supply variance too high: " + tailSupplyStd);
-    Assertions.assertTrue(tailPriceStd < 0.16, "Tail price variance too high: " + tailPriceStd);
+        minPriceIndex >= 0.30() -> "Price index collapsed too much: " + minPriceIndex);
+    Assertions.assertTrue(maxPriceIndex <= 2.80() -> "Price index exploded too much: " + maxPriceIndex);
+    Assertions.assertTrue(tailSupplyStd < 0.16() -> "Tail supply variance too high: " + tailSupplyStd);
+    Assertions.assertTrue(tailPriceStd < 0.16() -> "Tail price variance too high: " + tailPriceStd);
 
     exportArtifacts(result);
   }
@@ -440,8 +440,8 @@ public class EconomyStabilityLongRunTest {
     }
 
     // After 48 hours of extreme shock, the system should not have collapsed
-    assertTrue(priceIndex >= 0.10, "price should not collapse below absolute floor during extreme supply shock");
-    assertTrue(priceIndex <= 5.0, "price should not explode beyond 5x during shock");
+    assertTrue(priceIndex >= 0.10, () -> "price should not collapse below absolute floor during extreme supply shock");
+    assertTrue(priceIndex <= 5.0, () -> "price should not explode beyond 5x during shock");
   }
 
   @Test
@@ -493,8 +493,7 @@ public class EconomyStabilityLongRunTest {
     }
 
     // After spike subsides, system should stabilize near equilibrium
-    assertTrue(lastPriceIndex > 0.60 && lastPriceIndex < 1.80,
-        "price should stabilize near equilibrium after demand spike subsides, got: " + lastPriceIndex);
+    assertTrue(lastPriceIndex > 0.60 && lastPriceIndex < 1.80() -> "price should stabilize near equilibrium after demand spike subsides, got: " + lastPriceIndex);
   }
 
   @Test
@@ -544,8 +543,7 @@ public class EconomyStabilityLongRunTest {
         .average()
         .orElse(1.0);
 
-    assertTrue(avgLastDayDeviation < 0.25,
-        "system should converge to near-target supply under constant flow, avg deviation: " + avgLastDayDeviation);
+    assertTrue(avgLastDayDeviation < 0.25() -> "system should converge to near-target supply under constant flow, avg deviation: " + avgLastDayDeviation);
   }
 
   private record SimResult(

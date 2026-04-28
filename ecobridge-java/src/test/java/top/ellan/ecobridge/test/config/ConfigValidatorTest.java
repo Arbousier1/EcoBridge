@@ -63,7 +63,7 @@ class ConfigValidatorTest {
             var plugin = mock(EcoBridge.class);
             when(plugin.getConfig()).thenReturn(config);
             boolean result = ConfigValidator.validate(plugin);
-            assertTrue(result, "validation should succeed with all params in range");
+            assertTrue(result, () -> "validation should succeed with all params in range");
         } catch (Exception e) {
             // If plugin mock isn't fully set up, the test still adds coverage value
             // by verifying the config values don't cause checkRange exceptions
@@ -82,7 +82,7 @@ class ConfigValidatorTest {
         // After clamping, target-velocity should be reset to default 0.05
         // checkRange returns false for out-of-range, which should trigger saveConfig
         double val = config.getDouble("economy.macro.target-velocity");
-        assertTrue(val < 0.001 + 1e-9, "value should be below minimum before checkRange");
+        assertTrue(val < 0.001 + 1e-9, () -> "value should be below minimum before checkRange");
     }
 
     @Test
@@ -107,7 +107,7 @@ class ConfigValidatorTest {
         boolean redisEnabled = config.getBoolean("redis.enabled", false);
         String redisPass = config.getString("redis.password", "");
         assertTrue(redisEnabled);
-        assertTrue(redisPass.isEmpty(), "empty redis password should be detected");
+        assertTrue(redisPass.isEmpty(), () -> "empty redis password should be detected");
     }
 
     @Test
@@ -117,7 +117,7 @@ class ConfigValidatorTest {
         config.set("database.password", "configured_password");
 
         int rate = config.getInt("system.log-sample-rate");
-        assertTrue(rate < 0, "negative sample rate should be caught and clamped to 100");
+        assertTrue(rate < 0, () -> "negative sample rate should be caught and clamped to 100");
     }
 
     @Test

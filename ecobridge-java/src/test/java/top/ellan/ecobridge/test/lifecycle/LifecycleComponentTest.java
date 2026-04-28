@@ -23,13 +23,13 @@ class LifecycleComponentTest {
     @Test
     void testAllComponentsRegistered() {
         List<LifecycleComponent> all = LifecycleCatalog.all();
-        assertEquals(6, all.size(), "should have exactly 6 lifecycle components");
+        assertEquals(6, all.size(), () -> "should have exactly 6 lifecycle components");
     }
 
     @Test
     void testStartupExcludesReloadAndShutdown() {
         List<LifecycleComponent> startup = LifecycleCatalog.startup();
-        assertEquals(4, startup.size(), "startup should have 4 components (no RELOAD, no SHUTDOWN)");
+        assertEquals(4, startup.size(), () -> "startup should have 4 components (no RELOAD, no SHUTDOWN)");
 
         for (LifecycleComponent c : startup) {
             assertNotEquals(LifecyclePhase.RELOAD, c.phase());
@@ -42,8 +42,7 @@ class LifecycleComponentTest {
         List<LifecycleComponent> startup = LifecycleCatalog.startup();
         for (int i = 1; i < startup.size(); i++) {
             assertTrue(
-                startup.get(i - 1).phase().ordinal() <= startup.get(i).phase().ordinal(),
-                "startup components must be in ascending phase order"
+                startup.get(i - 1).phase().ordinal() <= startup.get(i).phase().ordinal(), () -> "startup components must be in ascending phase order"
             );
         }
     }
@@ -70,8 +69,7 @@ class LifecycleComponentTest {
     void testEachComponentHasUniquePhase() {
         // Components can share phases, but each phase should be represented
         List<LifecycleComponent> all = LifecycleCatalog.all();
-        assertTrue(all.stream().map(LifecycleComponent::phase).distinct().count() >= 4,
-            "at least 4 distinct phases should exist");
+        assertTrue(all.stream().map(LifecycleComponent::phase).distinct().count() >= 4, () -> "at least 4 distinct phases should exist");
     }
 
     @Test
