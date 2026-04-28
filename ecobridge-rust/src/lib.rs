@@ -52,16 +52,9 @@ pub enum EconStatus {
 // -----------------------------------------------------------------------------
 static REMOTE_FLOW_ACCUMULATOR_MICROS: AtomicI64 = AtomicI64::new(0);
 const MICROS_SCALE: f64 = 1_000_000.0;
-const MARKET_META_PREFIX: &str = "MARKET_TRADE:";
 
 static REMOTE_FLOW_ACCUMULATOR_BY_KEY: LazyLock<RwLock<HashMap<String, i64>>> =
     LazyLock::new(|| RwLock::new(HashMap::new()));
-
-#[inline]
-fn extract_market_key(meta: &str) -> Option<&str> {
-    let key = meta.strip_prefix(MARKET_META_PREFIX)?;
-    if key.is_empty() { None } else { Some(key) }
-}
 
 #[inline]
 pub(crate) fn to_micros_saturating(value: f64) -> i64 {
