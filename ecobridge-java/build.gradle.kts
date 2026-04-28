@@ -308,7 +308,7 @@ detekt {
 
 dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
-    compileOnly("me.clip:placeholderapi:2.11.6")
+    compileOnly("me.clip:placeholderapi:2.12.2")
     compileOnly("su.nightexpress.nightcore:main:2.13.0")
     compileOnly("su.nightexpress.coinsengine:CoinsEngine:2.7.0")
     compileOnly("cn.superiormc.ultimateshop:plugin:4.4.2")
