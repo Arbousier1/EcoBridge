@@ -102,7 +102,9 @@ public final class EcoBridge extends JavaPlugin implements Listener {
 
 
             // Hijack currency commands for unified eco behavior.
-            new CommandHijacker(this).hijackAllCurrencies();
+            CommandHijacker hijacker = new CommandHijacker(this);
+            hijacker.hijackAllCurrencies();
+            hijacker.hijackShopCommands();
 
             this.fullyInitialized.set(true);
             

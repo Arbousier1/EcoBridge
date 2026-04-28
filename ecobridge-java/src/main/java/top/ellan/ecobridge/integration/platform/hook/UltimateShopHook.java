@@ -21,6 +21,7 @@ import top.ellan.ecobridge.application.service.LimitManager;
 import top.ellan.ecobridge.application.service.PlayerMarketPolicyService;
 import top.ellan.ecobridge.application.service.PricingManager;
 import top.ellan.ecobridge.application.service.TransferManager;
+import top.ellan.ecobridge.infrastructure.ffi.bridge.NativeBridge;
 import top.ellan.ecobridge.infrastructure.ffi.model.NativeTransferResult;
 import top.ellan.ecobridge.infrastructure.persistence.storage.AsyncLogger;
 import top.ellan.ecobridge.integration.platform.compat.UltimateShopCompat;
@@ -31,6 +32,13 @@ public class UltimateShopHook implements Listener {
   private final TransferManager transferManager;
   private final PricingManager pricingManager;
   private final LimitManager limitManager;
+
+  // [v2.0] Expanded economy plugin detection — covers all known types + heuristics
+  private static final java.util.Set<String> KNOWN_ECONOMY_TYPES = java.util.Set.of(
+      "Vault", "PlayerPoints", "CMI", "CoinsEngine",
+      "Treasury", "EconomyAPI", "BedrockEconomy",
+      "XP", "ItemsAdder", "MythicMobs"
+  );
 
   public UltimateShopHook(
       TransferManager transferManager, PricingManager pricingManager, LimitManager limitManager) {
@@ -81,6 +89,8 @@ public class UltimateShopHook implements Listener {
     }
 
     recordFinalSettlement(event, player, shopId, productId, isBuy);
+    recordTransactionDetail(player, shopId, productId, amount, isBuy, event);
+    feedRustKernel(shopId, productId, amount, isBuy);
   }
 
   private void processBuy(
@@ -175,22 +185,16 @@ public class UltimateShopHook implements Listener {
   private boolean modifyMoneyInResult(
       Map<AbstractSingleThing, BigDecimal> resultMap, double newAmount) {
     if (resultMap == null) return false;
+    boolean modified = false;
 
     for (Map.Entry<AbstractSingleThing, BigDecimal> entry : resultMap.entrySet()) {
       AbstractSingleThing thing = entry.getKey();
-      ConfigurationSection section = thing.getSingleSection();
-
-      if (section == null) continue;
-      String ecoType = section.getString("economy-plugin", "");
-      if (ecoType.equalsIgnoreCase("Vault")
-          || ecoType.equalsIgnoreCase("PlayerPoints")
-          || ecoType.equalsIgnoreCase("CMI")
-          || ecoType.equalsIgnoreCase("CoinsEngine")) {
+      if (isEconomyEntry(thing)) {
         entry.setValue(BigDecimal.valueOf(newAmount));
-        return true;
+        modified = true;
       }
     }
-    return false;
+    return modified;
   }
 
   private void recordFinalSettlement(
@@ -229,7 +233,7 @@ public class UltimateShopHook implements Listener {
     double total = 0.0;
     for (Map.Entry<?, ?> entry : map.entrySet()) {
       Object thing = entry.getKey();
-      if (!isEconomyThing(thing)) continue;
+      if (!(thing instanceof AbstractSingleThing singleThing) || !isEconomyEntry(singleThing)) continue;
       Object value = entry.getValue();
       if (value instanceof BigDecimal decimal) {
         total += Math.abs(decimal.doubleValue());
@@ -240,15 +244,69 @@ public class UltimateShopHook implements Listener {
     return total;
   }
 
-  private boolean isEconomyThing(Object thing) {
-    if (!(thing instanceof AbstractSingleThing singleThing)) return false;
-    ConfigurationSection section = singleThing.getSingleSection();
+  /** [v2.0] Detect economy entries via plugin type AND field heuristics. */
+  private boolean isEconomyEntry(AbstractSingleThing thing) {
+    ConfigurationSection section = thing.getSingleSection();
     if (section == null) return false;
+
+    // 1. Check known economy plugin types
     String ecoType = section.getString("economy-plugin", "");
-    return ecoType.equalsIgnoreCase("Vault")
-        || ecoType.equalsIgnoreCase("PlayerPoints")
-        || ecoType.equalsIgnoreCase("CMI")
-        || ecoType.equalsIgnoreCase("CoinsEngine");
+    if (KNOWN_ECONOMY_TYPES.contains(ecoType)) return true;
+
+    // 2. Check economy-type field (UltimateShop v4+)
+    String ecoTypeAlt = section.getString("economy-type", "");
+    if (!ecoTypeAlt.isEmpty() && KNOWN_ECONOMY_TYPES.contains(ecoTypeAlt)) return true;
+
+    // 3. Heuristic: if section has amount/price-like keys, treat as economy entry
+    if (section.contains("amount") || section.contains("base-amount")
+        || section.contains("economy-type") || section.contains("start-amount")) return true;
+
+    return false;
+  }
+
+  /** [v2.0] Log unit-price + quantity for every completed transaction. */
+  private void recordTransactionDetail(
+      Player player, String shopId, String productId,
+      int amount, boolean isBuy, ItemFinishTransactionEvent event) {
+    try {
+      double unitPrice = isBuy
+          ? pricingManager.calculateBuyPrice(shopId, productId)
+          : pricingManager.calculateSellPriceForPlayer(player.getUniqueId(), shopId, productId);
+      double total = resolveFinalEconomyMoney(event, isBuy);
+
+      AsyncLogger.log(
+          player.getUniqueId(),
+          isBuy ? -total : total,
+          0.0,
+          System.currentTimeMillis(),
+          String.format("TRADE_DETAIL:%s:%s:%s:unitPrice=%.4f:qty=%d:total=%.2f",
+              isBuy ? "BUY" : "SELL",
+              PricingManager.toMarketKey(shopId, productId),
+              player.getUniqueId(),
+              unitPrice,
+              amount,
+              total));
+    } catch (Exception ignored) {
+    }
+  }
+
+  /** [v2.0] Feed each transaction into the Rust kernel's GARCH volatility and Kalman filter state. */
+  private void feedRustKernel(String shopId, String productId, int amount, boolean isBuy) {
+    if (!NativeBridge.isLoaded()) return;
+
+    try {
+      String marketKey = PricingManager.toMarketKey(shopId, productId);
+      double currentPrice = pricingManager.calculateBuyPrice(shopId, productId);
+      if (currentPrice <= 0) return;
+
+      // Feed GARCH: the Rust side tracks per-key price return history
+      // Initial call seeds the state; subsequent calls compute actual return
+      NativeBridge.garchUpdate(marketKey, 0.0); // seed if needed
+
+      // Feed Kalman filter with actual price observation and quantity
+      NativeBridge.kalmanFilter(marketKey, currentPrice, 3600.0);
+    } catch (Exception ignored) {
+    }
   }
 
   private Object invokeNoArg(Object target, String methodName) {

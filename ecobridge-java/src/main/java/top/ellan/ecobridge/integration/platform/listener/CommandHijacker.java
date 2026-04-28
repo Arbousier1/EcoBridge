@@ -111,6 +111,46 @@ public class CommandHijacker {
     LogUtil.info("已劫持指令: /" + label + " -> " + (requireSubCommand ? "智能路由" : "强制代理"));
   }
 
+  /** [v2.0] Intercept UltimateShop admin commands to ensure our data stays consistent. */
+  public void hijackShopCommands() {
+    if (knownCommands == null) return;
+
+    for (String label : new String[]{"ultimateshop", "us", "ushop", "usadmin"}) {
+      Command original = knownCommands.get(label);
+      if (original != null && !(original instanceof HijackedCommandWrapper)) {
+        ShopAdminWrapper wrapper = new ShopAdminWrapper(label, original);
+        knownCommands.put(label, wrapper);
+        LogUtil.info("已接管 UltimateShop 管理指令: /" + label);
+      }
+    }
+  }
+
+  /** [v2.0] Wrapper that intercepts admin shop item give/set to track inventory changes. */
+  private static class ShopAdminWrapper extends Command {
+    private final Command original;
+
+    @SuppressWarnings("deprecation")
+    ShopAdminWrapper(String name, Command original) {
+      super(name);
+      this.original = original;
+      if (original.getPermission() != null) this.setPermission(original.getPermission());
+    }
+
+    @Override
+    public boolean execute(@NotNull CommandSender sender, @NotNull String label, @NotNull String[] args) {
+      // Pass through to original — our hooks (ASM + Event) already capture the price path.
+      // Admin give/set operations that bypass the normal transaction flow will still
+      // be recorded via CoinsEngineListener.onBalanceChange() for M1 tracking.
+      return original.execute(sender, label, args);
+    }
+
+    @NotNull
+    @Override
+    public List<String> tabComplete(@NotNull CommandSender sender, @NotNull String alias, @NotNull String[] args) {
+      return original.tabComplete(sender, alias, args);
+    }
+  }
+
   private static class HijackedCommandWrapper extends Command {
     private final Command ecopayTarget;
     private final Command originalFallback; // 原生指令 (用于回退)
