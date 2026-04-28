@@ -17,6 +17,7 @@ import top.ellan.ecobridge.integration.platform.command.DynamicCommand;
 import top.ellan.ecobridge.integration.platform.command.TransferCommand;
 import top.ellan.ecobridge.integration.platform.hook.EcoPlaceholderExpansion;
 import top.ellan.ecobridge.integration.platform.hook.UltimateShopHook;
+import top.ellan.ecobridge.integration.platform.hook.VaultEconomyBridge;
 import top.ellan.ecobridge.integration.platform.listener.CacheListener;
 import top.ellan.ecobridge.integration.platform.listener.CoinsEngineListener;
 import top.ellan.ecobridge.util.LogUtil;
@@ -67,6 +68,9 @@ public final class PlatformIntegrationLifecycle implements LifecycleComponent {
           new UltimateShopHook(
               TransferManager.getInstance(), PricingManager.getInstance(), limitManager),
           plugin);
+    }
+    if (pm.isPluginEnabled("Vault")) {
+      VaultEconomyBridge.register(plugin);
     }
   }
 
