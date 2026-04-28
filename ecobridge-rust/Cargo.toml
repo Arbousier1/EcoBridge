@@ -13,20 +13,11 @@ crate-type = ["cdylib"]
 # 系统底层接口，处理 C-ABI 兼容数据类型
 libc = "0.2.180"
 
-# 嵌入式分析数据库，用于处理高频经济流水
-duckdb = { version = "1.4.3", features = ["bundled", "chrono"] }
-
-# 高性能跨线程通信
-crossbeam-channel = "0.5.15"
-
 # [核心变更] 并行计算框架，用于实现 SIMD 批量定价演算
 rayon = "1.11.0"
 
-# 时间与时区处理
-chrono = { version = "0.4.43", features = ["std"] }
-
-# 静态状态管理（如数据库连接池和 PID 状态）
-# [v2.0] 迁移至 std::sync::LazyLock (Rust 1.80+)
+# [v2.0] DuckDB → H2 migration: database layer now pure Java.
+# chrono removed — timestamp handling is now on the Java side.
 
 [build-dependencies]
 # 自动化生成 C 头文件 (.h)，供 Java jextract 解析

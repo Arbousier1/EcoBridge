@@ -127,63 +127,79 @@ pub extern "C" fn ecobridge_init_threading(num_threads: c_int) -> c_int {
 }
 
 // -----------------------------------------------------------------------------
-// 2. 存储与监控
+// -----------------------------------------------------------------------------
+// 2. 内存热存储 (v2.0 — H2 migration, DB layer is now Java)
 // -----------------------------------------------------------------------------
 
 #[no_mangle]
-pub extern "C" fn ecobridge_init_db(path_ptr: *const c_char) -> c_int {
+pub unsafe extern C fn ecobridge_append_trade_to_memory(
+    ts: c_longlong,
+    amount: c_double,
+    market_key_ptr: *const c_char,
+) -> c_int {
     ffi_guard!(|| {
-        if path_ptr.is_null() {
+        if market_key_ptr.is_null() {
             return EconStatus::NullPointer;
         }
-        let path_result = unsafe { CStr::from_ptr(path_ptr).to_str() };
-        
-        match path_result {
-            Ok(path_str) => {
-                match storage::init_economy_db(path_str) {
-                    0 => {
-                        economy::summation::hydrate_hot_store();
-                        EconStatus::Ok
-                    },
-                    _ => EconStatus::Fatal
-                }
-            },
-            Err(_) => EconStatus::InvalidValue,
-        }
-    })
-}
-
-#[no_mangle]
-pub extern "C" fn ecobridge_shutdown_db() -> c_int {
-    ffi_guard!(|| {
-        storage::shutdown_db_internal();
+        let market_key = CStr::from_ptr(market_key_ptr).to_string_lossy().into_owned();
+        storage::append_to_memory(ts, amount, &market_key);
         EconStatus::Ok
     })
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ecobridge_log_to_duckdb(
-    ts: c_longlong,
-    uuid_ptr: *const c_char,
-    trade_amount_micros: c_longlong, 
-    balance_micros: c_longlong,      
-    meta_ptr: *const c_char,
+pub unsafe extern C fn ecobridge_bulk_load_history(
+    records_ptr: *const HistoryRecord,
+    count: u64,
 ) -> c_int {
     ffi_guard!(|| {
-        if uuid_ptr.is_null() || meta_ptr.is_null() {
+        if records_ptr.is_null() { return EconStatus::NullPointer; }
+        if count == 0 || count > 1_000_000 { return EconStatus::InvalidLength; }
+        let slice = std::slice::from_raw_parts(records_ptr, count as usize);
+        storage::bulk_load_history(slice);
+        EconStatus::Ok
+    })
+}
+
+#[no_mangle]
+pub unsafe extern C fn ecobridge_query_neff_in_memory(
+    current_ts: c_longlong,
+    tau: c_double,
+    market_key_ptr: *const c_char,
+    out_result: *mut c_double,
+) -> c_int {
+    ffi_guard!(|| {
+        if out_result.is_null() || market_key_ptr.is_null() { return EconStatus::NullPointer; }
+        let market_key = CStr::from_ptr(market_key_ptr).to_string_lossy().into_owned();
+        *out_result = storage::query_neff_in_memory(current_ts, tau, &market_key);
+        EconStatus::Ok
+    })
+}
+
+#[no_mangle]
+pub unsafe extern C fn ecobridge_query_neff_global_in_memory(
+    current_ts: c_longlong,
+    tau: c_double,
+    out_result: *mut c_double,
+) -> c_int {
+    ffi_guard!(|| {
+        if out_result.is_null() { return EconStatus::NullPointer; }
+        *out_result = storage::query_neff_global_in_memory(current_ts, tau);
+        EconStatus::Ok
+    })
+}
+
+#[no_mangle]
+pub unsafe extern C fn ecobridge_get_health_stats(
+    out_total: *mut u64,
+    out_dropped: *mut u64,
+) -> c_int {
+    ffi_guard!(|| {
+        if out_total.is_null() || out_dropped.is_null() {
             return EconStatus::NullPointer;
         }
-        let uuid = CStr::from_ptr(uuid_ptr).to_string_lossy().into_owned();
-        let meta = CStr::from_ptr(meta_ptr).to_string_lossy().into_owned();
-        
-        let amount_f64 = (trade_amount_micros as f64) / MICROS_SCALE;
-        let balance_f64 = (balance_micros as f64) / MICROS_SCALE;
-
-        if let Some(market_key) = extract_market_key(&meta) {
-            economy::summation::append_trade_to_memory(ts, amount_f64, market_key);
-        }
-        storage::log_economy_event(ts, uuid, amount_f64, balance_f64, meta);
-        
+        *out_total = storage::get_total_logs() as u64;
+        *out_dropped = storage::get_dropped_logs() as u64;
         EconStatus::Ok
     })
 }

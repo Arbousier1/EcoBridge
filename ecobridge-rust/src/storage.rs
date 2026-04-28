@@ -1,403 +1,141 @@
-use crossbeam_channel::{bounded, Receiver, Sender};
-use duckdb::{params, Connection};
-use std::collections::HashMap;
-use std::ops::Deref;
-use std::path::PathBuf;
+// ==================================================
+// FILE: ecobridge-rust/src/storage.rs (v2.0 — H2 migration)
+// ==================================================
+// [v2.0] DuckDB replaced by H2 (pure Java). This module now only maintains
+// the in-memory hot history layer used by summation.rs for SIMD computation.
+// All persistence is handled by the Java side via EventLogDao (H2).
+
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{OnceLock, RwLock, LazyLock};
-use std::thread;
-use libc::c_int;
+use std::sync::{RwLock, LazyLock};
+use std::collections::HashMap;
 use crate::models::HistoryRecord;
 
-// -----------------------------------------------------------------------------
-// 静态状态管理
-// -----------------------------------------------------------------------------
+// ==================== In-Memory Hot Store (SSoT for SIMD) ====================
 
-// 全局内存历史 - 单一事实来源 (Single Source of Truth)
-// 存储的是物品交易数量的 Micros 定点数，用于极致精度的 SIMD 演算
 static GLOBAL_HISTORY: LazyLock<RwLock<Vec<HistoryRecord>>> =
     LazyLock::new(|| RwLock::new(Vec::with_capacity(200_000)));
 
-static LOG_SENDER: OnceLock<Sender<LogEvent>> = OnceLock::new();
-static READ_POOL: OnceLock<ConnectionPool> = OnceLock::new();
+// Keyed store for per-market summation
+static HOT_HISTORY_BY_KEY: LazyLock<RwLock<HashMap<String, Vec<HistoryRecord>>>> =
+    LazyLock::new(|| RwLock::new(HashMap::new()));
+
 static TOTAL_LOGS: AtomicU64 = AtomicU64::new(0);
 static DROPPED_LOGS: AtomicU64 = AtomicU64::new(0);
 
-// -----------------------------------------------------------------------------
-// 数据结构定义
-// -----------------------------------------------------------------------------
+const MAX_HISTORY_SIZE: usize = 500_000;
+const PRUNE_TO_SIZE: usize = 400_000;
 
-struct LogEvent {
-    ts: i64,
-    uuid: String,
-    delta: f64,    // 外部传入仍保持 f64 以兼容已有 API
-    balance: f64, 
-    meta: String,
-}
+// ==================== Public API ====================
 
-struct ConnectionPool {
-    available: Receiver<Connection>,
-    recycle: Sender<Connection>,
-}
+/// Append a single trade record to the in-memory hot store.
+/// Called from Java via FFI after H2 persistence succeeds.
+pub fn append_to_memory(ts: i64, amount: f64, market_key: &str) {
+    let amount_micros = (amount * 1_000_000.0) as i64;
+    let record = HistoryRecord { timestamp: ts, amount_micros };
 
-struct DbConnectionGuard {
-    conn: Option<Connection>,
-    pool_sender: Sender<Connection>,
-}
-
-impl Deref for DbConnectionGuard {
-    type Target = Connection;
-    fn deref(&self) -> &Self::Target {
-        self.conn.as_ref().unwrap()
-    }
-}
-
-impl Drop for DbConnectionGuard {
-    fn drop(&mut self) {
-        if let Some(conn) = self.conn.take() {
-            let _ = self.pool_sender.send(conn);
-        }
-    }
-}
-
-// -----------------------------------------------------------------------------
-// FFI 关机指令实现
-// -----------------------------------------------------------------------------
-
-pub fn shutdown_db_internal() -> c_int {
-    if let Some(sender) = LOG_SENDER.get() {
-        let res = sender.send(LogEvent {
-            ts: -1, 
-            uuid: String::new(),
-            delta: 0.0,
-            balance: 0.0,
-            meta: String::from("SHUTDOWN_SIGNAL"),
-        });
-        
-        if res.is_ok() {
-            return 0;
-        }
-    }
-    -1
-}
-
-// -----------------------------------------------------------------------------
-// 核心初始化逻辑
-// -----------------------------------------------------------------------------
-
-pub fn init_economy_db(path_str: &str) -> c_int {
-    if LOG_SENDER.get().is_some() {
-        return 0;
-    }
-
-    let mut db_path = PathBuf::from(path_str);
-    db_path.push("ecobridge_vault.db");
-
-    let write_conn = match Connection::open(&db_path) {
-        Ok(c) => c,
-        Err(e) => {
-            eprintln!("[EcoBridge-Storage] DuckDB Open Error: {}", e);
-            return -4;
-        }
-    };
-
-    let ddl_res = write_conn.execute_batch(
-        "SET memory_limit='512MB';
-         SET threads=4;
-         CREATE TABLE IF NOT EXISTS economy_log (
-             ts BIGINT,
-             player_uuid VARCHAR,
-             delta DOUBLE,
-             balance DOUBLE,
-             metadata VARCHAR
-         );
-         CREATE INDEX IF NOT EXISTS idx_ts ON economy_log (ts);"
-    );
-
-    if let Err(e) = ddl_res {
-        eprintln!("[EcoBridge-Storage] DDL Error: {}", e);
-        return -5;
-    }
-
-    // 启动预热
-    load_recent_history_to_memory(&write_conn);
-
-    // 初始化连接池
-    let pool_size = 4;
-    let (pool_tx, pool_rx) = bounded(pool_size);
-    for _ in 0..pool_size {
-        if let Ok(c) = write_conn.try_clone() {
-            let _ = pool_tx.send(c);
+    // Global store
+    if let Ok(mut hist) = GLOBAL_HISTORY.write() {
+        hist.push(record);
+        if hist.len() > MAX_HISTORY_SIZE {
+            let remove = hist.len() - PRUNE_TO_SIZE;
+            hist.drain(0..remove);
         }
     }
 
-    let _ = READ_POOL.set(ConnectionPool {
-        available: pool_rx,
-        recycle: pool_tx,
-    });
-
-    let (tx, rx) = bounded(50_000);
-
-    thread::Builder::new()
-        .name("ecobridge-db-writer".into())
-        .spawn(move || writer_loop(write_conn, rx))
-        .expect("Failed to spawn DB writer thread");
-
-    match LOG_SENDER.set(tx) {
-        Ok(_) => 0,
-        Err(_) => -7,
-    }
-}
-
-/// [Fix] 适配 v1.6.0 定点数精度重构
-fn load_recent_history_to_memory(conn: &Connection) {
-    let now = chrono::Utc::now().timestamp_millis();
-    let cutoff = now - (90i64 * 86_400_000); 
-    
-    let mut stmt = match conn.prepare("SELECT ts, delta FROM economy_log WHERE ts > ? ORDER BY ts ASC") {
-        Ok(s) => s,
-        Err(e) => {
-            eprintln!("[EcoBridge-Storage] Preload Error: {}", e);
-            return;
+    // Keyed store
+    if let Ok(mut map) = HOT_HISTORY_BY_KEY.write() {
+        let bucket = map.entry(market_key.to_string())
+            .or_insert_with(|| Vec::with_capacity(4096));
+        bucket.push(record);
+        if bucket.len() > MAX_HISTORY_SIZE {
+            let remove = bucket.len() - PRUNE_TO_SIZE;
+            bucket.drain(0..remove);
         }
-    };
 
-    let records_iter = stmt.query_map(params![cutoff], |row| {
-        // 先获取数据库中的浮点数原始值
-        let amount_f64: f64 = row.get(1)?;
-        Ok(HistoryRecord {
-            timestamp: row.get(0)?,
-            // [Precision Fix]: 转换为 i64 Micros
-            amount_micros: (amount_f64 * 1_000_000.0) as i64,
-        })
-    });
-
-    if let Ok(iter) = records_iter {
-        if let Ok(mut hist) = GLOBAL_HISTORY.write() {
-            for rec in iter.flatten() {
-                hist.push(rec);
-            }
-            println!("[EcoBridge-Storage] 内存预热完成：同步加载了 {} 条高精度记录。", hist.len());
+        // Keep global aggregate key too
+        let global = map.entry("__global__".to_string())
+            .or_insert_with(|| Vec::with_capacity(4096));
+        global.push(record);
+        if global.len() > MAX_HISTORY_SIZE {
+            let remove = global.len() - PRUNE_TO_SIZE;
+            global.drain(0..remove);
         }
     }
+
+    TOTAL_LOGS.fetch_add(1, Ordering::Relaxed);
 }
 
+/// Bulk-load history from Java (called at startup after H2 query).
+pub fn bulk_load_history(records: &[HistoryRecord]) {
+    if records.is_empty() { return; }
+    if let Ok(mut hist) = GLOBAL_HISTORY.write() {
+        for r in records {
+            hist.push(*r);
+        }
+        if hist.len() > MAX_HISTORY_SIZE {
+            let remove = hist.len() - PRUNE_TO_SIZE;
+            hist.drain(0..remove);
+        }
+    }
+    TOTAL_LOGS.fetch_add(records.len() as u64, Ordering::Relaxed);
+}
+
+/// Get a read lock on the global history.
 pub fn get_history_read() -> std::sync::RwLockReadGuard<'static, Vec<HistoryRecord>> {
     GLOBAL_HISTORY.read().unwrap()
 }
 
-/// [Fix] 记录经济事件：同步执行高精度内存注入
-pub fn log_economy_event(ts: i64, uuid: String, delta: f64, balance: f64, meta: String) {
-    TOTAL_LOGS.fetch_add(1, Ordering::Relaxed);
-    
-    // 1. 同步更新内存历史记录 (SSoT)
-    if let Ok(mut hist) = GLOBAL_HISTORY.write() {
-        // [Precision Fix]: 字段重命名并转换单位
-        hist.push(HistoryRecord { 
-            timestamp: ts, 
-            amount_micros: (delta * 1_000_000.0) as i64 
-        });
-
-        // 维持滑动窗口
-        if hist.len() > 500_000 {
-            let keep = 400_000;
-            let remove_count = hist.len() - keep;
-            hist.drain(0..remove_count);
-        }
-    }
-
-    // 2. 异步持久化
-    if let Some(sender) = LOG_SENDER.get() {
-        if sender.try_send(LogEvent { ts, uuid, delta, balance, meta }).is_err() {
-            DROPPED_LOGS.fetch_add(1, Ordering::Relaxed);
-        }
-    }
+/// Get a read lock on the keyed history.
+pub fn get_keyed_history_read() -> std::sync::RwLockReadGuard<'static, HashMap<String, Vec<HistoryRecord>>> {
+    HOT_HISTORY_BY_KEY.read().unwrap()
 }
 
-// [Fix] 增加 mut 关键字，允许传递可变引用
-fn writer_loop(mut conn: Connection, rx: Receiver<LogEvent>) {
-    let mut buffer = Vec::with_capacity(1024);
-    loop {
-        match rx.recv() {
-            Ok(msg) if msg.ts != -1 => {
-                buffer.push(msg);
-                while buffer.len() < 1024 {
-                    match rx.try_recv() {
-                        Ok(m) if m.ts != -1 => buffer.push(m),
-                        _ => break,
-                    }
-                }
-                // [Fix] 传入 &mut conn
-                flush_buffer_to_db(&mut conn, &mut buffer);
-            }
-            _ => break, 
-        }
+/// Query N_eff from in-memory data for a specific market key.
+pub fn query_neff_in_memory(current_ts: i64, tau: f64, market_key: &str) -> f64 {
+    let lock = HOT_HISTORY_BY_KEY.read().unwrap();
+    if let Some(history) = lock.get(market_key) {
+        return calculate_volume(history, current_ts, tau);
     }
-    if !buffer.is_empty() {
-        // [Fix] 传入 &mut conn
-        flush_buffer_to_db(&mut conn, &mut buffer);
-    }
+    0.0
 }
 
-// [Fix] 签名修改：conn: &Connection -> conn: &mut Connection
-fn flush_buffer_to_db(conn: &mut Connection, buffer: &mut Vec<LogEvent>) {
-    if buffer.is_empty() { return; }
-
-    // [Optimization] 使用事务批量提交，解决单条插入性能瓶颈 (1k -> 50k rows/sec)
-    
-    
-    // 1. 开启事务 (现在可以成功调用，因为有了 &mut self)
-    let tx = match conn.transaction() {
-        Ok(t) => t,
-        Err(_) => {
-            DROPPED_LOGS.fetch_add(buffer.len() as u64, Ordering::Relaxed);
-            buffer.clear();
-            return;
-        }
-    };
-
-    // 2. 在事务内执行批量插入
-    {
-        match tx.appender("economy_log") {
-            Ok(mut appender) => {
-                for ev in buffer.drain(..) {
-                    let _ = appender.append_row(params![ev.ts, ev.uuid, ev.delta, ev.balance, ev.meta]);
-                }
-                // Appender 在离开作用域时自动 flush 数据到 Transaction
-            },
-            Err(_) => {
-                DROPPED_LOGS.fetch_add(buffer.len() as u64, Ordering::Relaxed);
-                buffer.clear();
-                return;
-            }
-        }
-    } 
-
-    // 3. 提交事务 (一次性 fsync)
-    if let Err(_) = tx.commit() {
-        // 如果提交失败，由于 buffer 已被 drain，数据实际上丢失
-        // 在高频日志场景下，我们选择忽略极低概率的提交失败以保证不阻塞
-    }
+/// Query global N_eff from in-memory data.
+pub fn query_neff_global_in_memory(current_ts: i64, tau: f64) -> f64 {
+    let lock = GLOBAL_HISTORY.read().unwrap();
+    calculate_volume(&lock, current_ts, tau)
 }
 
-pub fn query_neff_from_db(current_ts: i64, tau: f64) -> f64 {
-    let pool = match READ_POOL.get() {
-        Some(p) => p,
-        None => return 0.0,
-    };
-    let raw_conn = match pool.available.recv() {
-        Ok(c) => c,
-        Err(_) => return 0.0,
-    };
-    let conn_guard = DbConnectionGuard {
-        conn: Some(raw_conn),
-        pool_sender: pool.recycle.clone(),
-    };
+fn calculate_volume(history: &[HistoryRecord], current_time: i64, tau: f64) -> f64 {
+    if history.is_empty() || tau <= 0.0 { return 0.0; }
 
-    let query = "SELECT SUM(delta * EXP( -1.0 * (?1 - ts) / (?2 * 86400000.0) )) FROM economy_log WHERE ts > ?3";
-    let ms_per_day = 86_400_000.0;
-    let safe_lookback_ms = (tau * ms_per_day * 3.0) as i64;
-    let min_ts = current_ts - safe_lookback_ms;
+    const MS_PER_DAY: f64 = 86_400_000.0;
+    const MAX_FUTURE_TOLERANCE: i64 = 60_000;
+    const MICROS_SCALE: f64 = 1_000_000.0;
 
-    conn_guard.query_row(query, params![current_ts, tau, min_ts], |row| row.get(0)).unwrap_or(0.0)
+    let valid_past = current_time - (tau * MS_PER_DAY * 10.0) as i64;
+    let valid_future = current_time + MAX_FUTURE_TOLERANCE;
+
+    let start_idx = history.partition_point(|r| r.timestamp < valid_past);
+    let slice = &history[start_idx..];
+    if slice.is_empty() { return 0.0; }
+
+    let t_min = slice[0].timestamp;
+    let lambda = 1.0 / (tau * MS_PER_DAY);
+    let base = (-(current_time - t_min) as f64 * lambda).exp();
+
+    let sum: f64 = slice.iter()
+        .filter(|r| r.timestamp <= valid_future)
+        .map(|r| {
+            let dt = (r.timestamp - t_min) as f64;
+            (r.amount_micros as f64) * (dt * lambda).exp()
+        })
+        .sum();
+
+    let result = (sum / MICROS_SCALE) * base;
+    if result.is_finite() { result } else { 0.0 }
 }
+
+// ==================== Health Stats ====================
 
 pub fn get_total_logs() -> u64 { TOTAL_LOGS.load(Ordering::Relaxed) }
 pub fn get_dropped_logs() -> u64 { DROPPED_LOGS.load(Ordering::Relaxed) }
-
-/// [Fix] 这里的 HistoryRecord 构造也需要同步更新
-pub fn load_recent_history(days: i64) -> Vec<crate::models::HistoryRecord> {
-    let pool = match READ_POOL.get() {
-        Some(p) => p,
-        None => return Vec::new(),
-    };
-    let raw_conn = match pool.available.recv() {
-        Ok(c) => c,
-        Err(_) => return Vec::new(),
-    };
-
-    // Guard ensures connection is always returned to pool
-    let guard = DbConnectionGuard {
-        conn: Some(raw_conn),
-        pool_sender: pool.recycle.clone(),
-    };
-
-    let ms_lookback = days * 86_400_000;
-    let cutoff = chrono::Utc::now().timestamp_millis() - ms_lookback;
-
-    let query = "SELECT ts, delta FROM economy_log WHERE ts > ? ORDER BY ts ASC";
-    let mut stmt = match guard.prepare(query) {
-        Ok(s) => s,
-        Err(_) => return Vec::new(),
-    };
-    let record_iter = match stmt.query_map(params![cutoff], |row| {
-        let amt_f64: f64 = row.get(1)?;
-        Ok(crate::models::HistoryRecord {
-            timestamp: row.get(0)?,
-            amount_micros: (amt_f64 * 1_000_000.0) as i64,
-        })
-    }) {
-        Ok(iter) => iter,
-        Err(_) => return Vec::new(),
-    };
-
-    let mut history = Vec::new();
-    for record in record_iter.flatten() {
-        history.push(record);
-    }
-    // Guard drops here, connection returned to pool
-    history
-}
-
-pub fn load_recent_market_history_by_key(days: i64) -> HashMap<String, Vec<crate::models::HistoryRecord>> {
-    let mut result: HashMap<String, Vec<crate::models::HistoryRecord>> = HashMap::new();
-    let pool = match READ_POOL.get() {
-        Some(p) => p,
-        None => return result,
-    };
-    let raw_conn = match pool.available.recv() {
-        Ok(c) => c,
-        Err(_) => return result,
-    };
-
-    let ms_lookback = days * 86_400_000;
-    let cutoff = chrono::Utc::now().timestamp_millis() - ms_lookback;
-    let query = "SELECT ts, delta, metadata FROM economy_log WHERE ts > ? ORDER BY ts ASC";
-    let mut stmt = match raw_conn.prepare(query) {
-        Ok(s) => s,
-        Err(_) => {
-            let _ = pool.recycle.send(raw_conn);
-            return result;
-        }
-    };
-
-    let record_iter = match stmt.query_map(params![cutoff], |row| {
-        let timestamp: i64 = row.get(0)?;
-        let amt_f64: f64 = row.get(1)?;
-        let metadata: String = row.get(2)?;
-        Ok((timestamp, amt_f64, metadata))
-    }) {
-        Ok(iter) => iter,
-        Err(_) => {
-            let _ = pool.recycle.send(raw_conn);
-            return result;
-        }
-    };
-
-    for record in record_iter.flatten() {
-        let (timestamp, amt_f64, metadata) = record;
-        if let Some(key) = metadata.strip_prefix("MARKET_TRADE:") {
-            if key.is_empty() {
-                continue;
-            }
-            let bucket = result.entry(key.to_string()).or_default();
-            bucket.push(crate::models::HistoryRecord {
-                timestamp,
-                amount_micros: (amt_f64 * 1_000_000.0) as i64,
-            });
-        }
-    }
-
-    let _ = pool.recycle.send(raw_conn);
-    result
-}
