@@ -39,6 +39,7 @@ jobs:
         run: |
           mkdir -p _site
           cp sim_output/*.png _site/
+          cp sim_output/*.csv _site/
           cp sim_output/*.svg _site/ 2>/dev/null || true
 
           # Build index page
