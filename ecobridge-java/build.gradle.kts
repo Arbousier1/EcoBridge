@@ -318,7 +318,7 @@ dependencies {
 
     compileOnly(fileTree(mapOf("dir" to "libs", "include" to listOf("**/*.jar"))))
 
-    compileOnly(platform("tools.jackson:jackson-bom:3.0.0"))
+    compileOnly(platform("tools.jackson:jackson-bom:3.1.2"))
     compileOnly("tools.jackson.core:jackson-databind")
 
     compileOnly("org.mariadb.jdbc:mariadb-java-client:3.5.8")
