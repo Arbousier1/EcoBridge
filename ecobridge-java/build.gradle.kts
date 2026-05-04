@@ -17,7 +17,7 @@ buildscript {
 plugins {
     `java-library`
     checkstyle
-    id("com.gradleup.shadow") version "9.3.1"
+    id("com.gradleup.shadow") version "9.4.1"
     id("com.diffplug.spotless") version "8.4.0"
     id("io.gitlab.arturbosch.detekt") version "1.23.8"
     idea
