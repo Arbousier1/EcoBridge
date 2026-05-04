@@ -325,7 +325,7 @@ dependencies {
     compileOnly("org.mariadb.jdbc:mariadb-java-client:3.5.8")
     compileOnly("com.zaxxer:HikariCP:7.0.2")
     compileOnly("com.github.ben-manes.caffeine:caffeine:3.2.3")
-    compileOnly("redis.clients:jedis:5.2.0")
+    compileOnly("redis.clients:jedis:7.5.0")
 
     compileOnly("com.h2database:h2:2.3.232")
 
