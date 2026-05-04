@@ -327,7 +327,7 @@ dependencies {
     compileOnly("com.github.ben-manes.caffeine:caffeine:3.2.3")
     compileOnly("redis.clients:jedis:5.2.0")
 
-    compileOnly("com.h2database:h2:2.3.232")
+    compileOnly("com.h2database:h2:2.4.240")
 
     compileOnly("org.ow2.asm:asm:9.9.1")
     compileOnly("org.ow2.asm:asm-commons:9.9.1")
